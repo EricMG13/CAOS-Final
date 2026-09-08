@@ -35,9 +35,9 @@ class State(StrEnum):
 # REQUIRED, CONDITIONAL and QA_GATE block. OPTIONAL and ADVISORY are soft until
 # the source's readiness is READY or READY_WITH_LIMITATIONS, at which point a
 # missing input is a real gap rather than an absent extra.
-BLOCKING = frozenset({"REQUIRED", "CONDITIONAL", "QA_GATE"})
-SOFT = frozenset({"OPTIONAL", "ADVISORY"})
-HARDENING_READINESS = frozenset({"READY", "READY_WITH_LIMITATIONS"})
+_BLOCKING = frozenset({"REQUIRED", "CONDITIONAL", "QA_GATE"})
+_SOFT = frozenset({"OPTIONAL", "ADVISORY"})
+_HARDENING_READINESS = frozenset({"READY", "READY_WITH_LIMITATIONS"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -245,7 +245,7 @@ def dependency_order(nodes: list[Node], edges: tuple[Edge, ...]) -> tuple[Node, 
     return tuple(ordered)
 
 
-def readiness_of(route: ResolvedRoute, accepted: dict[str, Accepted]) -> str | None:
+def _readiness_of(route: ResolvedRoute, accepted: dict[str, Accepted]) -> str | None:
     """The readiness CP-0 established, read from its accepted artifact."""
     for node in route.nodes:
         if node.module_id == "CP-0":
@@ -258,7 +258,7 @@ def node_states(
     route: ResolvedRoute, accepted: dict[str, Accepted]
 ) -> dict[str, NodeState]:
     """Every node's state, recomputed from the accepted attempts alone."""
-    hardened = readiness_of(route, accepted) in HARDENING_READINESS
+    hardened = _readiness_of(route, accepted) in _HARDENING_READINESS
     states: dict[str, NodeState] = {}
     for node in route.nodes:
         if node.route_node_id in accepted:
@@ -269,8 +269,8 @@ def node_states(
             for e in route.edges
             if e.target == node.route_node_id and e.source not in accepted
         ]
-        blocking = [e for e in unmet if e.type in BLOCKING or hardened]
-        carried = tuple(e.source for e in unmet if e.type in SOFT)
+        blocking = [e for e in unmet if e.type in _BLOCKING or hardened]
+        carried = tuple(e.source for e in unmet if e.type in _SOFT)
         if blocking:
             states[node.route_node_id] = NodeState(State.BLOCKED, carried)
         elif carried:

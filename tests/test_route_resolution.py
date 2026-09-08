@@ -18,17 +18,17 @@ from pathlib import Path
 import pytest
 
 from server.engine.route import (
-    BLOCKING,
-    SOFT,
+    _BLOCKING,
+    _SOFT,
     Accepted,
     Edge,
     NodeState,
     ResolvedRoute,
     State,
+    _readiness_of,
     dependency_order,
     frontier,
     node_states,
-    readiness_of,
     resolve_route,
     route_digest,
 )
@@ -164,10 +164,10 @@ def test_readiness_of_reads_cp0s_artifact_and_nothing_else(
 ) -> None:
     # DECISIONS.md 18: readiness is not a parameter. It comes from the accepted
     # CP-0 attempt, so recovery recomputes it and has nothing to restore.
-    assert readiness_of(route, {}) is None
-    assert readiness_of(route, _accept(route, "CP-0", readiness="READY")) == "READY"
+    assert _readiness_of(route, {}) is None
+    assert _readiness_of(route, _accept(route, "CP-0", readiness="READY")) == "READY"
     # An accepted CP-1 says nothing about readiness.
-    assert readiness_of(route, _accept(route, "CP-1", readiness="READY")) is None
+    assert _readiness_of(route, _accept(route, "CP-1", readiness="READY")) is None
 
 
 def test_a_resolved_route_is_a_closed_node_list_and_typed_edge_set(
@@ -178,7 +178,7 @@ def test_a_resolved_route_is_a_closed_node_list_and_typed_edge_set(
     assert all({e.source, e.target} <= known for e in route.edges), (
         "an edge may not name a node outside the route"
     )
-    assert {e.type for e in route.edges} <= BLOCKING | SOFT
+    assert {e.type for e in route.edges} <= _BLOCKING | _SOFT
 
 
 def test_node_state_carries_only_the_soft_edges_it_is_missing(
@@ -188,7 +188,7 @@ def test_node_state_carries_only_the_soft_edges_it_is_missing(
     for node_id, state in states.items():
         carried = set(state.carried)
         soft_sources = {
-            e.source for e in route.edges if e.target == node_id and e.type in SOFT
+            e.source for e in route.edges if e.target == node_id and e.type in _SOFT
         }
         assert carried <= soft_sources
         assert isinstance(state, NodeState)

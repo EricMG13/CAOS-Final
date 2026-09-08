@@ -51,7 +51,7 @@ def _collapse(text: str) -> str:
     return " ".join(text.split())
 
 
-def line_runs(tokens: list[Token]) -> list[tuple[str, list[Token]]]:
+def _line_runs(tokens: list[Token]) -> list[tuple[str, list[Token]]]:
     """Each line as its collapsed text and the tokens that make it up."""
     runs = []
     for _, line in groupby(tokens, key=lambda token: (token.region_id, token.line_id)):
@@ -60,7 +60,7 @@ def line_runs(tokens: list[Token]) -> list[tuple[str, list[Token]]]:
     return runs
 
 
-def enclosing_box(tokens: list[Token]) -> Rectangle:
+def _enclosing_box(tokens: list[Token]) -> Rectangle:
     """The smallest rectangle containing every token given."""
     return (
         min(token.x0 for token in tokens),
@@ -90,7 +90,7 @@ def _covered(
     return covering
 
 
-def locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
+def _locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
     """The tokens a quote covers, one list per line, or a refusal.
 
     A quote absent from every region is not locatable; one present in more than
@@ -102,7 +102,7 @@ def locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
 
     hits: list[list[list[Token]]] = []
     for _, region in groupby(tokens, key=lambda token: token.region_id):
-        runs = line_runs(list(region))
+        runs = _line_runs(list(region))
         text = " ".join(line for line, _ in runs)
         at = text.find(quote)
         while at >= 0:
@@ -145,8 +145,8 @@ def anchor_citation(
     page: int,
     matched_text: str,
 ) -> Citation:
-    """Re-locate a quote within its case and derive its rectangles, or refuse it."""
-    covering = locate(
+    """Re-_locate a quote within its case and derive its rectangles, or refuse it."""
+    covering = _locate(
         _page_tokens(
             store, case_id=case_id, document_sha256=document_sha256, page=page
         ),
@@ -155,6 +155,6 @@ def anchor_citation(
     return Citation(
         document_sha256=document_sha256,
         page=page,
-        bboxes=tuple(enclosing_box(line) for line in covering),
+        bboxes=tuple(_enclosing_box(line) for line in covering),
         matched_text=matched_text,
     )
