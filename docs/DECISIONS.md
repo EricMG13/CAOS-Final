@@ -175,6 +175,32 @@ the required set because no job of that name exists on `main`; it is added with
 the store PR that introduces it, since a required check that never reports
 blocks every merge.
 
+## 2026-09-08 §15 — A citation carries one rectangle per line, not one rectangle
+
+`bbox` becomes `bboxes`: one rectangle for each line the quote covers. Every
+`source_tokens` row carries the layout region and the line it belongs to,
+assigned by the extractor, and a match may run within a line or continue onto
+the next line of the same region -- never across a gutter.
+
+`region` rather than `block`: `CONTEXT.md` already spends `block` on the unit
+`read_evidence` returns, and `source_blocks` is keyed by a `block_id` that means
+something else entirely. One spelling for two concepts is the defect that
+glossary exists to prevent, and `check_vocabulary.py` cannot see it -- it catches
+a synonym for a term, not a term used for two things.
+
+**Reason.** The singular `bbox` cannot describe a quote that wraps, and every
+covenant worth citing wraps. Building the enclosing rectangle instead was
+verified to accept `"net debt"` spanning a two-column gutter -- a phrase not on
+the page -- and to return, for a quote crossing a line break, a rectangle
+enclosing two words that were never quoted. Either makes "one click from its
+evidence" false, which is the defect the rebuild exists to escape
+(`DECISIONS.md` §9).
+
+PDF highlight annotations use QuadPoints, a list of quads, for exactly this
+reason. Line identity comes from the extractor because separating two columns
+that share a y-band is layout analysis; a threshold in the anchoring path would
+be a heuristic on the evidence boundary.
+
 ## 2026-09-08 §19 — `make merge` checks for the flag, not for a `gh` version
 
 The target refuses a `gh` whose `pr merge` has no `--match-head-commit`, rather

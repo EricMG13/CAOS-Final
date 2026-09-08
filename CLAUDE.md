@@ -42,10 +42,11 @@ makes one pass vacuously is wrong even with a green suite.
     list, typed edge set, frozen predicates — is digested at the plan gate.
     Execution reads only the pin. Replay from the same pins takes the same path.
     Route *resolution* is a pure function; route *selection* is a pinned input.
-11. **Citations are coordinate-anchored.** `{document_sha256, page, bbox,
+11. **Citations are coordinate-anchored.** `{document_sha256, page, bboxes,
     matched_text}`. The host re-locates the quote in its token index and derives
-    the rectangle. A quote it cannot re-locate is refused before it reaches the
-    artifact.
+    one rectangle per line the quote covers. A quote it cannot re-locate, or
+    cannot locate exactly once, is refused before it reaches the artifact. A
+    rectangle never encloses text the quote does not contain.
 
 Standing rules that back them:
 
@@ -160,6 +161,38 @@ system this size means nobody looked.
   `run_attempts`, `deliverable_opinions`, `model_revisions` and `audit_events`
   are equally append-only in the spec. *Upgrade:* each carries the same
   `refuse_rewrite` trigger in the phase that creates it.
+- **The identifier gates see only what git tracks.** A file added but not yet
+  staged is invisible to `check_vocabulary.py` and `check_tested.py`, so
+  `make check` can pass over code neither has read. *Upgrade:* stage before
+  running the gates -- or have them scan the working tree and subtract
+  .gitignore, which is what `git ls-files` was chosen to avoid re-deriving.
+- **`check_vocabulary.py` cannot see a term used for two things.** It catches a
+  synonym for a `CONTEXT.md` term, not one spelling carrying two concepts -- a
+  layout `block_id` on `source_tokens` and the `block_id` of `source_blocks`
+  passed it cleanly until a human read them together. *Upgrade:* unclear that a
+  checker can do this; the control is review.
+- **A quote must align to whole extracted tokens, and must not be hyphenated
+  across a line.** A PDF that breaks `leverage` into `lever-` and `age` yields
+  two tokens, and a module quoting `leverage` is refused. *Upgrade:*
+  de-hyphenate at extraction, in the slice that adds real PDF extraction.
+- **Citation anchoring is proven against a synthetic token index.** No real
+  PDF has been extracted, so nothing shows that an extractor's blocks and
+  lines are the ones this logic assumes. *Upgrade:* the extraction slice adds
+  a real document fixture and re-runs these tests against it.
+- **`IO_BUDGET = 2` in `citations.py` is declared and not enforced.**
+  `io_budget.py --assert` scans `server/api/`, which does not exist yet, so
+  nothing holds the read path to its budget. *Upgrade:* the slice that adds
+  the first route, with `test_io_budget_read_evidence`.
+- **Citations are scoped to the case, not to the node's delivered evidence.**
+  Invariant 9 says citations may only name evidence actually delivered to
+  that node; a module can currently cite any document in its case.
+  *Upgrade:* the `read_evidence` slice, which is what mints a delivered set.
+- **`admit_source` and `start_run` both mint a `cases` row.** Tenancy is
+  created as a side effect, with no authority check at the boundary.
+  *Upgrade:* the ingestion slice, where intake authority is decided.
+- **A source admitted with no tokens is accepted.** Every citation against it
+  is then refused, which is correct but late; a scanned document with no text
+  layer should be refused at intake. *Upgrade:* the ingestion slice.
 - **A run's terminal event is the only event kind.** `RUN_COMPLETED` is
   written; failure and node-level transitions are not. *Upgrade:* Phase 4,
   with the frontier loop that produces them.

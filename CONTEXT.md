@@ -12,7 +12,7 @@ introduces a synonym for a term below.
 | **source** | one user-provided document admitted into a case | file, upload, attachment |
 | **source set** | an immutable, versioned set of sources a run is pinned to | corpus, pack |
 | **block** | the unit `read_evidence` returns from a source | chunk, fragment, passage |
-| **citation** | `{document_sha256, page, bbox, matched_text}` | reference, footnote |
+| **citation** | `{document_sha256, page, bboxes, matched_text}` | reference, footnote |
 | **module** | one CP-* unit of methodology, one node in a route | agent, step, task |
 | **route** | the resolved, pinned node set and typed edges for a run | graph, pipeline, workflow |
 | **frontier** | the nodes currently RUNNABLE or RESTRICTED | queue, ready set |

@@ -43,6 +43,38 @@ CREATE TABLE IF NOT EXISTS budget_ledger (
     at        timestamptz NOT NULL DEFAULT now()
 );
 
+-- One user-provided document admitted into a case.
+CREATE TABLE IF NOT EXISTS sources (
+    source_id   uuid PRIMARY KEY,
+    case_id     text NOT NULL REFERENCES cases (case_id),
+    sha256      char(64) NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    UNIQUE (case_id, sha256)
+);
+
+-- The coordinate index behind invariant 11: one row per extracted text run with
+-- its page and rectangle. Tokens are never returned to a module; they exist so
+-- the host can re-locate a quote and refuse one it cannot. Keyed so that one
+-- page is one index range -- never a whole-source scan.
+CREATE TABLE IF NOT EXISTS source_tokens (
+    source_id  uuid NOT NULL REFERENCES sources (source_id),
+    page       integer NOT NULL CHECK (page > 0),
+    -- Both assigned by the extractor. A region is a column or a paragraph --
+    -- not CONTEXT.md's `block`, which is what read_evidence returns. A quote
+    -- may wrap onto the next line of its own region and nowhere else, so two
+    -- columns sharing a y-band cannot be joined into a phrase the page does not
+    -- carry (docs/DECISIONS.md section 15).
+    region_id   integer NOT NULL CHECK (region_id >= 0),
+    line_id    integer NOT NULL CHECK (line_id >= 0),
+    ordinal    integer NOT NULL CHECK (ordinal >= 0),
+    text       text NOT NULL,
+    x0         numeric NOT NULL,
+    y0         numeric NOT NULL,
+    x1         numeric NOT NULL,
+    y1         numeric NOT NULL,
+    PRIMARY KEY (source_id, page, region_id, line_id, ordinal)
+);
+
 -- Append-only means append-only. Enforced by the store, not by convention:
 -- a UPDATE or DELETE path that exists is a path that gets used.
 CREATE OR REPLACE FUNCTION refuse_rewrite() RETURNS trigger AS $$
