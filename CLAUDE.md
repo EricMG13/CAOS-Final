@@ -160,6 +160,17 @@ system this size means nobody looked.
   `run_attempts`, `deliverable_opinions`, `model_revisions` and `audit_events`
   are equally append-only in the spec. *Upgrade:* each carries the same
   `refuse_rewrite` trigger in the phase that creates it.
+- **A quote must align to whole extracted tokens, and must not be hyphenated
+  across a line.** A PDF that breaks `leverage` into `lever-` and `age` yields
+  two tokens, and a module quoting `leverage` is refused. *Upgrade:* de-hyphenate
+  at extraction, in the phase that adds real PDF extraction.
+- **Citation anchoring is proven against a synthetic token index.** No real PDF
+  has been extracted yet, so nothing shows the index this logic assumes matches
+  the one an extractor produces. *Upgrade:* the extraction slice adds a real
+  document fixture and re-runs these tests against it.
+- **A source admitted with no tokens is accepted.** Every citation against it is
+  then refused, which is correct but late; a scanned document with no text layer
+  should be refused at intake. *Upgrade:* the ingestion slice.
 - **A run's terminal event is the only event kind.** `RUN_COMPLETED` is
   written; failure and node-level transitions are not. *Upgrade:* Phase 4,
   with the frontier loop that produces them.
