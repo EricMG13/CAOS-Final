@@ -4,7 +4,7 @@ PYTEST := .venv/bin/pytest
 PG_DIGEST := cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
 SEC := .venv-security/bin
 
-.PHONY: venv lock lint types test test-model security check dev
+.PHONY: venv lock lint types test test-model security check pg merge dev
 
 venv:  ## dev toolchain on 3.14, security toolchain on 3.12 (AI_CODE_QUALITY 4)
 	uv venv --python 3.14 .venv
@@ -48,6 +48,16 @@ pg:  ## the store this repo tests against, digest-pinned as in CI
 	docker run -d --name caos-final-pg -e POSTGRES_PASSWORD=caos -e POSTGRES_DB=caos \
 		-p 55432:5432 postgres@sha256:$(PG_DIGEST)
 	@echo 'export CAOS_TEST_POSTGRES_URL=postgresql://postgres:caos@localhost:55432/caos'
+
+merge:  ## refuse to merge a PR whose checks are not all green
+	@case "$${PR-}" in ''|0*|*[!0-9]*) echo "usage: make merge PR=<number>"; exit 1;; esac; \
+	gh="$$(command -v gh)" || { echo "error: gh is required"; exit 1; }; \
+	"$$gh" pr merge --help 2>/dev/null | grep -q -- --match-head-commit || \
+		{ echo "error: this gh cannot pin the head commit; upgrade gh"; exit 1; }; \
+	head_oid="$$( "$$gh" pr view "$$PR" --json headRefOid --jq .headRefOid )" && \
+	test -n "$$head_oid" && \
+	"$$gh" pr checks "$$PR" && \
+	"$$gh" pr merge "$$PR" --merge --match-head-commit "$$head_oid"
 
 dev:
 	@echo "no API or worker yet; they arrive with the first HTTP route" && exit 1
