@@ -22,7 +22,7 @@ DIGEST = "d" * 64
 def _token(ordinal: int, text: str) -> Token:
     return Token(
         page=1,
-        block_id=1,
+        region_id=1,
         line_id=1,
         ordinal=ordinal,
         text=text,

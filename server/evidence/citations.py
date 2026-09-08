@@ -7,8 +7,9 @@ where its quote sits is an expectation, not authority (invariant 3), so
 `anchor_citation` takes no rectangle; it returns the ones it derived.
 
 A quote may run within a line and continue onto the next line **of its own
-block**. Nothing joins across blocks, so two columns sharing a y-band cannot be
-assembled into a phrase the page does not carry. Matching is whitespace-
+region** -- a column or a paragraph, as the extractor found it. Nothing joins
+across regions, so two columns sharing a y-band cannot be assembled into a
+phrase the page does not carry. Matching is whitespace-
 insensitive in both directions -- the index holds one token per extracted run
 while a module quotes a running sentence -- and nothing else is normalised, so a
 quote differing by a character is not a match.
@@ -51,7 +52,7 @@ def _collapse(text: str) -> str:
 def line_runs(tokens: list[Token]) -> list[tuple[str, list[Token]]]:
     """Each line as its collapsed text and the tokens that make it up."""
     runs = []
-    for _, line in groupby(tokens, key=lambda token: (token.block_id, token.line_id)):
+    for _, line in groupby(tokens, key=lambda token: (token.region_id, token.line_id)):
         members = list(line)
         runs.append((" ".join(_collapse(token.text) for token in members), members))
     return runs
@@ -90,7 +91,7 @@ def _covered(
 def locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
     """The tokens a quote covers, one list per line, or a refusal.
 
-    A quote absent from every block is not locatable; one present in more than
+    A quote absent from every region is not locatable; one present in more than
     one place has as many rectangles as occurrences, so it has none.
     """
     quote = _collapse(matched_text)
@@ -98,8 +99,8 @@ def locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
         raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
 
     hits: list[list[list[Token]]] = []
-    for _, block in groupby(tokens, key=lambda token: token.block_id):
-        runs = line_runs(list(block))
+    for _, region in groupby(tokens, key=lambda token: token.region_id):
+        runs = line_runs(list(region))
         text = " ".join(line for line, _ in runs)
         at = text.find(quote)
         while at >= 0:
@@ -126,9 +127,9 @@ def _page_tokens(
         if found is None:
             raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
         rows = store.execute(
-            "SELECT page, block_id, line_id, ordinal, text, x0, y0, x1, y1"
+            "SELECT page, region_id, line_id, ordinal, text, x0, y0, x1, y1"
             " FROM source_tokens WHERE source_id = %s AND page = %s"
-            " ORDER BY block_id, line_id, ordinal",
+            " ORDER BY region_id, line_id, ordinal",
             (found[0], page),
         ).fetchall()
     return [Token(*row) for row in rows]

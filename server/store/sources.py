@@ -21,14 +21,16 @@ from server.store import Store
 class Token:
     """One extracted text run, with the rectangle it occupies on its page.
 
-    `block_id` and `line_id` come from the extractor, not from geometry here:
+    A region is a column or a paragraph -- not CONTEXT.md's `block`, which is
+    the unit `read_evidence` returns. `region_id` and `line_id` come from the
+    extractor, not from geometry here:
     separating two columns that share a y-band is layout analysis, and a
     threshold in the anchoring path would be a heuristic on the evidence
     boundary.
     """
 
     page: int
-    block_id: int
+    region_id: int
     line_id: int
     ordinal: int
     text: str
@@ -77,14 +79,14 @@ def _admit(store: Store, *, case_id: str, sha256: str, tokens: list[Token]) -> s
         with store.cursor() as cursor:
             cursor.executemany(
                 "INSERT INTO source_tokens"
-                " (source_id, page, block_id, line_id, ordinal, text,"
+                " (source_id, page, region_id, line_id, ordinal, text,"
                 " x0, y0, x1, y1)"
                 " VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                 [
                     (
                         source_id,
                         token.page,
-                        token.block_id,
+                        token.region_id,
                         token.line_id,
                         token.ordinal,
                         token.text,

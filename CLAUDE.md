@@ -166,6 +166,11 @@ system this size means nobody looked.
   `make check` can pass over code neither has read. *Upgrade:* stage before
   running the gates -- or have them scan the working tree and subtract
   .gitignore, which is what `git ls-files` was chosen to avoid re-deriving.
+- **`check_vocabulary.py` cannot see a term used for two things.** It catches a
+  synonym for a `CONTEXT.md` term, not one spelling carrying two concepts -- a
+  layout `block_id` on `source_tokens` and the `block_id` of `source_blocks`
+  passed it cleanly until a human read them together. *Upgrade:* unclear that a
+  checker can do this; the control is review.
 - **A quote must align to whole extracted tokens, and must not be hyphenated
   across a line.** A PDF that breaks `leverage` into `lever-` and `age` yields
   two tokens, and a module quoting `leverage` is refused. *Upgrade:*

@@ -40,7 +40,7 @@ def _token(
     x0, y0 = at
     return Token(
         page=page,
-        block_id=block,
+        region_id=block,
         line_id=line,
         ordinal=ordinal,
         text=text,

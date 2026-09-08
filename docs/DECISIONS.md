@@ -149,9 +149,15 @@ a tag alone is not a pin.
 ## 2026-09-08 §15 — A citation carries one rectangle per line, not one rectangle
 
 `bbox` becomes `bboxes`: one rectangle for each line the quote covers. Every
-`source_tokens` row carries the line it belongs to, assigned by the extractor,
-and a match may run within a line or continue onto the next -- never across a
-gutter.
+`source_tokens` row carries the layout region and the line it belongs to,
+assigned by the extractor, and a match may run within a line or continue onto
+the next line of the same region -- never across a gutter.
+
+`region` rather than `block`: `CONTEXT.md` already spends `block` on the unit
+`read_evidence` returns, and `source_blocks` is keyed by a `block_id` that means
+something else entirely. One spelling for two concepts is the defect that
+glossary exists to prevent, and `check_vocabulary.py` cannot see it -- it catches
+a synonym for a term, not a term used for two things.
 
 **Reason.** The singular `bbox` cannot describe a quote that wraps, and every
 covenant worth citing wraps. Building the enclosing rectangle instead was

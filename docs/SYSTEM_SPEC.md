@@ -177,10 +177,12 @@ QuadPoints, and for the same reason: selected text wraps. A single enclosing
 rectangle would cover text the quote does not contain, which is the predecessor's
 line-range defect wearing coordinates.
 
-Every token carries the line it belongs to, assigned by the extractor. Matching
-joins tokens within a line and only ever continues onto the next line, so a quote
-cannot be assembled across a column gutter: the two columns are different lines
-and the phrase never forms. A quote it cannot re-locate, or cannot locate exactly
+Every token carries the layout region and the line it belongs to, assigned by
+the extractor. A region is a column or a paragraph; it is not a `block`, which
+is the unit `read_evidence` returns. Matching joins tokens within a line and
+continues only onto the next line of the same region, so a quote cannot be
+assembled across a column gutter: the two columns are different regions and the
+phrase never forms. A quote it cannot re-locate, or cannot locate exactly
 once, is refused before it reaches the artifact. Citations may only name evidence
 actually delivered to that node.
 
