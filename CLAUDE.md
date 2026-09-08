@@ -140,13 +140,22 @@ system this size means nobody looked.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **CodeRabbit reviews nothing while PRs are stacked.** It is installed and
-  live, reading `.coderabbit.yaml`, but auto-review is skipped on any PR whose
-  base is not the default branch — and each phase stacks on its predecessor to
-  stay under the 800-line size gate. `docs/AI_CODE_QUALITY.md` §2 counts it as
-  the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
-  review` per stacked PR, or merge each phase to `main` before opening the
-  next so the base is the default branch.
+- **CodeRabbit never auto-reviews, and the ask cannot be automated.** It is
+  installed and live, reading `.coderabbit.yaml`, but it declines every PR here
+  with *"does not receive automatic reviews because it has fewer than 10
+  stars"* — its own words on PR #20, whose base was `main`. The stacked-base
+  rule is real and `base_branches` covers it, but it was never why this
+  repository saw no reviews. `@coderabbitai review` does start one, in under a
+  minute, when a person posts it (PR #20). The same comment posted by
+  `github-actions[bot]` from a workflow was ignored for nine minutes and never
+  answered (PR #22), so CodeRabbit does not honour a bot author and no workflow
+  in this repository can make the request. `docs/AI_CODE_QUALITY.md` §2 counts
+  it as the third reviewer beside `confidence-review` and
+  `adversarial-reviewer`; **on every PR to date it is absent unless a human
+  types `@coderabbitai review`.** *Upgrade:* 10 stars, or a plan whose
+  auto-review does not gate on them. A workflow driven by a personal access
+  token would also work and is not worth a long-lived credential for this.
+
 **Phase 4.**
 
 - **Nodes run one at a time.** `SYSTEM_SPEC.md` §4 gathers the frontier
@@ -168,7 +177,6 @@ system this size means nobody looked.
   *Upgrade:* Phase 6, when the terminal path and the loop meet.
 - **One flat price per node.** `_price()` returns `Decimal("1.00")` until a
   provider quotes a real one; the ceiling arithmetic is what is under test.
-
 **Phase 3.**
 
 - **Nothing calls `pin_route` yet.** The pin exists and is binding once written,
@@ -208,10 +216,14 @@ system this size means nobody looked.
   whole, with no migrations* rather than *every future table exists now*;
   tables nothing writes cannot have their columns checked by a test.
   *Upgrade:* each phase adds its own tables to the same file.
-- **Append-only is enforced by trigger on `run_events` alone.**
-  `run_attempts`, `deliverable_opinions`, `model_revisions` and `audit_events`
-  are equally append-only in the spec. *Upgrade:* each carries the same
-  `refuse_rewrite` trigger in the phase that creates it.
+- **Append-only is enforced on the four tables that exist.** `run_events`,
+  `source_sets`, `source_set_members` and `delivered_evidence` each refuse
+  UPDATE, DELETE and TRUNCATE. `run_attempts`, `deliverable_opinions`,
+  `model_revisions` and `audit_events` are equally append-only in the spec and
+  are not yet created. *Upgrade:* each carries both `refuse_rewrite` triggers in
+  the phase that creates it, and
+  `test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` fails until
+  it does.
 - **The identifier gates see only what git tracks.** A file added but not yet
   staged is invisible to `check_vocabulary.py` and `check_tested.py`, so
   `make check` can pass over code neither has read. *Upgrade:* stage before
