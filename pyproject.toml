@@ -35,5 +35,7 @@ exclude = ["^\\.venv/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# The repo root for `server`, and scripts/ for the gate executables.
+pythonpath = [".", "scripts"]
 addopts = "-q"
 markers = ["model_parity: requires LibreOffice (docs/MODEL_BUILDER_SPEC.md section 8)"]

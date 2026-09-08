@@ -1,5 +1,6 @@
 # Gate order matches docs/AI_CODE_QUALITY.md: lint, types, tests, security.
 PY  := .venv/bin/python
+PYTEST := .venv/bin/pytest
 PG_DIGEST := cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
 SEC := .venv-security/bin
 
@@ -26,12 +27,12 @@ types:
 	$(PY) -m mypy scripts tests server
 
 test:  # CAOS_TEST_POSTGRES_URL must be set; a skipped store suite is not a pass
-	CAOS_REQUIRE_POSTGRES=1 $(PY) -m pytest
+	CAOS_REQUIRE_POSTGRES=1 $(PYTEST)
 	$(PY) scripts/io_budget.py --assert
 
 test-model:  ## needs soffice on PATH; a green model suite without it is vacuous
 	soffice --version
-	$(PY) -m pytest -m model_parity
+	$(PYTEST) -m model_parity
 
 security:  # the floor is checked first: a report that parsed nothing must fail
 	$(SEC)/bandit -r scripts server -f json -o bandit.json || true

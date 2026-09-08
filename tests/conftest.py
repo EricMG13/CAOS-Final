@@ -1,21 +1,14 @@
-"""Import paths, and one PostgreSQL connection per test on a private schema."""
+"""One PostgreSQL connection per test, on a schema created for it alone."""
 
 from __future__ import annotations
 
 import os
-import sys
 import uuid
 from collections.abc import Iterator
-from pathlib import Path
 
 import pytest
 
 from server.store import Store
-
-REPO = Path(__file__).resolve().parents[1]
-# The gate scripts are executables, not a package; import them by path.
-sys.path.insert(0, str(REPO / "scripts"))
-sys.path.insert(0, str(REPO))
 
 
 @pytest.fixture
