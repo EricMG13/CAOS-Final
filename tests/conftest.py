@@ -4,20 +4,31 @@ from __future__ import annotations
 
 import os
 import uuid
-from collections.abc import Iterator
+from collections.abc import Iterator, Mapping
 
 import pytest
 
 from server.store import Store
 
 
+def postgres_dsn_or_none(environ: Mapping[str, str]) -> str | None:
+    """The configured DSN, or None when the suite is allowed to skip.
+
+    Separate from the fixture so the guard itself has a test: a suite that
+    passes because it skipped is the failure this exists to prevent, and that
+    failure is invisible from the suite's own exit code.
+    """
+    url = environ.get("CAOS_TEST_POSTGRES_URL")
+    if url is None and environ.get("CAOS_REQUIRE_POSTGRES") == "1":
+        pytest.fail("CAOS_REQUIRE_POSTGRES=1 but CAOS_TEST_POSTGRES_URL is unset")
+    return url
+
+
 @pytest.fixture
 def postgres_dsn() -> str:
     """The store under test. A skipped store suite is not a passed one."""
-    url = os.environ.get("CAOS_TEST_POSTGRES_URL")
+    url = postgres_dsn_or_none(os.environ)
     if url is None:
-        if os.environ.get("CAOS_REQUIRE_POSTGRES") == "1":
-            pytest.fail("CAOS_REQUIRE_POSTGRES=1 but CAOS_TEST_POSTGRES_URL is unset")
         pytest.skip("CAOS_TEST_POSTGRES_URL is unset")
     return url
 
