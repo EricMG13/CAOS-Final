@@ -237,3 +237,18 @@ def test_asserted_modules_needs_both_the_import_and_the_assertion(
     assert io_budget.asserted_modules(tests, tmp_path) == {
         tmp_path / "server" / "reads.py"
     }
+
+
+def test_tracked_python_ignores_vendored_upstream_code(tmp_path: Path) -> None:
+    # The methodology bundle is vendored verbatim and never edited, so our gates
+    # must not judge it: a vocabulary or coverage finding there is unactionable.
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "ours.py").write_text("x = 1\n", encoding="utf-8")
+    vendored = tmp_path / "vendor" / "deploy-v" / "skills"
+    vendored.mkdir(parents=True)
+    (vendored / "routing.py").write_text(
+        "def get_deal_chunks(): ...\n", encoding="utf-8"
+    )
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+
+    assert tracked.tracked_python(tmp_path) == [tmp_path / "ours.py"]

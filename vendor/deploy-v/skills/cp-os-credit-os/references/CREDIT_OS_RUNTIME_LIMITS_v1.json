@@ -1,0 +1,59 @@
+{
+  "schema_version": "1.0",
+  "authority": "CREDIT_OS_RUNTIME_LIMITS_v1",
+  "scope": "Frozen version-1 ceilings for every CREDIT OS inspection of untrusted run evidence. Local policy may lower any value; nothing may raise one.",
+  "override_direction": "downward_only",
+  "budget_model": {
+    "cumulative": true,
+    "starts": "before root enumeration",
+    "ends": "after reconciliation",
+    "note": "One budget spans scanning, hashing, validation and retry. It is never reset between phases. Charge every physical byte on each read pass, every archive member visit, and every decompressed byte. Implementations may share a single streaming pass to avoid read amplification, but may not reset a budget to obtain one."
+  },
+  "limits": {
+    "entries_per_run_folder": 256,
+    "bytes_per_refresh": 1073741824,
+    "markdown_or_control_file_bytes": 26214400,
+    "xlsx_outer_file_bytes": 104857600,
+    "zip_outer_file_bytes": 262144000,
+    "archive_members": 512,
+    "single_uncompressed_member_bytes": 104857600,
+    "total_uncompressed_archive_bytes": 262144000,
+    "compression_ratio": 100,
+    "archive_path_depth_components": 12,
+    "front_matter_bytes": 262144,
+    "decoded_line_length_bytes": 65536,
+    "refresh_wall_time_seconds": 60,
+    "stability_settle_seconds": 2
+  },
+  "stability_model": {
+    "kind": "global_settle_window",
+    "settle_seconds_key": "stability_settle_seconds",
+    "charged_to_wall_time_once": true,
+    "rationale": "Revision 4 specified two identical snapshots at least two seconds apart per artifact. With entries_per_run_folder at 256 and refresh_wall_time_seconds at 60, a serialized per-entry wait needs up to 512 seconds inside a 60-second ceiling, so any run past roughly 25 artifacts could never complete a refresh. The guarantee being bought is only that no artifact is accepted while it is being written, and one shared window buys it at O(1) cost instead of O(entries).",
+    "procedure": [
+      "Pass A: enumerate declared attempt directories and record each candidate's identity tuple (device, file id, size, mtime) in one deterministic ordered inventory.",
+      "Settle: wait once for stability_settle_seconds. This single wait is charged to wall time; per-entry waits are forbidden.",
+      "Pass B: re-read every candidate's identity tuple in the same order. Any change marks that entry UNSTABLE and excludes it from acceptance this refresh.",
+      "Read: hash and parse only the stable set, streaming, within the remaining byte and time budget. Bytes changing during a read fail the pre/post identity check and mark the entry UNSTABLE."
+    ],
+    "unstable_entry_disposition": "excluded from acceptance with numbered retry remediation; never partially accepted"
+  },
+  "reject_always": [
+    "nested archives",
+    "encrypted members",
+    "absolute paths",
+    "dot-segment paths",
+    "backslash paths",
+    "duplicate member names after normalization and case folding",
+    "symbolic links",
+    "hard-linked duplicates",
+    "reparse points and junctions",
+    "block and character devices",
+    "sockets",
+    "FIFOs",
+    "embedded active content",
+    "DTDs and external entities",
+    "any input exceeding a limit above"
+  ],
+  "failure_mode": "bounded status with numbered remediation; never partial acceptance"
+}

@@ -1,0 +1,50 @@
+{
+  "authority": "CP_DEPLOY_V_CHILD_SCHEMA_REGISTRY_v1",
+  "base_schema": {
+    "module_id": "CP-LITE-BASE",
+    "package_path": "references/CP-OS_MIRROR_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt",
+    "sha256": "186f7afb4731df0551cd8e2086b2c5b1cd809d191b8c24baba42bf3543e322df",
+    "source_path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt"
+  },
+  "deployment_scope": [
+    "V"
+  ],
+  "modules": [
+    {
+      "module_id": "CP-L10",
+      "package_path": "references/CP-OS_MIRROR_CP-L10__lite_financial_change_screen__payload.schema.txt",
+      "sha256": "ede5b22be68bf23ea5d38278a73ddeec034d96756b012bc434b639259a8a4ecb",
+      "source_path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/MODULE_PAYLOADS/CP-L10__lite_financial_change_screen__payload.schema.txt",
+      "validator": "validate_cp_l_payload"
+    },
+    {
+      "module_id": "CP-L20",
+      "package_path": "references/CP-OS_MIRROR_CP-L20__lite_fundamental_credit_screen__payload.schema.txt",
+      "sha256": "1bc6003bb9ae6b760c651720fdede81be6b7eb43d59de98865354f53ed555327",
+      "source_path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/MODULE_PAYLOADS/CP-L20__lite_fundamental_credit_screen__payload.schema.txt",
+      "validator": "validate_cp_l_payload"
+    },
+    {
+      "module_id": "CP-L23",
+      "package_path": "references/CP-OS_MIRROR_CP-L23__lite_liquidity_sensitivity_screen__payload.schema.txt",
+      "sha256": "1c164ff16e005d4d8c049f3d71cc3d481550c5d43d12ac302e6d7cc06d50c7e4",
+      "source_path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/MODULE_PAYLOADS/CP-L23__lite_liquidity_sensitivity_screen__payload.schema.txt",
+      "validator": "validate_cp_l_payload"
+    },
+    {
+      "module_id": "CP-L30",
+      "package_path": "references/CP-OS_MIRROR_CP-L30__lite_market_recovery_opportunity_screen__payload.schema.txt",
+      "sha256": "8282240e1340152cc01263a21ac3830ce6e090212403ed6c99e2acce76e5176d",
+      "source_path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/MODULE_PAYLOADS/CP-L30__lite_market_recovery_opportunity_screen__payload.schema.txt",
+      "validator": "validate_cp_l_payload"
+    },
+    {
+      "module_id": "CP-L40",
+      "package_path": "references/CP-OS_MIRROR_CP-L40__lite_legal_structure_capacity_screen__payload.schema.txt",
+      "sha256": "bdf3b97a9889dae953a11aac88d1f3d483810f00ddb8a5bf961c5c7d8f57a842",
+      "source_path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/MODULE_PAYLOADS/CP-L40__lite_legal_structure_capacity_screen__payload.schema.txt",
+      "validator": "validate_cp_l_payload"
+    }
+  ],
+  "schema_version": "1.0"
+}

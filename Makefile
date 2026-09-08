@@ -24,7 +24,7 @@ lint:
 	$(PY) scripts/check_tested.py
 
 types:
-	$(PY) -m mypy scripts tests server
+	$(PY) -m mypy scripts tests server  # vendor/ excluded in pyproject
 
 test:  # CAOS_TEST_POSTGRES_URL must be set; a skipped store suite is not a pass
 	CAOS_REQUIRE_POSTGRES=1 $(PYTEST)

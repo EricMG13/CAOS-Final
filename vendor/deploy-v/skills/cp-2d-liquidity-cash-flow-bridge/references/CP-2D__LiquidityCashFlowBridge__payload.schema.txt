@@ -1,0 +1,1 @@
+{"allOf":[{"$ref":"../../../CP_MODULE_PAYLOAD_BASE.schema.txt"}],"properties":{"module_id":{"const":"CP-2D"},"module_name":{"const":"LiquidityCashFlowBridge"},"owned_object":{"const":"liquidity_cash_flow_bridge"},"schema_family":{"const":"Nested"},"runtime_output":{"type":"object","properties":{"cash_flow_bridge":{},"liquidity_assessment":{}}}}}

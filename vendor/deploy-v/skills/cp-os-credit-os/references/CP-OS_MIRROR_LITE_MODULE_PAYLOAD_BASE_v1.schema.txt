@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt",
+  "description": "Deploy V CP-L module-payload base. It preserves the canonical payload envelope and adds the structured adaptive-screening contract governed by CP_LITE_ANALYSIS_POLICY_v1.md.",
+  "type": "object",
+  "required": [
+    "module_id",
+    "module_name",
+    "owned_object",
+    "schema_family",
+    "output_class",
+    "runtime_output",
+    "evidence_trace",
+    "confidence_score",
+    "confidence_band",
+    "limitation_flags",
+    "qa_status",
+    "validation_warnings",
+    "downstream_consumers"
+  ],
+  "properties": {
+    "module_id": {
+      "type": "string",
+      "enum": ["CP-L10", "CP-L20", "CP-L23", "CP-L30", "CP-L40"]
+    },
+    "module_name": {"type": "string", "minLength": 1},
+    "owned_object": {"type": "string", "minLength": 1},
+    "schema_family": {"type": "string", "enum": ["Nested", "Infrastructure"]},
+    "output_class": {"const": "CANONICAL_MARKDOWN"},
+    "runtime_output": {
+      "type": "object",
+      "description": "Shared runtime contract is intentionally extensible. Each CP-L child schema MUST redeclare the inherited runtime properties together with its module-specific runtime properties and set additionalProperties to false at the child runtime_output boundary.",
+      "required": [
+        "decision_scope",
+        "execution_basis",
+        "screen_status",
+        "screen_conclusion",
+        "source_scope_gate",
+        "topic_allocation",
+        "cross_topic_synthesis",
+        "upgrade_plan",
+        "gaps_conflicts"
+      ],
+      "properties": {
+        "decision_scope": {"const": "SCREENING_ONLY"},
+        "execution_basis": {"enum": ["SOURCE_DIRECT", "UPSTREAM_HANDOFFS", "MIXED"]},
+        "screen_status": {"enum": ["COMPLETE", "COMPLETE_WITH_GAPS", "BLOCKED_IDENTITY"]},
+        "screen_conclusion": {
+          "type": "object",
+          "required": ["outcome", "summary"],
+          "properties": {
+            "outcome": {"enum": ["LITE_COMPLETE", "FULL_UPGRADE_RECOMMENDED", "FULL_UPGRADE_REQUIRED"]},
+            "summary": {"type": "string"}
+          },
+          "additionalProperties": false
+        },
+        "source_scope_gate": {
+          "type": "object",
+          "required": ["status", "subject_identity"],
+          "properties": {
+            "status": {"enum": ["COMPLETE", "PARTIAL", "BLOCKED_IDENTITY"]},
+            "subject_identity": {"type": "string", "minLength": 1}
+          },
+          "additionalProperties": true
+        },
+        "allocation_budget": {
+          "type": "object",
+          "description": "Optional execution telemetry only. This authority imposes no output, token, word, claim, metric, reference, or unit ceiling.",
+          "additionalProperties": true
+        },
+        "topic_allocation": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/topic"}
+        },
+        "cross_topic_synthesis": {"type": "object"},
+        "upgrade_plan": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["topic_id", "target_full_module_id", "trigger", "missing_inputs", "expected_owned_object", "blocking_for_full_decision"],
+            "properties": {
+              "topic_id": {"type": "string", "minLength": 1},
+              "target_full_module_id": {"enum": ["CP-1", "CP-1B", "CP-2", "CP-2C", "CP-2F", "CP-2D", "CP-2E", "CP-2G", "CP-3D", "CP-3A", "CP-3", "CP-4", "CP-4B", "CP-4A"]},
+              "trigger": {"type": "string", "minLength": 1},
+              "missing_inputs": {"type": "array", "items": {"type": "string"}},
+              "expected_owned_object": {"type": "string", "minLength": 1},
+              "blocking_for_full_decision": {"type": "boolean"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "gaps_conflicts": {"type": "array", "items": {"type": "object"}}
+      },
+      "additionalProperties": true
+    },
+    "evidence_trace": {"type": "object"},
+    "confidence_score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "confidence_band": {
+      "type": "string",
+      "enum": ["High", "Medium", "Low", "Insufficient Information"]
+    },
+    "limitation_flags": {"type": "array", "items": {"type": "string"}},
+    "qa_status": {"type": "string", "enum": ["Not Reviewed", "Passed", "Restricted", "Blocked"]},
+    "validation_warnings": {"type": "array", "items": {"type": "string"}},
+    "downstream_consumers": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "topic": {
+      "type": "object",
+      "required": [
+        "topic_id",
+        "source_owner_modules",
+        "materiality",
+        "evidence_status",
+        "disposition",
+        "priority_rank",
+        "summary",
+        "source_refs",
+        "upgrade_module_ids"
+      ],
+      "properties": {
+        "topic_id": {"type": "string", "minLength": 1},
+        "source_owner_modules": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+        "materiality": {"enum": ["HIGH", "MEDIUM", "LOW", "NOT_ASSESSABLE"]},
+        "evidence_status": {"enum": ["SUFFICIENT", "PARTIAL", "MISSING", "CONFLICTED"]},
+        "disposition": {"enum": ["DEEPEN", "SUMMARIZE", "GAP_ONLY", "IMMATERIAL"]},
+        "priority_rank": {"type": "integer", "minimum": 1},
+        "budget_units": {"type": "number", "minimum": 0},
+        "summary": {"type": "string"},
+        "source_refs": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+        "upgrade_module_ids": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {"enum": ["CP-1", "CP-1B", "CP-2", "CP-2C", "CP-2F", "CP-2D", "CP-2E", "CP-2G", "CP-3D", "CP-3A", "CP-3", "CP-4", "CP-4B", "CP-4A"]}
+        },
+        "claim_count": {"type": "integer", "minimum": 0},
+        "metric_count": {"type": "integer", "minimum": 0},
+        "reader_word_count": {"type": "integer", "minimum": 0},
+        "analytical_conclusion": {"type": "string", "minLength": 1},
+        "gap_detail": {"$ref": "#/$defs/gap_detail"},
+        "immateriality_basis": {"type": "string", "minLength": 1}
+      },
+      "allOf": [
+        {"if": {"properties": {"disposition": {"const": "DEEPEN"}}, "required": ["disposition"]}, "then": {"properties": {"upgrade_module_ids": {"minItems": 1}}}},
+        {"if": {"properties": {"disposition": {"const": "SUMMARIZE"}}, "required": ["disposition"]}, "then": {}} ,
+        {"if": {"properties": {"disposition": {"const": "GAP_ONLY"}}, "required": ["disposition"]}, "then": {"required": ["gap_detail"], "properties": {"upgrade_module_ids": {"minItems": 1}}, "not": {"required": ["analytical_conclusion"]}}, "else": {"not": {"required": ["gap_detail"]}}},
+        {"if": {"properties": {"disposition": {"const": "IMMATERIAL"}}, "required": ["disposition"]}, "then": {"required": ["immateriality_basis"], "properties": {"evidence_status": {"enum": ["SUFFICIENT", "PARTIAL"]}, "source_refs": {"minItems": 1}}}, "else": {"not": {"required": ["immateriality_basis"]}}},
+        {"if": {"properties": {"evidence_status": {"const": "MISSING"}}, "required": ["evidence_status"]}, "then": {"properties": {"disposition": {"not": {"const": "IMMATERIAL"}}}}},
+        {"if": {"properties": {"materiality": {"const": "HIGH"}, "evidence_status": {"enum": ["MISSING", "CONFLICTED"]}}, "required": ["materiality", "evidence_status"]}, "then": {"properties": {"disposition": {"const": "GAP_ONLY"}}}}
+      ],
+      "additionalProperties": false
+    },
+    "gap_detail": {
+      "type": "object",
+      "required": ["missing_evidence", "decision_impact", "required_source", "full_upgrade_module"],
+      "properties": {
+        "missing_evidence": {"type": "string", "minLength": 1},
+        "decision_impact": {"type": "string", "minLength": 1},
+        "required_source": {"type": "string", "minLength": 1},
+        "full_upgrade_module": {"enum": ["CP-1", "CP-1B", "CP-2", "CP-2C", "CP-2F", "CP-2D", "CP-2E", "CP-2G", "CP-3D", "CP-3A", "CP-3", "CP-4", "CP-4B", "CP-4A"]}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "runtime_output": {
+            "type": "object",
+            "properties": {
+              "topic_allocation": {
+                "type": "array",
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "materiality": {"const": "HIGH"},
+                    "evidence_status": {"enum": ["MISSING", "CONFLICTED"]}
+                  },
+                  "required": ["materiality", "evidence_status"]
+                }
+              }
+            },
+            "required": ["topic_allocation"]
+          }
+        },
+        "required": ["runtime_output"]
+      },
+      "then": {
+        "properties": {
+          "runtime_output": {
+            "properties": {
+              "source_scope_gate": {
+                "properties": {"status": {"const": "PARTIAL"}},
+                "required": ["status"]
+              }
+            },
+            "required": ["source_scope_gate"]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {"runtime_output": {"properties": {"screen_status": {"const": "COMPLETE_WITH_GAPS"}, "screen_conclusion": {"properties": {"outcome": {"const": "LITE_COMPLETE"}}, "required": ["outcome"]}}, "required": ["screen_status", "screen_conclusion"]}},
+        "required": ["runtime_output"]
+      },
+      "then": {"properties": {"runtime_output": {"properties": {"screen_conclusion": {"properties": {"outcome": {"not": {"const": "LITE_COMPLETE"}}}}}}}}
+    },
+    {
+      "if": {"properties": {"runtime_output": {"properties": {"screen_status": {"const": "BLOCKED_IDENTITY"}}, "required": ["screen_status"]}}, "required": ["runtime_output"]},
+      "then": {"properties": {"runtime_output": {"properties": {"source_scope_gate": {"properties": {"status": {"const": "BLOCKED_IDENTITY"}}, "required": ["status"]}}, "required": ["source_scope_gate"]}}}
+    },
+    {
+      "if": {"properties": {"runtime_output": {"properties": {"source_scope_gate": {"properties": {"status": {"const": "BLOCKED_IDENTITY"}}, "required": ["status"]}}, "required": ["source_scope_gate"]}}, "required": ["runtime_output"]},
+      "then": {"properties": {"runtime_output": {"properties": {"screen_status": {"const": "BLOCKED_IDENTITY"}}}}}
+    }
+  ],
+  "additionalProperties": false
+}

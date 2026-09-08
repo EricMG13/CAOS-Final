@@ -145,6 +145,19 @@ system this size means nobody looked.
   the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
   review` per stacked PR, or merge each phase to `main` before opening the
   next so the base is the default branch.
+**Phase 3.**
+
+- **No CONDITIONAL edge exists in the pinned bundle.** `CONTEXT.md` lists it as
+  a blocking edge type and `resolve_route` freezes predicates for it, but the
+  catalog at build `a43cb903` declares zero of them (`docs/DECISIONS.md` §17).
+  The code path will be written and cannot be exercised against real data.
+  *Upgrade:* a bundle that uses the type, or a decision to drop it.
+- **The bundle is verified at rest, not at use.** `tests/test_bundle_pin.py`
+  hashes the vendored tree against its own manifest; nothing yet re-checks the
+  bytes when a module is loaded, and no run records the build it ran under.
+  *Upgrade:* Phase 5, which owns `assemble_authority` and the per-module
+  `authority_digest`.
+
 **Phase 1.**
 
 - **`commit_terminal` assumes it opens the outermost transaction.** Called

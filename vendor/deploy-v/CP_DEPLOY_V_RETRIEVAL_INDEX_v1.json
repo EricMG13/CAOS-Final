@@ -1,0 +1,197 @@
+{
+  "authority": "CP_DEPLOY_V_RETRIEVAL_INDEX_v1",
+  "build_id": "a43cb903ca2751f79e77b6da71f6ea131b8462a32e1b549d65fd0f67389d185f",
+  "deployment_scope": [
+    "V"
+  ],
+  "frontmatter_name_equals_folder_slug": true,
+  "frontmatter_name_exceptions": {},
+  "integrity_file": "DEPLOY_V_INTEGRITY_v1.json",
+  "memory_fallbacks": {
+    "base_url_token": "BASE_SKILLS_FOLDER_URL",
+    "folder_bound_path": "DEPLOY_V_COPILOT_MEMORY_PROMPT.md",
+    "run_artifact_root": "DEPLOY_V_RUN_ARTIFACTS",
+    "url_bound_path": "DEPLOY_V_COPILOT_MEMORY_PROMPT_URL_BOUND.md"
+  },
+  "package_root": "DEPLOY_V",
+  "schema_version": "1.1",
+  "skills": [
+    {
+      "aliases": [
+        "CP-PARSE"
+      ],
+      "folder_slug": "cp-0-source-readiness",
+      "module_id": "CP-0",
+      "skill_md": "skills/cp-0-source-readiness/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-1-canonical-data-foundation",
+      "module_id": "CP-1",
+      "skill_md": "skills/cp-1-canonical-data-foundation/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-2C"
+      ],
+      "folder_slug": "cp-1a-business-transaction-fact-pack",
+      "module_id": "CP-1A",
+      "skill_md": "skills/cp-1a-business-transaction-fact-pack/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-1b-earnings-delta",
+      "module_id": "CP-1B",
+      "skill_md": "skills/cp-1b-earnings-delta/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-1c-peer-benchmark",
+      "module_id": "CP-1C",
+      "skill_md": "skills/cp-1c-peer-benchmark/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-1E"
+      ],
+      "folder_slug": "cp-1d-earnings-quality",
+      "module_id": "CP-1D",
+      "skill_md": "skills/cp-1d-earnings-quality/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-2-fundamental-credit-synthesizer",
+      "module_id": "CP-2",
+      "skill_md": "skills/cp-2-fundamental-credit-synthesizer/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-2B"
+      ],
+      "folder_slug": "cp-2a-downside-pathway",
+      "module_id": "CP-2A",
+      "skill_md": "skills/cp-2a-downside-pathway/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-2F"
+      ],
+      "folder_slug": "cp-2e-macro-fx-hedging-sensitivity",
+      "module_id": "CP-2E",
+      "skill_md": "skills/cp-2e-macro-fx-hedging-sensitivity/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-2g-forward-credit-model",
+      "module_id": "CP-2G",
+      "skill_md": "skills/cp-2g-forward-credit-model/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-2h-ratings-migration-trigger",
+      "module_id": "CP-2H",
+      "skill_md": "skills/cp-2h-ratings-migration-trigger/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-3A",
+        "CP-3B"
+      ],
+      "folder_slug": "cp-3-relative-value-security-selection",
+      "module_id": "CP-3",
+      "skill_md": "skills/cp-3-relative-value-security-selection/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-4A",
+        "CP-4B",
+        "CP-4D"
+      ],
+      "folder_slug": "cp-4-legal-covenant-interpreter",
+      "module_id": "CP-4",
+      "skill_md": "skills/cp-4-legal-covenant-interpreter/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-4c-restructuring-fulcrum",
+      "module_id": "CP-4C",
+      "skill_md": "skills/cp-4c-restructuring-fulcrum/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-5A"
+      ],
+      "folder_slug": "cp-5-evidence-trace-validator",
+      "module_id": "CP-5",
+      "skill_md": "skills/cp-5-evidence-trace-validator/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-6A"
+      ],
+      "folder_slug": "cp-6-ic-debate-challenge",
+      "module_id": "CP-6",
+      "skill_md": "skills/cp-6-ic-debate-challenge/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-8-decision-ledger-post-mortem",
+      "module_id": "CP-8",
+      "skill_md": "skills/cp-8-decision-ledger-post-mortem/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-dr-deep-research",
+      "module_id": "CP-DR",
+      "skill_md": "skills/cp-dr-deep-research/SKILL.md"
+    },
+    {
+      "aliases": [
+        "CP-L20",
+        "CP-L23",
+        "CP-L30",
+        "CP-L40"
+      ],
+      "folder_slug": "cp-l10-financial-change-screen",
+      "module_id": "CP-L10",
+      "skill_md": "skills/cp-l10-financial-change-screen/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-memo-credit-research-report",
+      "module_id": "CP-MEMO",
+      "skill_md": "skills/cp-memo-credit-research-report/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-model",
+      "module_id": "CP-MODEL",
+      "skill_md": "skills/cp-model/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-os-credit-os",
+      "module_id": "CP-OS",
+      "skill_md": "skills/cp-os-credit-os/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-2d-liquidity-cash-flow-bridge",
+      "module_id": "CP-2D",
+      "skill_md": "skills/cp-2d-liquidity-cash-flow-bridge/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-3d-market-implied-risk",
+      "module_id": "CP-3D",
+      "skill_md": "skills/cp-3d-market-implied-risk/SKILL.md"
+    },
+    {
+      "aliases": [],
+      "folder_slug": "cp-3c-refinancing-lme-risk",
+      "module_id": "CP-3C",
+      "skill_md": "skills/cp-3c-refinancing-lme-risk/SKILL.md"
+    }
+  ],
+  "skills_root": "DEPLOY_V/skills"
+}

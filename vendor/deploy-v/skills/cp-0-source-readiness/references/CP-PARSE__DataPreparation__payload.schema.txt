@@ -1,0 +1,94 @@
+# Internal preparation phase contract: P1-P8 within the CP-0 handoff.
+# No standalone module identity, run anchor or CP-PARSE artifact is emitted.
+properties
+  document_parse_manifest type object
+    required pipeline workspace_record input_sources triage parse_jobs
+      prepared_artifacts representation_catalog package_record verification
+    properties
+      pipeline type object
+        required run_id objective preparation_status
+        properties
+          run_id type string
+          objective type string
+          preparation_status enum READY READY_WITH_LIMITATIONS BLOCKED
+      workspace_record type object
+        required run_workspace source_roots originals_immutable derivatives_isolated
+        properties
+          run_workspace type string
+          source_roots type array minItems 1 items type string
+          originals_immutable type boolean const true
+          derivatives_isolated type boolean const true
+      input_sources type array minItems 1 items type object
+        required original_source_id logical_source_id original_file_name original_sha256
+          document_family authority_quality accessibility
+        properties
+          original_source_id type string
+          logical_source_id type string
+          original_file_name type string
+          original_sha256 type string pattern ^[0-9a-f]{64}$
+          document_family type string
+          authority_quality type string
+          accessibility enum ACCESSIBLE DEGRADED BLOCKED
+          entity_ids type array items type string
+          reporting_periods type array items type string
+          version_status type string
+          related_base_source_id type string null
+      triage type array minItems 1 items type object
+        required logical_source_id decision score rationale extraction_profile frozen
+        properties
+          logical_source_id type string
+          decision enum PARSE_FULL PARSE_TARGETED PASS_THROUGH SKIP_DUPLICATE SKIP_LOW_VALUE BLOCKED
+          score type integer minimum -4 maximum 11
+          rationale type string
+          extraction_profile type array items enum LAYOUT_TEXT TABLE_FIRST SLIDE_CHART LEGAL_CLAUSE OCR_SCAN SHEET_RANGE HYBRID
+          selected_replacement_source_id type string null
+          frozen type boolean const true
+      parse_jobs type array items type object
+        required parse_job_id logical_source_id methods status extraction_confidence coverage_status
+        properties
+          parse_job_id type string
+          logical_source_id type string
+          methods type array minItems 1 items type string
+          status enum COMPLETE DEGRADED BLOCKED
+          extraction_confidence enum HIGH MEDIUM LOW FAILED
+          coverage_status enum COMPLETE DEGRADED BLOCKED
+          limitation_flags type array items type string
+      prepared_artifacts type array items type object
+        required artifact_id logical_source_id file_name path sha256 artifact_kind
+        properties
+          artifact_id type string
+          logical_source_id type string
+          file_name type string
+          path type string
+          sha256 type string pattern ^[0-9a-f]{64}$
+          artifact_kind enum PREPARED_MARKDOWN SUPPORTING_IMAGE SUPPORTING_TABLE PACKAGE_INDEX TRIAGE_REGISTER REPRESENTATION_CATALOG CHECKSUMS
+      representation_catalog type array minItems 1 items type object
+        required logical_source_id original_source_id triage_decision representation_kind
+          content_role readiness_input selection_basis limitation_flags
+        properties
+          logical_source_id type string
+          original_source_id type string
+          triage_decision type string
+          selected_artifact_id type string null
+          representation_kind enum ORIGINAL PARSED NONE
+          content_role enum ACTIVE_CONTENT PROVENANCE_AND_VERIFICATION_ONLY INVENTORY_ONLY EXCLUDED
+          readiness_input enum ORIGINAL PARSED NONE
+          selection_basis type string
+          limitation_flags type array items type string
+      package_record type object
+        required packages safe_paths checksums_valid batch_reconciled
+        properties
+          packages type array items type string
+          safe_paths type boolean const true
+          checksums_valid type boolean const true
+          batch_reconciled type boolean const true
+      verification type object
+        required inventory_complete originals_immutable representation_unique
+          locator_coverage package_validation canonical_markdown
+        properties
+          inventory_complete enum PASS FAIL
+          originals_immutable enum PASS FAIL
+          representation_unique enum PASS FAIL
+          locator_coverage enum PASS FAIL NA
+          package_validation enum PASS FAIL NA
+          canonical_markdown enum PASS FAIL
