@@ -45,6 +45,8 @@ jobs:
     # which newer interpreters do not provide: under 3.14 it skips every file
     # and exits 0. See docs/AI_CODE_QUALITY.md section 4.
     runs-on: ubuntu-latest
+    # gitleaks-action lists a pull request's commits; the default token cannot.
+    permissions: {contents: read, pull-requests: read}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
