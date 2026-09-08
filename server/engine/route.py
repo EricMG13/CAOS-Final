@@ -65,6 +65,35 @@ class ResolvedRoute:
 
 
 @dataclass(frozen=True, slots=True)
+class Extension:
+    """A node the host appends to a pathway it never edits.
+
+    The mechanism the catalog already uses for CP-DR, which rides
+    `profile["research_extension"]` at stage 99. `owners` are the modules whose
+    artifacts the appended module reads: every one of them becomes a synthesised
+    REQUIRED edge, so a pathway missing any owner cannot carry the extension.
+    """
+
+    module_id: str
+    route_stage: int
+    owners: tuple[str, ...]
+    model_module_id: str
+    model_stage: int
+
+
+# CP-CF reads CP-1's actuals, CP-2G's drivers and CP-4's covenant terms
+# (SYSTEM_SPEC 6.2). CP-MODEL is `route_eligible` but not `navigable` and
+# appears in no pathway, so the host places it too -- nothing else can.
+MODEL_EXTENSION = Extension(
+    module_id="CP-CF",
+    route_stage=100,
+    owners=("CP-1", "CP-2G", "CP-4"),
+    model_module_id="CP-MODEL",
+    model_stage=101,
+)
+
+
+@dataclass(frozen=True, slots=True)
 class Accepted:
     """One accepted attempt. CP-0's carries the readiness it established."""
 
@@ -86,6 +115,7 @@ def resolve_route(
     selection_id: str,
     *,
     module_order: tuple[str, ...] | None = None,
+    model_extension: bool = False,
 ) -> ResolvedRoute:
     """The pathway's nodes and the edges between them. Pure: no I/O, no clock."""
     profiles = catalog.get("profiles", {})
@@ -106,14 +136,70 @@ def resolve_route(
     ]
     nodes = _narrowed(declared, module_order)
     by_module = {node.module_id: node.route_node_id for node in nodes}
-    edges = tuple(
+    edges = [
         Edge(by_module[edge["source"]], by_module[edge["target"]], str(edge["type"]))
         for edge in profile["edges"]
         if edge["source"] in by_module and edge["target"] in by_module
-    )
+    ]
+    if model_extension:
+        nodes, edges = _extend(
+            (nodes, edges), MODEL_EXTENSION, (profile_id, selection_id), by_module
+        )
+    pinned = tuple(edges)
     return ResolvedRoute(
-        profile_id, selection_id, dependency_order(nodes, edges), edges
+        profile_id, selection_id, dependency_order(nodes, pinned), pinned
     )
+
+
+def _extend(
+    graph: tuple[list[Node], list[Edge]],
+    extension: Extension,
+    pathway: tuple[str, str],
+    by_module: dict[str, str],
+) -> tuple[list[Node], list[Edge]]:
+    """Append the extension's nodes and its synthesised REQUIRED edges.
+
+    A pathway missing any owner is refused here, during resolution and before
+    pinning -- never by dropping the edge or running the module without the
+    input it reads.
+    """
+    nodes, edges = graph
+    profile_id, selection_id = pathway
+    missing = [owner for owner in extension.owners if owner not in by_module]
+    if missing:
+        raise Refusal(RefusalCode.ROUTE_EXTENSION_INCOMPLETE)
+
+    appended = [
+        Node(
+            _route_node_id(profile_id, selection_id, stage, module_id),
+            module_id,
+            stage,
+        )
+        for module_id, stage in (
+            (extension.module_id, extension.route_stage),
+            (extension.model_module_id, extension.model_stage),
+        )
+    ]
+    extended = {node.module_id: node.route_node_id for node in appended}
+    synthesised = [
+        Edge(by_module[owner], extended[extension.module_id], "REQUIRED")
+        for owner in extension.owners
+    ]
+    synthesised.append(
+        Edge(
+            extended[extension.module_id],
+            extended[extension.model_module_id],
+            "REQUIRED",
+        )
+    )
+    return [*nodes, *appended], [*edges, *synthesised]
+
+
+def _route_node_id(
+    profile_id: str, selection_id: str, stage: int, module_id: str
+) -> str:
+    """The catalog's own route-node shape, so an appended node reads like a node."""
+    return f"RN-{profile_id}-{selection_id}-{stage:02d}-{module_id}"
 
 
 def _narrowed(declared: list[Node], module_order: tuple[str, ...] | None) -> list[Node]:
