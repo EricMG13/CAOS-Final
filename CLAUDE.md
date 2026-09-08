@@ -149,10 +149,11 @@ system this size means nobody looked.
   next so the base is the default branch.
 **Phase 3.**
 
-- **`pin_route` does not exist yet.** `route_digest` computes what the plan gate
-  will pin, and nothing writes it to `run_routes` or reads execution from a pin.
-  Resolution is pure and replayable; the pin that makes invariant 10 binding is
-  the gate slice. *Upgrade:* the next slice, with the run surface.
+- **Nothing calls `pin_route` yet.** The pin exists and is binding once written,
+  but no gate writes it: `pin_route` is reached only from tests, and no execution
+  path reads `pinned_route`. Invariant 10 holds for anything that pins, and
+  nothing pins. *Upgrade:* Phase 6's plan gate, and Phase 4's loop reading the
+  pin instead of a passed-in route.
 - **The model extension is not built.** `CP-CF` rides a host-declared extension
   with synthesised `REQUIRED` edges from CP-1, CP-2G and CP-4
   (`SYSTEM_SPEC.md` §6.2), and `test_cp_cf_waits_for_all_required_owners` and
