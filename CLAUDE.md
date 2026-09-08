@@ -97,7 +97,7 @@ Standing rules that back them:
 ## Running
 
 - `make venv` — the two toolchains. `make lock` — recompile every lock.
-- `make dev` — API + worker + Postgres, seeded.
+- `make dev` — fails until the first HTTP route exists (Phase 1).
 - `make test` — the suite. `make test-model` additionally requires LibreOffice.
 - `make check` — lint, types, tests, security, in that order.
 - The model job needs `soffice` on PATH. Without it the workbook build fails
