@@ -1,3 +1,10 @@
+# Jobs arrive with the phase whose code they can actually scan. A job that
+# passes because it found nothing is the failure mode docs/AI_CODE_QUALITY.md
+# section 4 exists to prevent, so none is scaffolded ahead of its subject:
+#   postgres (two-connection races) .. Phase 1
+#   model    (LibreOffice recalc) .... Phase 7
+#   frontend (lint, tsc, a11y) ....... Phase 9
+#   image    (Trivy) ................. the phase that adds the Dockerfile
 name: ci
 on: [push, pull_request]
 
@@ -9,8 +16,8 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.14"}
       - run: pip install --require-hashes -r requirements-dev.txt
-      - run: ruff check . && ruff format --check .
-      - run: python scripts/check_vocabulary.py
+      - run: ruff check .
+      - run: ruff format --check .
 
   types:
     runs-on: ubuntu-latest
@@ -19,66 +26,39 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.14"}
       - run: pip install --require-hashes -r requirements-dev.txt
-      - run: mypy server
+      - run: mypy scripts tests
 
   test:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        # digest-pinned; a tag alone is not a pin
-        image: postgres@sha256:REPLACE_WITH_DIGEST
-        env: {POSTGRES_PASSWORD: caos}
-        options: >-
-          --health-cmd pg_isready --health-interval 5s --health-retries 10
-        ports: ["5432:5432"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.14"}
       - run: pip install --require-hashes -r requirements-dev.txt
-      - run: pytest -q
-        env:
-          CAOS_TEST_POSTGRES_URL: postgresql+psycopg://postgres:caos@localhost/postgres
-          CAOS_REQUIRE_POSTGRES: "1"
+      - run: pytest
       - run: python scripts/io_budget.py --assert
 
-  model:
-    # The workbook suite is vacuous without a real recalculation engine.
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with: {python-version: "3.14"}
-      - run: sudo apt-get update && sudo apt-get install -y libreoffice-calc
-      - run: pip install --require-hashes -r requirements-dev.txt
-      - run: soffice --version
-      - run: pytest -q -m model_parity
-
   security:
+    # Python pinned deliberately. bandit 1.7.10 reaches for ast.Constant.s,
+    # which newer interpreters do not provide: under 3.14 it skips every file
+    # and exits 0. See docs/AI_CODE_QUALITY.md section 4.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
-        # Pinned deliberately. bandit 1.7.10 reaches for ast.Constant.s, which
-        # newer interpreters do not provide: under 3.14 it skips every file and
-        # exits 0. See docs/AI_CODE_QUALITY.md section 4.
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r requirements-security.txt
-      - run: bandit -r server -f json -o bandit.json || true
+      # `|| true` so the floor check, not bandit's exit code, is the verdict:
+      # a report that parsed nothing must fail even when it found nothing.
+      - run: bandit -r scripts -f json -o bandit.json || true
       - run: python scripts/scan_floors.py bandit.json --min-files 1 --no-parse-errors
-      - run: pip-audit --require-hashes -r requirements.txt
+      - run: bandit -r scripts
+      - run: |
+          pip-audit --require-hashes -r requirements.txt \
+                    -r requirements-dev.txt -r requirements-security.txt
       - uses: gitleaks/gitleaks-action@v2
-
-  frontend:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: {node-version: "22", cache: npm, cache-dependency-path: frontend/package-lock.json}
-      - run: npm ci
-        working-directory: frontend
-      - run: npm run lint && npx tsc --noEmit && npm run test:unit && npm run build
-        working-directory: frontend
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   size:
     # AI PRs carry ~1.7x the issues of human PRs, and density rises with size.
@@ -89,6 +69,7 @@ jobs:
         with: {fetch-depth: 0}
       - run: |
           n=$(git diff --numstat origin/${{ github.base_ref }}...HEAD -- . \
-              ':!*.lock' ':!**/vendor/**' ':!docs/**' | awk '{s+=$1+$2} END {print s+0}')
+              ':!*.lock' ':!requirements*.txt' ':!**/vendor/**' ':!docs/**' \
+              | awk '{s+=$1+$2} END {print s+0}')
           echo "changed lines: $n"
           [ "$n" -le 800 ] || { echo "PR too large; split it (docs/AI_CODE_QUALITY.md)"; exit 1; }

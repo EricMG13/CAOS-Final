@@ -99,3 +99,31 @@ host in its token index.
 **Reason.** The predecessor's locators were line ranges over extracted text.
 "One click from its evidence" meant one click to a line range, not to a region
 on a page.
+
+## 2026-09-08 §10 — Phase 0 toolchain
+
+`uv` compiles and installs every lock. Three locks: `requirements.txt` (runtime,
+empty until Phase 1), `requirements-dev.txt` (ruff 0.14.0, mypy 1.18.2,
+pytest 9.0.3, resolved for 3.14) and `requirements-security.txt` (bandit 1.7.10,
+pip-audit 2.9.0, resolved for 3.12). All three carry `--generate-hashes`;
+nothing installs without `--require-hashes`.
+
+pytest is pinned at 9.0.3 rather than 8.4.2 because 8.4.2 carries
+PYSEC-2026-1845. A red vulnerability gate is answered by recompiling, not by
+waiving (`SYSTEM_SPEC.md` §11) — this is the first instance of that rule.
+
+**Reason.** `uv` resolves and hashes in one step and needs no bootstrap
+dependency of its own, so the lock and the installer cannot disagree. The two
+interpreter versions are forced by §4 of `docs/AI_CODE_QUALITY.md`.
+
+## 2026-09-08 §11 — A CI job arrives with the code it scans
+
+Phase 0 ships `lint`, `types`, `test`, `security` and `size`. `postgres`,
+`model`, `frontend` and `image` are added by Phases 1, 7, 9 and the phase that
+introduces the Dockerfile respectively, each with its scan floor.
+
+**Reason.** `docs/REBUILD_PLAN.md` Phase 0 lists `image` among the Phase 0 jobs,
+but there is no image to scan and no runtime lock with packages in it; `trivy fs`
+over this tree reports every target as *not scanned*. A gate that passes because
+it found nothing is precisely the failure §4 of `docs/AI_CODE_QUALITY.md`
+forbids, so the job waits for its subject rather than shipping vacuous.

@@ -1,0 +1,3 @@
+# Runs on Python 3.12 only -- see docs/AI_CODE_QUALITY.md section 4.
+bandit==1.7.10
+pip-audit==2.9.0

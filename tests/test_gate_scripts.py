@@ -1,0 +1,103 @@
+"""The two gates that guard against a control passing vacuously.
+
+`scan_floors` refuses a scanner report that covered nothing; `io_budget` refuses
+a server that declares no I/O budget. Excessive I/O is the largest single
+multiple in the measurements behind docs/AI_CODE_QUALITY.md (~8x), and the
+predecessor's `read_evidence` had exactly that defect.
+"""
+
+from __future__ import annotations
+
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+import io_budget
+import scan_floors
+
+REPO = Path(__file__).resolve().parents[1]
+
+
+def _run(script: str, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, str(REPO / "scripts" / script), *args],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _report(tmp_path: Path, *, files: list[str], errors: list[str]) -> str:
+    metrics: dict[str, dict[str, int]] = {name: {"loc": 1} for name in files}
+    metrics["_totals"] = {"loc": len(files)}
+    path = tmp_path / "bandit.json"
+    path.write_text(
+        json.dumps({"errors": errors, "metrics": metrics}), encoding="utf-8"
+    )
+    return str(path)
+
+
+def test_scan_floor_refuses_a_report_that_covered_no_files(tmp_path: Path) -> None:
+    result = _run(
+        "scan_floors.py", _report(tmp_path, files=[], errors=[]), "--min-files", "1"
+    )
+    assert result.returncode != 0
+    assert "0 files" in result.stdout + result.stderr
+
+
+def test_scan_floor_refuses_a_report_with_parse_errors(tmp_path: Path) -> None:
+    report = _report(tmp_path, files=["server/api.py"], errors=["syntax error"])
+    result = _run("scan_floors.py", report, "--min-files", "1", "--no-parse-errors")
+    assert result.returncode != 0
+    assert "parse error" in result.stdout + result.stderr
+
+
+def test_scan_floor_accepts_a_report_that_covered_a_file(tmp_path: Path) -> None:
+    report = _report(tmp_path, files=["server/api.py"], errors=[])
+    result = _run("scan_floors.py", report, "--min-files", "1", "--no-parse-errors")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_io_budget_passes_while_no_request_paths_exist(tmp_path: Path) -> None:
+    result = _run("io_budget.py", "--assert", "--root", str(tmp_path))
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_io_budget_refuses_a_server_that_declares_no_budget(tmp_path: Path) -> None:
+    server = tmp_path / "server"
+    server.mkdir()
+    (server / "routes.py").write_text(
+        "def list_cases() -> None: ...\n", encoding="utf-8"
+    )
+    result = _run("io_budget.py", "--assert", "--root", str(tmp_path))
+    assert result.returncode != 0
+    assert "IO_BUDGET" in result.stdout + result.stderr
+
+
+def test_covered_files_excludes_the_totals_row() -> None:
+    report: dict[str, object] = {"metrics": {"server/api.py": {}, "_totals": {}}}
+    assert scan_floors.covered_files(report) == ["server/api.py"]
+
+
+def test_floor_failures_reports_each_floor_separately() -> None:
+    report: dict[str, object] = {"metrics": {"_totals": {}}, "errors": ["boom"]}
+    failures = scan_floors.floor_failures(report, min_files=1, no_parse_errors=True)
+    assert len(failures) == 2
+
+
+def test_declares_budget_accepts_an_annotated_declaration() -> None:
+    assert io_budget.declares_budget("IO_BUDGET: int = 3\n", "m.py")
+    assert io_budget.declares_budget("IO_BUDGET = 3\n", "m.py")
+    assert not io_budget.declares_budget("io_budget = 3\n", "m.py")
+
+
+def test_io_budget_reports_without_asserting(tmp_path: Path) -> None:
+    server = tmp_path / "server"
+    server.mkdir()
+    (server / "routes.py").write_text(
+        "def list_cases() -> None: ...\n", encoding="utf-8"
+    )
+    assert _run("io_budget.py", "--root", str(tmp_path)).returncode == 0
+    assert _run("io_budget.py", "--assert", "--root", str(tmp_path)).returncode != 0

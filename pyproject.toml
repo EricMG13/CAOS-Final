@@ -1,0 +1,39 @@
+[project]
+name = "caos"
+version = "0.0.0"
+description = "Governed source documents to committee-ready credit conclusions."
+requires-python = ">=3.14"
+dependencies = []
+
+[tool.ruff]
+target-version = "py314"
+line-length = 88
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+# One rule family per measured failure mode in docs/AI_CODE_QUALITY.md section 1.
+select = [
+  "E", "F", "W",                        # baseline
+  "I",                                  # import order
+  "UP",                                 # pyupgrade
+  "B",                                  # bugbear
+  "ANN",                                # annotations -- typed refusals need typed code
+  "BLE",                                # no blind except
+  "TRY",                                # no str(exc) on the wire, no raise-vanilla
+  "C901",                               # complexity ceiling
+  "PLR0912", "PLR0913", "PLR0915",      # branch, argument, statement ceilings
+  "RUF",
+]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.mypy]
+python_version = "3.14"
+strict = true
+exclude = ["^\\.venv/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+markers = ["model_parity: requires LibreOffice (docs/MODEL_BUILDER_SPEC.md section 8)"]
