@@ -16,7 +16,12 @@ from decimal import Decimal
 
 import pytest
 
-from server.evidence.citations import anchor_citation
+from server.evidence.citations import (
+    Citation,
+    anchor_citation,
+    enclosing_box,
+    page_text,
+)
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.sources import Token, admit_source
@@ -191,3 +196,31 @@ def test_a_quote_appearing_twice_on_a_page_is_refused(store: Store) -> None:
             matched_text="total debt",
         )
     assert caught.value.code is RefusalCode.CITATION_AMBIGUOUS
+
+
+def test_page_text_maps_every_character_back_to_its_token() -> None:
+    # The owner map is what turns a matched character span into a rectangle.
+    # One separator space is attributed to the token it precedes.
+    text, owners = page_text(_tokens()[:3])
+    assert text == "Net leverage was"
+    assert len(owners) == len(text)
+    assert [text[i] for i, o in enumerate(owners) if o == 0] == list("Net")
+    assert "".join(text[i] for i, o in enumerate(owners) if o == 1) == " leverage"
+
+
+def test_enclosing_box_is_the_smallest_rectangle_over_the_tokens() -> None:
+    covering = _tokens()[1:4]
+    assert enclosing_box(covering) == (
+        Decimal(100),
+        Decimal(700),
+        Decimal(212),
+        Decimal(712),
+    )
+
+
+def test_anchor_citation_returns_a_citation(store: Store, source: str) -> None:
+    anchored = anchor_citation(
+        store, case_id="acme", document_sha256=DIGEST, page=3, matched_text="year end"
+    )
+    assert isinstance(anchored, Citation)
+    assert anchored.matched_text == "year end"

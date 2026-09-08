@@ -160,6 +160,11 @@ system this size means nobody looked.
   `run_attempts`, `deliverable_opinions`, `model_revisions` and `audit_events`
   are equally append-only in the spec. *Upgrade:* each carries the same
   `refuse_rewrite` trigger in the phase that creates it.
+- **The identifier gates see only what git tracks.** A file added but not yet
+  staged is invisible to `check_vocabulary.py` and `check_tested.py`, so
+  `make check` can pass over code neither has read. *Upgrade:* stage before
+  running the gates -- or have them scan the working tree and subtract
+  .gitignore, which is what `git ls-files` was chosen to avoid re-deriving.
 - **A quote must align to whole extracted tokens, and must not be hyphenated
   across a line.** A PDF that breaks `leverage` into `lever-` and `age` yields
   two tokens, and a module quoting `leverage` is refused. *Upgrade:* de-hyphenate
