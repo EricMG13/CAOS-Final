@@ -1,7 +1,6 @@
 # Gate order matches docs/AI_CODE_QUALITY.md: lint, types, tests, security.
 PY  := .venv/bin/python
 SEC := .venv-security/bin
-GH_VERSION := 2.100.0
 
 .PHONY: venv lock lint types test test-model security check merge dev
 
@@ -45,9 +44,9 @@ check: lint types test security
 
 merge:  ## refuse to merge a PR whose checks are not all green
 	@case "$${PR-}" in ''|0*|*[!0-9]*) echo "usage: make merge PR=<number>"; exit 1;; esac; \
-	gh="$$(command -v gh)" || { echo "error: gh $(GH_VERSION) is required"; exit 1; }; \
-	gh_version="$$( "$$gh" --version | sed -n '1s/^gh version \([^ ]*\).*/\1/p' )"; \
-	test "$$gh_version" = "$(GH_VERSION)" || { echo "error: gh $(GH_VERSION) is required (found $${gh_version:-unknown})"; exit 1; }; \
+	gh="$$(command -v gh)" || { echo "error: gh is required"; exit 1; }; \
+	"$$gh" pr merge --help 2>/dev/null | grep -q -- --match-head-commit || \
+		{ echo "error: this gh cannot pin the head commit; upgrade gh"; exit 1; }; \
 	head_oid="$$( "$$gh" pr view "$$PR" --json headRefOid --jq .headRefOid )" && \
 	test -n "$$head_oid" && \
 	"$$gh" pr checks "$$PR" && \

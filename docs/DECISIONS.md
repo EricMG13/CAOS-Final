@@ -156,3 +156,17 @@ rather than by whoever remembers to run `make merge`. `postgres` is not yet in
 the required set because no job of that name exists on `main`; it is added with
 the store PR that introduces it, since a required check that never reports
 blocks every merge.
+
+## 2026-09-08 §19 — `make merge` checks for the flag, not for a `gh` version
+
+The target refuses a `gh` whose `pr merge` has no `--match-head-commit`, rather
+than one whose version string is not an exact match. `GH_VERSION := 2.100.0` is
+removed.
+
+**Reason.** The pin refused every `gh` but one, including the 2.96.0 on the
+machine that has to run it, and would have refused each release after 2.100.0 as
+well. A version string is a proxy; the flag is the thing the target depends on,
+and an older `gh` without it already fails closed on an unknown flag.
+
+`tests/test_merge_gate.py` drives the target against a stub `gh` that refuses
+`pr merge`, because nothing watched it when it merged PR #6 by accident.
