@@ -8,6 +8,7 @@ detectable, so both are asserted here rather than assumed.
 from __future__ import annotations
 
 import hashlib
+import threading
 from pathlib import Path
 
 import pytest
@@ -44,3 +45,34 @@ def test_a_tampered_blob_is_refused_on_read(tmp_path: Path) -> None:
     with pytest.raises(Refusal) as caught:
         store.get(digest)
     assert caught.value.code is RefusalCode.BLOB_DIGEST_MISMATCH
+
+
+def test_two_writers_of_the_same_bytes_do_not_share_a_temp_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Both writers pick a temp path before either has written. A path derived
+    # from the digest alone is the same path for both: the second writer
+    # truncates the file the first one is about to rename into place, and a
+    # reader in that window gets a blob that does not hash to its name.
+    store = BlobStore(tmp_path)
+    chosen: list[Path] = []
+    both_ready = threading.Barrier(2, timeout=10)
+    write_bytes = Path.write_bytes
+
+    def racing(self: Path, data: bytes) -> int:
+        chosen.append(self)
+        both_ready.wait()
+        return write_bytes(self, data)
+
+    monkeypatch.setattr(Path, "write_bytes", racing)
+    writers = [threading.Thread(target=store.put, args=(PAYLOAD,)) for _ in range(2)]
+    for writer in writers:
+        writer.start()
+    for writer in writers:
+        writer.join(timeout=10)
+        assert not writer.is_alive()
+
+    assert len(chosen) == 2
+    assert len(set(chosen)) == 2
+    monkeypatch.undo()
+    assert store.get(DIGEST) == PAYLOAD

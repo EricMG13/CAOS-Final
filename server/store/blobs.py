@@ -9,6 +9,7 @@ against the contents, so tampering is caught rather than served.
 from __future__ import annotations
 
 import hashlib
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -27,10 +28,16 @@ class BlobStore:
         blob = self._path(digest)
         if not blob.exists():
             blob.parent.mkdir(parents=True, exist_ok=True)
-            # Write then rename: a reader never sees a half-written blob.
-            partial = blob.with_name(f"{digest}.partial")
-            partial.write_bytes(payload)
-            partial.replace(blob)
+            # Write then rename: a reader never sees a half-written blob. The
+            # temp name is unique per writer, not per digest -- two writers of
+            # the same bytes would otherwise share one file, and the second
+            # truncates what the first is renaming into place.
+            partial = blob.with_name(f"{digest}.{uuid.uuid4().hex}.partial")
+            try:
+                partial.write_bytes(payload)
+                partial.replace(blob)
+            finally:
+                partial.unlink(missing_ok=True)
         return digest
 
     def get(self, digest: str) -> bytes:
