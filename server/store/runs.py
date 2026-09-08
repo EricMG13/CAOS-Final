@@ -28,7 +28,9 @@ class TerminalCommit:
     charge: Decimal
 
 
-def start_run(connection: Store, *, case_id: BoundaryText) -> str:
+def start_run(
+    connection: Store, *, case_id: BoundaryText, ceiling: Decimal = Decimal(0)
+) -> str:
     """Open a run in RUNNING and return its id."""
     run_id = str(uuid.uuid4())
     with connection.transaction():
@@ -37,8 +39,9 @@ def start_run(connection: Store, *, case_id: BoundaryText) -> str:
             (case_id.value,),
         )
         connection.execute(
-            "INSERT INTO runs (run_id, case_id, state) VALUES (%s, %s, 'RUNNING')",
-            (run_id, case_id.value),
+            "INSERT INTO runs (run_id, case_id, state, ceiling)"
+            " VALUES (%s, %s, 'RUNNING', %s)",
+            (run_id, case_id.value, ceiling),
         )
     return run_id
 

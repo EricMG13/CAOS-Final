@@ -50,14 +50,15 @@ def test_run_events_refuses_a_delete(store: Store) -> None:
 
 
 @pytest.mark.parametrize(
-    "table", ["run_events", "source_set_members", "delivered_evidence"]
+    "table",
+    ["run_events", "source_set_members", "delivered_evidence", "run_attempts"],
 )
 def test_an_append_only_table_refuses_a_truncate(store: Store, table: str) -> None:
     """Refuse truncation for every directly guarded append-only table."""
     # A row-level trigger never sees TRUNCATE: it empties the table without
     # producing a row to fire on. Statement-level is the only guard that catches
     # it, and TRUNCATE is the one statement that erases a whole ledger at once.
-    # Nothing references these three, so each table's own trigger is what refuses.
+    # Nothing references these four, so each table's own trigger is what refuses.
     with pytest.raises(psycopg.errors.RaiseException) as caught:
         store.execute(f"TRUNCATE {table}")
     assert caught.value.diag.message_primary == "APPEND_ONLY_TABLE"
@@ -105,15 +106,23 @@ def test_a_source_digest_that_is_not_64_lowercase_hex_is_refused(
 def test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate(
     store: Store,
 ) -> None:
-    """Require every rewrite-guarded table to also refuse truncation."""
-    # The guards were enumerated by table name in schema.sql and one table was
-    # missed. This derives the list instead: a table wired to `refuse_rewrite`
-    # has a ledger to protect, and needs both guards to protect it -- a row
-    # trigger for the statements that produce rows, a statement trigger for
-    # TRUNCATE, which produces none and erases the whole table at once. Asserted
-    # in both directions, so neither guard alone reads as covered.
-    #
-    # `tgtype` is a bitmask: DELETE is 8, UPDATE is 16, TRUNCATE is 32.
+    """Require every rewrite-guarded table to refuse truncation, and vice versa.
+
+    The guards were enumerated by table name in schema.sql, and the enumeration
+    kept failing: `delivered_evidence` was written without a TRUNCATE guard, and
+    `run_attempts` arrived with Phase 4's row-level trigger while the
+    hand-written parametrize above did not grow. Asking the catalogue which
+    tables are guarded, rather than remembering, is what closes that.
+
+    Asserted in both directions, so neither guard alone reads as covered: a row
+    trigger for the statements that produce rows, a statement trigger for
+    TRUNCATE, which produces none and erases the whole table at once. A table
+    carrying only one of the two passed an earlier version of this test.
+    """
+    # `tgtype` is a bitmask: DELETE is 8, UPDATE is 16, TRUNCATE is 32. Scoped to
+    # this test's own schema -- every test applies schema.sql into a schema of
+    # its own, so an unscoped query reads other tests' triggers as well as a
+    # leftover schema from a run that died before its teardown.
     guarded = store.execute(
         "SELECT c.relname,"
         "       bool_or(t.tgtype & 24 <> 0),"
@@ -122,10 +131,12 @@ def test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate(
         " WHERE NOT t.tgisinternal"
         " AND c.relnamespace = current_schema()::regnamespace"
         " AND t.tgfoid = 'refuse_rewrite'::regproc"
-        " GROUP BY c.relname"
+        " GROUP BY c.relname ORDER BY c.relname"
     ).fetchall()
     # A query that matched nothing would pass the assertions below without
-    # having read a single trigger. Four tables carry `refuse_rewrite` today.
-    assert len(guarded) >= 4
-    assert [table for table, rewrite, _ in guarded if not rewrite] == []
-    assert [table for table, _, truncate in guarded if not truncate] == []
+    # having read a single trigger. Five tables carry `refuse_rewrite` today.
+    assert len(guarded) >= 5, f"the query or the schema moved: {guarded}"
+    rewritable = [table for table, rewrite, _ in guarded if not rewrite]
+    truncatable = [table for table, _, truncate in guarded if not truncate]
+    assert rewritable == [], f"append-only but rewritable: {rewritable}"
+    assert truncatable == [], f"append-only but truncatable: {truncatable}"

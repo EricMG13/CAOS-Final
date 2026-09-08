@@ -140,13 +140,43 @@ system this size means nobody looked.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **CodeRabbit reviews nothing while PRs are stacked.** It is installed and
-  live, reading `.coderabbit.yaml`, but auto-review is skipped on any PR whose
-  base is not the default branch — and each phase stacks on its predecessor to
-  stay under the 800-line size gate. `docs/AI_CODE_QUALITY.md` §2 counts it as
-  the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
-  review` per stacked PR, or merge each phase to `main` before opening the
-  next so the base is the default branch.
+- **CodeRabbit never auto-reviews, and the ask cannot be automated.** It is
+  installed and live, reading `.coderabbit.yaml`, but it declines every PR here
+  with *"does not receive automatic reviews because it has fewer than 10
+  stars"* — its own words on PR #20, whose base was `main`. The stacked-base
+  rule is real and `base_branches` covers it, but it was never why this
+  repository saw no reviews. `@coderabbitai review` does start one, in under a
+  minute, when a person posts it (PR #20). The same comment posted by
+  `github-actions[bot]` from a workflow was ignored for nine minutes and never
+  answered (PR #22), so CodeRabbit does not honour a bot author and no workflow
+  in this repository can make the request. `docs/AI_CODE_QUALITY.md` §2 counts
+  it as the third reviewer beside `confidence-review` and
+  `adversarial-reviewer`; **on every PR to date it is absent unless a human
+  types `@coderabbitai review`.** *Upgrade:* 10 stars, or a plan whose
+  auto-review does not gate on them. A workflow driven by a personal access
+  token would also work and is not worth a long-lived credential for this.
+
+**Phase 4.**
+
+- **Nodes run one at a time.** `SYSTEM_SPEC.md` §4 gathers the frontier
+  concurrently; that waits for a provider call worth overlapping and for a store
+  that can be awaited -- psycopg here is synchronous. Correctness does not
+  depend on it: the frontier is recomputed each pass either way.
+- **A node failure aborts the run rather than being retried.** `SYSTEM_SPEC.md`
+  §11 says a crash mid-node loses the attempt and the next pass retries the
+  node. Today the executor's exception propagates out of `run_route`. Retrying
+  instead makes a stalled loop possible -- a node that fails forever leaves the
+  frontier unchanged -- so the retry and the no-progress guard land together.
+  *Upgrade:* with the provider boundary in Phase 5.
+- **The loop never ends the run.** No node marks `runs.state` COMPLETE and no
+  terminal event is emitted; `commit_terminal` exists and the loop does not call
+  it. *Upgrade:* Phase 6, with the run surface.
+- **`artifacts.node_id` carries a route node id from the loop and a module id
+  from `commit_terminal`'s tests.** One column, two spellings, which is the
+  defect `CONTEXT.md` exists to prevent. Nothing yet forces either.
+  *Upgrade:* Phase 6, when the terminal path and the loop meet.
+- **One flat price per node.** `_price()` returns `Decimal("1.00")` until a
+  provider quotes a real one; the ceiling arithmetic is what is under test.
 **Phase 3.**
 
 - **Nothing calls `pin_route` yet.** The pin exists and is binding once written,
@@ -213,11 +243,12 @@ system this size means nobody looked.
   table and holds no TRUNCATE grant, in the phase that first deploys the store
   somewhere real.
 - **Refusal is proven behaviourally for `run_events` only.** `source_sets`,
-  `source_set_members` and `delivered_evidence` are covered structurally --
-  the pairing test asserts each carries both triggers, and `run_events` proves
-  the shared `refuse_rewrite` function actually raises. A DELETE against the
-  other three touches zero rows in a fresh schema, so a behavioural test needs
-  a populated fixture for each. *Upgrade:* the slice that gives those tables
+  `source_set_members`, `delivered_evidence` and `run_attempts` are covered
+  structurally -- the pairing test asserts each carries both triggers, and
+  `run_events` proves the shared `refuse_rewrite` function actually raises. A
+  DELETE against the other four touches zero rows in a fresh schema, so it
+  succeeds whether the trigger is there or not; a behavioural test needs a
+  populated fixture per table. *Upgrade:* the slice that gives those tables
   real fixtures.
 - **The identifier gates see only what git tracks.** A file added but not yet
   staged is invisible to `check_vocabulary.py` and `check_tested.py`, so
