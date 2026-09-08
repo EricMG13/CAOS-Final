@@ -137,12 +137,13 @@ system this size means nobody looked.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **CodeRabbit is installed on the repository but not activated.** The GitHub
-  App is present; the CodeRabbit account and trial that a private repository
-  needs are not, so no PR has been reviewed by it. `docs/AI_CODE_QUALITY.md`
-  §2 counts it as the third reviewer, and it is currently absent.
-  *Upgrade:* start the trial, then `@coderabbitai review` on the open PRs.
-
+- **CodeRabbit reviews nothing while PRs are stacked.** It is installed and
+  live, reading `.coderabbit.yaml`, but auto-review is skipped on any PR whose
+  base is not the default branch — and each phase stacks on its predecessor to
+  stay under the 800-line size gate. `docs/AI_CODE_QUALITY.md` §2 counts it as
+  the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
+  review` per stacked PR, or merge each phase to `main` before opening the
+  next so the base is the default branch.
 **Phase 1.**
 
 - **`commit_terminal` assumes it opens the outermost transaction.** Called
