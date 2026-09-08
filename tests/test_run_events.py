@@ -18,10 +18,13 @@ from decimal import Decimal
 import psycopg
 import pytest
 
+from server.boundary_text import BoundaryText
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.runs import TerminalCommit, commit_terminal, start_run
 
+CASE = BoundaryText.of("acme")
+NODE = BoundaryText.of("CP-1")
 ARTIFACT = "b" * 64
 
 
@@ -47,14 +50,14 @@ def _state(store: Store, run_id: str) -> object:
 def _terminal(run_id: str) -> TerminalCommit:
     return TerminalCommit(
         run_id=run_id,
-        node_id="CP-1",
+        node_id=NODE,
         artifact_sha256=ARTIFACT,
         charge=Decimal("0.42"),
     )
 
 
 def test_terminal_event_is_exactly_once(store: Store) -> None:
-    run_id = start_run(store, case_id="acme")
+    run_id = start_run(store, case_id=CASE)
     commit = _terminal(run_id)
 
     assert commit_terminal(store, commit) is True
@@ -68,7 +71,7 @@ def test_terminal_event_is_exactly_once(store: Store) -> None:
 def test_a_refused_charge_leaves_the_run_runnable(store: Store) -> None:
     # State and event commit together or not at all. A charge the ledger refuses
     # must take the artifact, the event and the state change down with it.
-    run_id = start_run(store, case_id="acme")
+    run_id = start_run(store, case_id=CASE)
     with pytest.raises(psycopg.errors.CheckViolation):
         commit_terminal(store, replace(_terminal(run_id), charge=Decimal("-1")))
     store.rollback()
@@ -80,7 +83,7 @@ def test_a_refused_charge_leaves_the_run_runnable(store: Store) -> None:
 
 
 def test_run_events_has_no_update_path(store: Store) -> None:
-    run_id = start_run(store, case_id="acme")
+    run_id = start_run(store, case_id=CASE)
     commit_terminal(store, _terminal(run_id))
     with pytest.raises(psycopg.errors.RaiseException):
         store.execute("UPDATE run_events SET kind = 'RUN_FAILED'")
@@ -90,8 +93,8 @@ def test_run_events_has_no_update_path(store: Store) -> None:
 
 
 def test_run_event_seq_is_per_run_and_monotonic(store: Store) -> None:
-    first = start_run(store, case_id="acme")
-    second = start_run(store, case_id="acme")
+    first = start_run(store, case_id=CASE)
+    second = start_run(store, case_id=CASE)
     commit_terminal(store, _terminal(first))
     commit_terminal(store, replace(_terminal(second), artifact_sha256="c" * 64))
 
@@ -119,8 +122,8 @@ def test_two_runs_with_identical_output_each_record_an_artifact(
     # A deterministic module run twice produces the same digest. The blob store
     # is what deduplicates bytes; the artifact row is one run's accepted output,
     # so charging a run whose artifact went missing must not be possible.
-    first = start_run(store, case_id="acme")
-    second = start_run(store, case_id="acme")
+    first = start_run(store, case_id=CASE)
+    second = start_run(store, case_id=CASE)
     commit_terminal(store, _terminal(first))
     commit_terminal(store, _terminal(second))
 
@@ -134,7 +137,7 @@ def test_two_runs_with_identical_output_each_record_an_artifact(
 def test_a_failed_run_is_not_reported_as_a_replay(store: Store) -> None:
     # False means "this delivery already happened". A FAILED run never delivered,
     # so answering False would quietly discard a terminal outcome.
-    run_id = start_run(store, case_id="acme")
+    run_id = start_run(store, case_id=CASE)
     store.execute("UPDATE runs SET state = 'FAILED' WHERE run_id = %s", (run_id,))
     with pytest.raises(Refusal) as caught:
         commit_terminal(store, _terminal(run_id))

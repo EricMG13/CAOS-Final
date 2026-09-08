@@ -14,8 +14,12 @@ from decimal import Decimal
 import psycopg
 import pytest
 
+from server.boundary_text import BoundaryText
 from server.store import Store
 from server.store.runs import TerminalCommit, commit_terminal, start_run
+
+CASE = BoundaryText.of("acme")
+NODE = BoundaryText.of("CP-1")
 
 
 def _connect(url: str, schema: str) -> Store:
@@ -27,7 +31,7 @@ def _connect(url: str, schema: str) -> Store:
 def test_two_connections_deliver_one_terminal_event(
     store: Store, store_schema: str, postgres_dsn: str
 ) -> None:
-    run_id = start_run(store, case_id="acme")
+    run_id = start_run(store, case_id=CASE)
     store.commit()
 
     def deliver(digest: str) -> bool:
@@ -36,7 +40,7 @@ def test_two_connections_deliver_one_terminal_event(
                 connection,
                 TerminalCommit(
                     run_id=run_id,
-                    node_id="CP-1",
+                    node_id=NODE,
                     artifact_sha256=digest,
                     charge=Decimal("0.42"),
                 ),
@@ -62,12 +66,12 @@ def test_concurrent_runs_each_start_their_own_sequence(
 
     def deliver(_: int) -> str:
         with _connect(postgres_dsn, store_schema) as connection:
-            run_id = start_run(connection, case_id="acme")
+            run_id = start_run(connection, case_id=CASE)
             commit_terminal(
                 connection,
                 TerminalCommit(
                     run_id=run_id,
-                    node_id="CP-1",
+                    node_id=NODE,
                     artifact_sha256=uuid.uuid4().hex * 2,
                     charge=Decimal("0.01"),
                 ),

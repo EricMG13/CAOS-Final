@@ -1,8 +1,15 @@
-"""Sources and their token index.
+"""Sources: admitting a pack, its blocks, its token index, and pinning a set.
 
-A token is one extracted text run with its page and rectangle. Tokens never
-leave the host: they exist so a quote can be re-located and one that cannot be
-re-located refused (invariant 11).
+Three things a source carries, easily confused because all three are numbered:
+
+- a **block** is what `read_evidence` returns -- one addressable piece of the
+  source, keyed `(source_id, block_id)`;
+- a **region** is a column or a paragraph, and a **line** is a line within it.
+  Both belong to `source_tokens` and exist only so a quote can be re-located
+  and one that cannot be re-located refused (invariant 11).
+
+Blocks and regions are independent: nothing maps one onto the other, and
+nothing needs to. Tokens never leave the host.
 """
 
 from __future__ import annotations
@@ -13,13 +20,19 @@ from decimal import Decimal
 
 from psycopg import errors
 
+from server.boundary_text import BoundaryText
+from server.digests import checked_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 
 
 @dataclass(frozen=True, slots=True)
 class Block:
-    """The unit `read_evidence` returns: one addressable piece of a source."""
+    """The unit `read_evidence` returns: one addressable piece of a source.
+
+    Unrelated to a token's `region_id`: a block is what a module reads, a region
+    is where a quote may wrap. Nothing maps one onto the other.
+    """
 
     block_id: int
     page: int
@@ -67,7 +80,7 @@ _REFUSALS = {
 
 
 def admit_pack(
-    store: Store, *, case_id: str, documents: tuple[SourceDocument, ...]
+    store: Store, *, case_id: BoundaryText, documents: tuple[SourceDocument, ...]
 ) -> tuple[str, ...]:
     """Admit every document in a pack, or none of them.
 
@@ -91,7 +104,9 @@ def _code_for(violation: errors.IntegrityError) -> RefusalCode:
     )
 
 
-def pin_source_set(store: Store, *, case_id: str, source_ids: tuple[str, ...]) -> int:
+def pin_source_set(
+    store: Store, *, case_id: BoundaryText, source_ids: tuple[str, ...]
+) -> int:
     """Pin an immutable, versioned set of this case's sources; return its version.
 
     A set is a set: naming a source twice pins it once. Naming none is refused --
@@ -107,16 +122,17 @@ def pin_source_set(store: Store, *, case_id: str, source_ids: tuple[str, ...]) -
     raise Refusal(code)
 
 
-def _pin(store: Store, *, case_id: str, members: tuple[str, ...]) -> int:
+def _pin(store: Store, *, case_id: BoundaryText, members: tuple[str, ...]) -> int:
     with store.transaction():
         # The case row lock is taken before the current version is read, so two
         # pins cannot allocate the same one.
         store.execute(
-            "SELECT case_id FROM cases WHERE case_id = %s FOR UPDATE", (case_id,)
+            "SELECT case_id FROM cases WHERE case_id = %s FOR UPDATE",
+            (case_id.value,),
         )
         mine = store.execute(
             "SELECT count(*) FROM sources WHERE case_id = %s AND source_id = ANY(%s)",
-            (case_id, list(members)),
+            (case_id.value, list(members)),
         ).fetchone()
         if mine is None or mine[0] != len(members):
             raise Refusal(RefusalCode.SOURCE_NOT_IN_CASE)
@@ -124,7 +140,7 @@ def _pin(store: Store, *, case_id: str, members: tuple[str, ...]) -> int:
             "INSERT INTO source_sets (case_id, version)"
             " SELECT %s, coalesce(max(version), 0) + 1 FROM source_sets"
             " WHERE case_id = %s RETURNING version",
-            (case_id, case_id),
+            (case_id.value, case_id.value),
         ).fetchone()
         if allocated is None:  # pragma: no cover - RETURNING always yields a row
             raise Refusal(RefusalCode.SOURCE_NOT_IN_CASE)
@@ -133,18 +149,18 @@ def _pin(store: Store, *, case_id: str, members: tuple[str, ...]) -> int:
             cursor.executemany(
                 "INSERT INTO source_set_members (case_id, version, source_id)"
                 " VALUES (%s, %s, %s)",
-                [(case_id, version, source_id) for source_id in members],
+                [(case_id.value, version, source_id) for source_id in members],
             )
     return version
 
 
 def _admit_pack(
-    store: Store, *, case_id: str, documents: tuple[SourceDocument, ...]
+    store: Store, *, case_id: BoundaryText, documents: tuple[SourceDocument, ...]
 ) -> tuple[str, ...]:
     with store.transaction():
         store.execute(
             "INSERT INTO cases (case_id) VALUES (%s) ON CONFLICT DO NOTHING",
-            (case_id,),
+            (case_id.value,),
         )
         return tuple(
             _admit_document(store, case_id=case_id, document=document)
@@ -152,11 +168,13 @@ def _admit_pack(
         )
 
 
-def _admit_document(store: Store, *, case_id: str, document: SourceDocument) -> str:
+def _admit_document(
+    store: Store, *, case_id: BoundaryText, document: SourceDocument
+) -> str:
     source_id = str(uuid.uuid4())
     store.execute(
         "INSERT INTO sources (source_id, case_id, sha256) VALUES (%s, %s, %s)",
-        (source_id, case_id, document.sha256),
+        (source_id, case_id.value, checked_digest(document.sha256)),
     )
     tokens = document.tokens
     with store.cursor() as cursor:

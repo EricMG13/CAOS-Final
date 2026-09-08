@@ -9,9 +9,11 @@ against the contents, so tampering is caught rather than served.
 from __future__ import annotations
 
 import hashlib
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from server.digests import checked_digest
 from server.refusals import Refusal, RefusalCode
 
 
@@ -27,15 +29,28 @@ class BlobStore:
         blob = self._path(digest)
         if not blob.exists():
             blob.parent.mkdir(parents=True, exist_ok=True)
-            # Write then rename: a reader never sees a half-written blob.
-            partial = blob.with_name(f"{digest}.partial")
+            # Write then rename: a reader never sees a half-written blob. The
+            # temporary name is unique, so two writers of the same bytes cannot
+            # interleave into one file and publish it under a digest it no
+            # longer matches.
+            partial = blob.with_name(f"{digest}.{uuid.uuid4().hex}.partial")
             partial.write_bytes(payload)
             partial.replace(blob)
         return digest
 
     def get(self, digest: str) -> bytes:
-        """Return the bytes, or refuse if they no longer hash to their name."""
-        payload = self._path(digest).read_bytes()
+        """Return the bytes, or refuse: unknown, not a digest, or not matching."""
+        blob = self._path(checked_digest(digest))
+        try:
+            payload = blob.read_bytes()
+        except FileNotFoundError:
+            missing = True
+        else:
+            missing = False
+        # Raised outside the handler: an OSError carries the path in .filename
+        # and would ride along as __context__.
+        if missing:
+            raise Refusal(RefusalCode.BLOB_NOT_FOUND)
         if hashlib.sha256(payload).hexdigest() != digest:
             raise Refusal(RefusalCode.BLOB_DIGEST_MISMATCH)
         return payload

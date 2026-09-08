@@ -12,10 +12,12 @@ from decimal import Decimal
 
 import pytest
 
+from server.boundary_text import BoundaryText
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.sources import SourceDocument, Token, admit_pack
 
+CASE = BoundaryText.of("acme")
 DIGEST = "d" * 64
 
 
@@ -36,7 +38,7 @@ def _token(ordinal: int, text: str) -> Token:
 def _admit(store: Store, tokens: list[Token]) -> None:
     admit_pack(
         store,
-        case_id="acme",
+        case_id=CASE,
         documents=(SourceDocument(sha256=DIGEST, tokens=tuple(tokens), blocks=()),),
     )
 
