@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP-L10__lite_financial_change_screen__payload.schema.txt",
+  "allOf": [{"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt"}],
+  "properties": {
+    "module_id": {"const": "CP-L10"},
+    "module_name": {"const": "LiteFinancialChangeScreen"},
+    "owned_object": {"const": "lite_financial_change_screen"},
+    "schema_family": {"const": "Nested"},
+    "output_class": {"const": "CANONICAL_MARKDOWN"},
+    "runtime_output": {
+      "type": "object",
+      "required": [
+        "decision_scope", "execution_basis", "screen_status", "screen_conclusion",
+        "source_scope_gate", "topic_allocation",
+        "cross_topic_synthesis", "upgrade_plan", "gaps_conflicts",
+        "screening_posture", "decision_screen", "gap_upgrade_register", "table_inventory"
+      ],
+      "properties": {
+        "decision_scope": {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/decision_scope"},
+        "execution_basis": {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/execution_basis"},
+        "screen_status": {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/screen_status"},
+        "screen_conclusion": {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/screen_conclusion"},
+        "source_scope_gate": {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/source_scope_gate"},
+        "allocation_budget": {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/allocation_budget"},
+        "topic_allocation": {
+          "allOf": [
+            {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/topic_allocation"},
+            {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "items": {
+                "type": "object",
+                "properties": {
+                  "topic_id": {"enum": ["SOURCE_BASIS", "EARNINGS_MARGIN_CHANGE", "CASH_CONVERSION", "LEVERAGE_COVERAGE", "LIQUIDITY_MATURITIES", "KPI_COMPARABILITY"]},
+                  "source_owner_modules": {"type": "array", "items": {"enum": ["CP-1", "CP-1B"]}},
+                  "upgrade_module_ids": {"type": "array", "items": {"enum": ["CP-1", "CP-1B"]}}
+                },
+                "allOf": [
+                  {"if": {"properties": {"topic_id": {"const": "SOURCE_BASIS"}}, "required": ["topic_id"]}, "then": {"properties": {"source_owner_modules": {"const": ["CP-1", "CP-1B"]}}}},
+                  {"if": {"properties": {"topic_id": {"const": "EARNINGS_MARGIN_CHANGE"}}, "required": ["topic_id"]}, "then": {"properties": {"source_owner_modules": {"const": ["CP-1B"]}}}},
+                  {"if": {"properties": {"topic_id": {"const": "CASH_CONVERSION"}}, "required": ["topic_id"]}, "then": {"properties": {"source_owner_modules": {"const": ["CP-1", "CP-1B"]}}}},
+                  {"if": {"properties": {"topic_id": {"const": "LEVERAGE_COVERAGE"}}, "required": ["topic_id"]}, "then": {"properties": {"source_owner_modules": {"const": ["CP-1", "CP-1B"]}}}},
+                  {"if": {"properties": {"topic_id": {"const": "LIQUIDITY_MATURITIES"}}, "required": ["topic_id"]}, "then": {"properties": {"source_owner_modules": {"const": ["CP-1", "CP-1B"]}}}},
+                  {"if": {"properties": {"topic_id": {"const": "KPI_COMPARABILITY"}}, "required": ["topic_id"]}, "then": {"properties": {"source_owner_modules": {"const": ["CP-1", "CP-1B"]}}}}
+                ]
+              },
+              "allOf": [
+                {"contains": {"type": "object", "properties": {"topic_id": {"const": "SOURCE_BASIS"}}, "required": ["topic_id"]}, "minContains": 1, "maxContains": 1},
+                {"contains": {"type": "object", "properties": {"topic_id": {"const": "EARNINGS_MARGIN_CHANGE"}}, "required": ["topic_id"]}, "minContains": 1, "maxContains": 1},
+                {"contains": {"type": "object", "properties": {"topic_id": {"const": "CASH_CONVERSION"}}, "required": ["topic_id"]}, "minContains": 1, "maxContains": 1},
+                {"contains": {"type": "object", "properties": {"topic_id": {"const": "LEVERAGE_COVERAGE"}}, "required": ["topic_id"]}, "minContains": 1, "maxContains": 1},
+                {"contains": {"type": "object", "properties": {"topic_id": {"const": "LIQUIDITY_MATURITIES"}}, "required": ["topic_id"]}, "minContains": 1, "maxContains": 1},
+                {"contains": {"type": "object", "properties": {"topic_id": {"const": "KPI_COMPARABILITY"}}, "required": ["topic_id"]}, "minContains": 1, "maxContains": 1}
+              ]
+            }
+          ]
+        },
+        "cross_topic_synthesis": {
+          "allOf": [
+            {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/cross_topic_synthesis"},
+            {"type": "object", "required": ["primary_support", "primary_risk", "monitoring_trigger"], "properties": {"primary_support": {"type": "string"}, "primary_risk": {"type": "string"}, "monitoring_trigger": {"type": "string"}}, "additionalProperties": false}
+          ]
+        },
+        "upgrade_plan": {
+          "allOf": [
+            {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/upgrade_plan"},
+            {"type": "array", "items": {"type": "object", "properties": {"topic_id": {"enum": ["SOURCE_BASIS", "EARNINGS_MARGIN_CHANGE", "CASH_CONVERSION", "LEVERAGE_COVERAGE", "LIQUIDITY_MATURITIES", "KPI_COMPARABILITY"]}, "target_full_module_id": {"enum": ["CP-1", "CP-1B"]}}}}
+          ]
+        },
+        "gaps_conflicts": {
+          "allOf": [
+            {"$ref": "CP_DEPLOY_V_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt#/properties/runtime_output/properties/gaps_conflicts"},
+            {"type": "array", "items": {"type": "object", "required": ["topic_id", "kind", "summary", "source_refs"], "properties": {"topic_id": {"enum": ["SOURCE_BASIS", "EARNINGS_MARGIN_CHANGE", "CASH_CONVERSION", "LEVERAGE_COVERAGE", "LIQUIDITY_MATURITIES", "KPI_COMPARABILITY"]}, "kind": {"enum": ["GAP", "CONFLICT"]}, "summary": {"type": "string"}, "source_refs": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false}}
+          ]
+        },
+        "screening_posture": {"enum": ["IMPROVING", "STABLE", "DETERIORATING", "MIXED", "INSUFFICIENT_INFORMATION"]},
+        "decision_screen": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"type": "object", "required": ["screen_item", "assessment", "evidence", "credit_transmission", "screening_implication", "confidence", "source_refs"], "properties": {"screen_item": {"type": "string"}, "assessment": {"type": "string"}, "evidence": {"type": "string"}, "credit_transmission": {"type": "string"}, "screening_implication": {"type": "string"}, "confidence": {"enum": ["HIGH", "MEDIUM", "LOW", "INSUFFICIENT_INFORMATION"]}, "source_refs": {"type": "array", "items": {"type": "string"}}}, "additionalProperties": false},
+          "contains": {"type": "object", "properties": {"screen_item": {"const": "OVERALL"}}, "required": ["screen_item"]}, "minContains": 1, "maxContains": 1
+        },
+        "gap_upgrade_register": {
+          "type": "array",
+          "items": {"type": "object", "required": ["topic_id", "trigger", "missing_inputs", "decision_impact", "required_source", "target_full_module_id", "expected_owned_object", "blocking_for_full_decision"], "properties": {"topic_id": {"enum": ["SOURCE_BASIS", "EARNINGS_MARGIN_CHANGE", "CASH_CONVERSION", "LEVERAGE_COVERAGE", "LIQUIDITY_MATURITIES", "KPI_COMPARABILITY"]}, "trigger": {"type": "string", "minLength": 1}, "missing_inputs": {"type": "array", "items": {"type": "string"}}, "decision_impact": {"type": "string", "minLength": 1}, "required_source": {"type": "string", "minLength": 1}, "target_full_module_id": {"enum": ["CP-1", "CP-1B"]}, "expected_owned_object": {"enum": ["canonical_financial_data_kpis", "earnings_delta"]}, "blocking_for_full_decision": {"type": "boolean"}}, "additionalProperties": false}
+        },
+        "table_inventory": {"const": ["TL10.1", "TL10.2", "TL10.3", "TL10.4"]}
+      },
+      "not": {"anyOf": [
+        {"required": ["canonical_financial_history"]},
+        {"required": ["normalized_financials"]},
+        {"required": ["cp_model_fields"]}
+      ]},
+      "additionalProperties": false
+    }
+  }
+}

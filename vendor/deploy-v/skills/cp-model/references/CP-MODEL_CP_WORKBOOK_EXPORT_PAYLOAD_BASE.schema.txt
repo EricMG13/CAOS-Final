@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP_WORKBOOK_EXPORT_PAYLOAD_BASE.schema.txt",
+  "description": "Canonical payload base for a clean-sheet Excel workbook generator.",
+  "type": "object",
+  "required": [
+    "module_id",
+    "module_name",
+    "owned_object",
+    "schema_family",
+    "output_class",
+    "runtime_output",
+    "renderer_version",
+    "renderer_sha256",
+    "calculation_engine",
+    "output_file",
+    "source_manifest",
+    "limitation_flags",
+    "qa_status",
+    "validation_warnings",
+    "downstream_consumers"
+  ],
+  "properties": {
+    "module_id": {"const": "CP-MODEL"},
+    "module_name": {"const": "CreditSnapshotModelWorkbook"},
+    "owned_object": {"const": "credit_snapshot_model_workbook"},
+    "schema_family": {"const": "Infrastructure"},
+    "output_class": {"const": "WORKBOOK_EXPORT"},
+    "runtime_output": {"type": "object"},
+    "renderer_version": {"const": "3.0"},
+    "renderer_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "calculation_engine": {"type": "string", "minLength": 1},
+    "output_file": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*_CP-MODEL-v3_[A-Za-z0-9._-]+-[A-Za-z0-9._-]+_[0-9]{8}\\.xlsx$"
+    },
+    "source_manifest": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["module_id", "artifact", "sha256", "status"],
+        "properties": {
+          "module_id": {"type": "string"},
+          "artifact": {"type": "string", "minLength": 1},
+          "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "status": {"type": "string", "enum": ["ready", "missing", "blocked"]}
+        },
+        "additionalProperties": false
+      }
+    },
+    "limitation_flags": {"type": "array", "items": {"type": "string"}},
+    "qa_status": {"type": "string", "enum": ["Passed", "Restricted", "Blocked"]},
+    "validation_warnings": {"type": "array", "items": {"type": "string"}},
+    "downstream_consumers": {"type": "array", "maxItems": 0}
+  },
+  "allOf": [
+    {
+      "not": {
+        "anyOf": [
+          {"required": ["template_file"]},
+          {"required": ["confidence_score"]},
+          {"required": ["confidence_band"]}
+        ]
+      }
+    }
+  ],
+  "additionalProperties": false
+}

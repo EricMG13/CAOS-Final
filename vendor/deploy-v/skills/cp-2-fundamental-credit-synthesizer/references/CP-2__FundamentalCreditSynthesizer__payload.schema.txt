@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP-2__FundamentalCreditSynthesizer__payload.schema.txt",
+  "allOf": [{"$ref": "../../../CP_MODULE_PAYLOAD_BASE.schema.txt"}],
+  "if": {
+    "properties": {
+      "downstream_consumers": {"contains": {"const": "CP-MODEL"}}
+    },
+    "required": ["downstream_consumers"]
+  },
+  "then": {
+    "properties": {
+      "runtime_output": {"required": ["cp_model_strengths_weaknesses"]}
+    }
+  },
+  "properties": {
+    "module_id": {"const": "CP-2"},
+    "module_name": {"const": "FundamentalCreditSynthesizer"},
+    "owned_object": {"const": "fundamental_credit_synthesis"},
+    "schema_family": {"const": "Nested"},
+    "runtime_output": {
+      "type": "object",
+      "properties": {
+        "credit_mechanism_map": {},
+        "financial_profile_assessment": {"description": "9-dim"},
+        "committee_memo": {},
+        "credit_implication": {
+          "enum": [
+            "Positive-Deleveraging", "Positive-Margin Expansion",
+            "Positive-Revenue Growth", "Positive-Liquidity Improvement",
+            "Positive-Covenant Headroom Expansion", "Neutral-Stable",
+            "Negative-Leverage Increase", "Negative-Margin Compression",
+            "Negative-Revenue Decline", "Negative-Liquidity Deterioration",
+            "Negative-Covenant Erosion", "Negative-Refinancing Risk",
+            "Insufficient Information"
+          ]
+        },
+        "downstream_readiness": {},
+        "cp_model_strengths_weaknesses": {
+          "type": "array",
+          "items": {"$ref": "#/$defs/cp_model_strength_or_weakness"},
+          "minItems": 2,
+          "maxItems": 10,
+          "uniqueItems": true,
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "properties": {"direction": {"const": "STRENGTH"}},
+                "required": ["direction"]
+              },
+              "minContains": 1,
+              "maxContains": 5
+            },
+            {
+              "contains": {
+                "type": "object",
+                "properties": {"direction": {"const": "WEAKNESS"}},
+                "required": ["direction"]
+              },
+              "minContains": 1,
+              "maxContains": 5
+            }
+          ]
+        }
+      }
+    }
+  },
+  "$defs": {
+    "cp_model_strength_or_weakness": {
+      "type": "object",
+      "required": [
+        "direction", "rank", "label", "mechanism", "evidence_ids",
+        "status", "source_id", "source_locator", "as_of"
+      ],
+      "properties": {
+        "direction": {"type": "string", "enum": ["STRENGTH", "WEAKNESS"]},
+        "rank": {"type": "integer", "minimum": 1, "maximum": 5},
+        "label": {"type": "string", "minLength": 1},
+        "mechanism": {"type": "string", "minLength": 1},
+        "evidence_ids": {
+          "oneOf": [
+            {"type": "string", "minLength": 1},
+            {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true}
+          ]
+        },
+        "status": {"const": "READY"},
+        "source_id": {"type": "string", "minLength": 1},
+        "source_locator": {"type": "string", "minLength": 1},
+        "as_of": {"type": "string", "format": "date"}
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,133 @@
+allOf $ref CP_MODULE_PAYLOAD_BASE.schema.txt
+properties
+  module_id const CP-0
+  module_name const SourceReadiness
+  owned_object const source_readiness_register
+  schema_family const Nested
+  runtime_output type object
+    required input_gate source_register source_hierarchy content_to_module_map
+      gaps_ledger conflict_ledger evidence_trace readiness_summary
+      routing_recommendation recommended_run_commands master_index_state verification
+    properties
+      input_gate type object
+        required run_id objective preparation_run_id preparation_registers preparation_validation
+        properties
+          run_id type string
+          issuer type string null
+          period type string null
+          objective type string
+          preparation_run_id type string
+          preparation_registers type string
+          preparation_validation enum PASS FAIL
+          source_status enum Received Partial Missing
+          limitation type string null
+      source_register type array minItems 1 items type object
+        required logical_source_id original_source_id original_file_name active_content_file_name
+          authority_quality extraction_confidence usability_verdict
+        properties
+          logical_source_id type string
+          original_source_id type string
+          original_file_name type string
+          active_content_file_name type string null
+          active_content_artifact_id type string null
+          authority_quality type string
+          extraction_confidence enum HIGH MEDIUM LOW FAILED
+          usability_verdict enum Usable Usable_with_Limitations Conditional Not_Usable
+          downstream_modules_supported type array items type string
+          limitation_flags type array items type string
+      source_hierarchy type array items type object
+        required priority source_class authority_rule files_present missing_minimum
+        properties
+          priority enum 1 2 3 4
+          source_class type string
+          authority_rule type string
+          files_present type array items type string
+          missing_minimum type array items type string
+          downstream_use type array items type string
+      content_to_module_map type array items type object
+        required module_id evidence_demand active_representation_ids readiness_status readiness_effect
+        properties
+          module_id type string
+          evidence_demand type string
+          active_representation_ids type array items type string
+          readiness_status enum READY READY_WITH_LIMITATIONS CONDITIONAL BLOCKED
+          readiness_effect type string
+      gaps_ledger type array items type object
+        properties
+          gap_id type string
+          type enum SOURCE_GAP PREPARATION_GAP COVERAGE_GAP LOCATOR_GAP STALE_EVIDENCE OTHER
+          severity enum CRITICAL MATERIAL MINOR
+          affected_modules type array items type string
+          remediation type string null
+      conflict_ledger type array items type object
+        properties
+          conflict_id type string
+          type type string
+          severity enum CRITICAL MATERIAL MINOR
+          affected_modules type array items type string
+          description type string
+      evidence_trace type array items type object
+        required evidence_id original_source_id active_representation_id locator
+        properties
+          evidence_id type string
+          original_source_id type string
+          active_representation_id type string
+          locator type string
+      readiness_summary type object
+        required overall_readiness source_count
+        properties
+          overall_readiness enum READY READY_WITH_LIMITATIONS CONDITIONAL BLOCKED
+          critical_gaps type array items type string
+          source_count type integer
+      routing_recommendation type array items type object
+        required module_id routing_status readiness_effect content_basis
+        properties
+          module_id type string
+          routing_status enum Recommended Blocked Conditional
+          readiness_effect type string
+          content_basis type string
+          limitation type string null
+      recommended_run_commands type array items type object
+        required sequence module_id candidate_command exact_command source_files_to_attach upstream_handoff readiness why_now_or_blocker
+        properties
+          sequence type integer minimum 1
+          module_id enum CP-1 CP-1A CP-1B CP-1C CP-1D CP-2 CP-2A CP-2E CP-2G CP-2H CP-3 CP-4 CP-4C CP-5 CP-6 CP-8 CP-L10
+          candidate_command type string pattern ^Run CP-
+          exact_command type string
+          source_files_to_attach type array items type string
+          upstream_handoff type string
+          readiness enum READY READY_WITH_LIMITATIONS CONDITIONAL BLOCKED
+          why_now_or_blocker type string
+        rules
+          READY READY_WITH_LIMITATIONS require exact_command equals candidate_command
+          CONDITIONAL BLOCKED require exact_command const DO NOT RUN
+          candidate_command module identifier equals module_id
+      model_route_source_assessment type object
+        required status assertion_scope required_downstream_handoffs optional_downstream_handoffs cp_model_input_contract next_action
+        properties
+          status const SOURCE_READY_FOR_MODEL_ROUTE
+          assertion_scope const SOURCE_SUFFICIENCY_ONLY
+          required_downstream_handoffs const CP-1 CP-1A CP-1B CP-2 CP-2A
+          optional_downstream_handoffs const CP-2G
+          cp_model_input_contract const NOT_EVALUATED
+          next_action type string pattern ^Run CP-(1|1A|1B|2|2A|2G)
+      master_index_state type object
+        required master_index_id issuer_id_name preparation_registers canonical_handoff downstream_consumers
+        properties
+          master_index_id type string
+          issuer_id_name type string
+          preparation_registers type string
+          canonical_handoff type string
+          downstream_consumers type array items type string
+      verification type object
+        required cp_parse_lineage inventory_complete representation_unique
+          authority_quality_separated gaps_conflicts downstream_readiness model_boundary canonical_markdown
+        properties
+          cp_parse_lineage enum PASS FAIL
+          inventory_complete enum PASS FAIL
+          representation_unique enum PASS FAIL
+          authority_quality_separated enum PASS FAIL
+          gaps_conflicts enum PASS FAIL
+          downstream_readiness enum PASS FAIL
+          model_boundary enum PASS FAIL NA
+          canonical_markdown enum PASS FAIL

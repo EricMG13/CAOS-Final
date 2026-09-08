@@ -1,0 +1,151 @@
+{
+  "authority": "CREDIT_OS_V_AUTHORITY_BUNDLE_v2",
+  "authority_bundle_sha256": "47fec65f45dfce5ac566f4d2cc9eae1413d5ff8443442501e9f0c30ad9e8ac02",
+  "available_profiles": [
+    "FULL_CREDIT_32",
+    "LITE_CREDIT_22"
+  ],
+  "components": {
+    "base_package_registry": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/00_GOVERNANCE/CP_DEPLOYMENT_PACKAGE_REGISTRY_v1.json",
+      "runtime_required": false,
+      "sha256": "cfcc9094fc8c9d7cd07839a1344e5a54386df98fe1afd171352c6fc4883522d8"
+    },
+    "capabilities": {
+      "path": "Co-Pilot Agents/CP-OS/references/CREDIT_OS_CAPABILITIES_v1.json",
+      "runtime_required": true,
+      "sha256": "ec860decdf585b07eaab5abbd7af52897a7f7379637c69f8ea54485789ecf29d"
+    },
+    "child_schema_CP-L10": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP-OS_MIRROR_CP-L10__lite_financial_change_screen__payload.schema.txt",
+      "runtime_required": true,
+      "sha256": "ede5b22be68bf23ea5d38278a73ddeec034d96756b012bc434b639259a8a4ecb"
+    },
+    "child_schema_CP-L20": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP-OS_MIRROR_CP-L20__lite_fundamental_credit_screen__payload.schema.txt",
+      "runtime_required": true,
+      "sha256": "1bc6003bb9ae6b760c651720fdede81be6b7eb43d59de98865354f53ed555327"
+    },
+    "child_schema_CP-L23": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP-OS_MIRROR_CP-L23__lite_liquidity_sensitivity_screen__payload.schema.txt",
+      "runtime_required": true,
+      "sha256": "1c164ff16e005d4d8c049f3d71cc3d481550c5d43d12ac302e6d7cc06d50c7e4"
+    },
+    "child_schema_CP-L30": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP-OS_MIRROR_CP-L30__lite_market_recovery_opportunity_screen__payload.schema.txt",
+      "runtime_required": true,
+      "sha256": "8282240e1340152cc01263a21ac3830ce6e090212403ed6c99e2acce76e5176d"
+    },
+    "child_schema_CP-L40": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP-OS_MIRROR_CP-L40__lite_legal_structure_capacity_screen__payload.schema.txt",
+      "runtime_required": true,
+      "sha256": "bdf3b97a9889dae953a11aac88d1f3d483810f00ddb8a5bf961c5c7d8f57a842"
+    },
+    "child_schema_CP-LITE-BASE": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP-OS_MIRROR_LITE_MODULE_PAYLOAD_BASE_v1.schema.txt",
+      "runtime_required": true,
+      "sha256": "186f7afb4731df0551cd8e2086b2c5b1cd809d191b8c24baba42bf3543e322df"
+    },
+    "child_schema_registry": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP_DEPLOY_V_CHILD_SCHEMA_REGISTRY_v1.json",
+      "runtime_required": true,
+      "sha256": "6b1766e5698632e277ede71037bee2fcd3e02b726c43b76fc4fe0f8b47c5ef48"
+    },
+    "child_schema_registry_schema": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/CP_DEPLOY_V_CHILD_SCHEMA_REGISTRY_v1.schema.json",
+      "runtime_required": true,
+      "sha256": "ca816b6d92f04f3b475c47540971883ac2c490633924fa83b5da58db4e3e3651"
+    },
+    "child_schema_registry_source": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/02_SCHEMA/CP_DEPLOY_V_CHILD_SCHEMA_REGISTRY_v1.json",
+      "runtime_required": false,
+      "sha256": "6b1766e5698632e277ede71037bee2fcd3e02b726c43b76fc4fe0f8b47c5ef48"
+    },
+    "cp0_profile_anchor_contract": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CP-OS_MIRROR_CP0_PROFILE_ANCHOR_CONTRACT_v1.md",
+      "runtime_required": true,
+      "sha256": "45ad6ab2eeeb754ae46a716b7e947e3acac214ea2696ef5e072f10ef7d36451a"
+    },
+    "execution_profiles": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/03_ORCHESTRATION/CP_DEPLOY_V_EXECUTION_PROFILES_v1.json",
+      "runtime_required": false,
+      "sha256": "a14342e43543e1d91d19fe3d81cc33388fa4dd7e5fbf668baea63dc8ef076ba1"
+    },
+    "invocation_contract": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CREDIT_OS_V_INVOCATION.schema.json",
+      "runtime_required": true,
+      "sha256": "109e4978940130fc8d7b9fd50cf6beb43dcc4d77a4e94a60ada8e3849f98f8a7"
+    },
+    "module_registry": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/00_GOVERNANCE/CP_MODULE_REGISTRY_v1.json",
+      "runtime_required": false,
+      "sha256": "1d6d838686f5f2a7af67e3d3bfa38a28d68f23021d1c2804ff636a814cf8fe3f"
+    },
+    "navigation_registry": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/03_ORCHESTRATION/CREDIT_OS_V_NAVIGATION_REGISTRY_v2.json",
+      "runtime_required": false,
+      "sha256": "ffeb4f750c1341e54aafe5a880f0fa6c38e395d45b00e64aab76d680613fa161"
+    },
+    "numbered_ux_contract": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CREDIT_OS_V_NUMBERED_UX_v2.md",
+      "runtime_required": true,
+      "sha256": "793a73a52151c915edaf5422a593695e0f3e2ab98920ce4f4cacf051d09a998b"
+    },
+    "presentation_profiles": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/00_GOVERNANCE/CP_MARKDOWN_PRESENTATION_PROFILES_v1.json",
+      "runtime_required": false,
+      "sha256": "1da45cb492d7d59bb25a7f905cad500ab76e0d72980695ab042630585e13d4fe"
+    },
+    "research_brief_contract": {
+      "path": "skills/cp-os-credit-os/references/CP_DR_RESEARCH_BRIEF_V1.md",
+      "runtime_required": true,
+      "sha256": "5028a6476cdff812a457bdb994e614b15b73f7c663eaa96b533b64cfd758fbf0"
+    },
+    "research_validation": {
+      "path": "skills/cp-os-credit-os/scripts/credit_os_v/research.py",
+      "runtime_required": true,
+      "sha256": "bb6215d881a84f85d76fbd6b13dbb150c402a5d828dfe583696fe59d7e4ebc78"
+    },
+    "resolved_catalog": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CREDIT_OS_V_MODULE_CATALOG_v2.json",
+      "runtime_required": true,
+      "sha256": "64144b710607f29837df6a3223d65e0065ad7a36a53f3605de7ce0829612aefe"
+    },
+    "runtime_lifecycle_contract": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CREDIT_OS_V_RUNTIME_AND_LIFECYCLE_v2.md",
+      "runtime_required": true,
+      "sha256": "ffa5b7f41df7996aaebb71f56f8997777a676abf81e8d1619d740a981f443d10"
+    },
+    "runtime_limits": {
+      "path": "Co-Pilot Agents/CP-OS/references/CREDIT_OS_RUNTIME_LIMITS_v1.json",
+      "runtime_required": true,
+      "sha256": "9c8477d7e209e5e4a3d4f202daba5eca614015957d0c682ee3291a8d332d2523"
+    },
+    "threat_model": {
+      "path": "Co-Pilot Agents/CP-OS/references/deploy_v/CREDIT_OS_V_THREAT_MODEL_v2.md",
+      "runtime_required": true,
+      "sha256": "4ca68d044594d0e5777e4af01646be2df66597dd6e8dfcba754b799deef60242"
+    },
+    "v_module_registry_extension": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/00_GOVERNANCE/CP_DEPLOY_V_MODULE_REGISTRY_EXTENSION_v1.json",
+      "runtime_required": false,
+      "sha256": "88c3286e0633c260d320df1ef7a3e628dbdf5257586bad0f141ef66927a97ffe"
+    },
+    "v_package_registry": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/00_GOVERNANCE/CP_DEPLOY_V_PACKAGE_REGISTRY_v1.json",
+      "runtime_required": false,
+      "sha256": "96c516c0246dcd326cea66066718d84f57314bf5dda25800990baee018dabd99"
+    },
+    "v_presentation_extension": {
+      "path": "Co-Pilot Agents/KNOWLEDGE SOURCES/00_GOVERNANCE/CP_DEPLOY_V_MARKDOWN_PRESENTATION_PROFILES_EXTENSION_v1.json",
+      "runtime_required": false,
+      "sha256": "b78b9f8ce253bc047906e0e799cbfc737d509a78844c2d46efd4fffe6f776740"
+    }
+  },
+  "local_rebuild": {
+    "method": "verify_package.py --rebuild-authorities; unavailable upstream provenance retained",
+    "previous_authority_bundle_sha256": "694665ec52ae56fbebeda4dedd4b17a65717cd0de0dfe5c570ec59228918e24e"
+  },
+  "schema_version": "1.0",
+  "target_profile": null
+}

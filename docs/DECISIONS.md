@@ -222,6 +222,48 @@ document, keep the coordinates -- and that belongs where extraction happens,
 under its own decision entry, not bolted onto a type meant for host-authored
 strings.
 
+## 2026-09-08 §17 — The Deploy V bundle is vendored at build `a43cb903`
+
+`vendor/deploy-v/`, copied verbatim from the user-supplied package, minus `.git`
+and `.DS_Store`. 349 files, 5.3 MB. Build id
+`a43cb903ca2751f79e77b6da71f6ea131b8462a32e1b549d65fd0f67389d185f`, from the
+bundle's own `DEPLOY_V_INTEGRITY_v1.json`; the host does not mint an identity
+for something that ships with one.
+
+`tests/test_bundle_pin.py` hashes every file the manifest covers and asserts the
+facts the specification rests on. Every one verified against these bytes:
+
+| Claim | Source | Found |
+|---|---|---|
+| typed edges live in `profile["edges"]` | `DECISIONS.md` §2 | `catalog.profiles.*.edges` |
+| 25 OPTIONAL, 22 ADVISORY, one QA_GATE | `DECISIONS.md` §2 | exactly, plus 44 REQUIRED |
+| `navigation.dependencies` is 97 untyped pairs | `DECISIONS.md` §2 | 97, no `type` key on any |
+| 18 pathways across two profiles | `SYSTEM_SPEC.md` §4 | 10 FULL + 8 LITE |
+| CP-PARSE superseded by CP-0 | `DECISIONS.md` §5 | `absorbed_by: CP-0` |
+| `preparation_stage.runnable: false` | `DECISIONS.md` §5 | exactly |
+| `research_extension` at stage 99 | `SYSTEM_SPEC.md` §4 | `route_stage: 99` |
+
+**Two corrections to how the specification reads, not to what it says.**
+
+`profile["edges"]` means the profile inside
+`skills/cp-os-credit-os/references/CREDIT_OS_V_MODULE_CATALOG_v2.json`, not the
+profile in `CP_DEPLOY_V_EXECUTION_PROFILES_v1.json`. Both files have a
+`profiles` key and only one has edges; the execution-profiles file points at the
+catalog through `pathway_execution.source`. Anyone reading `profile["edges"]`
+and opening the wrong file finds nothing, which is one step from reading
+`navigation.dependencies` instead -- the predecessor's exact defect.
+
+**The catalog declares no CONDITIONAL edge at all.** `CONTEXT.md` lists
+`CONDITIONAL` as a blocking edge type and `SYSTEM_SPEC.md` §4 has
+`resolve_route` freezing predicates for it. Zero edges of that type exist in
+either profile, so predicate freezing has nothing to act on against this build.
+The type stays implemented -- it is the bundle's vocabulary and a later build may
+use it -- but no test can exercise it with real data, and `CLAUDE.md` says so.
+
+Gates do not scan `vendor/`: it is authority we never edit (§6), so a vocabulary
+or coverage finding inside it names something no PR is allowed to fix. `ruff`,
+`mypy` and both identifier gates exclude it, and the CI size gate already did.
+
 ## 2026-09-08 §19 — `make merge` checks for the flag, not for a `gh` version
 
 The target refuses a `gh` whose `pr merge` has no `--match-head-commit`, rather
