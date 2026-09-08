@@ -170,10 +170,19 @@ absent — there is no code path to it.
 refusal. **No text is ever returned on refusal** — not in the exception chain,
 not in the delivered set, not in the ledger.
 
-A citation is `{document_sha256, page, bbox, matched_text}`. The host re-locates
-`matched_text` in `source_tokens` at the stated page and derives the rectangle.
-A quote it cannot re-locate is refused before it reaches the artifact. Citations
-may only name evidence actually delivered to that node.
+A citation is `{document_sha256, page, bboxes, matched_text}`. The host
+re-locates `matched_text` in `source_tokens` at the stated page and derives one
+rectangle per line the quote covers -- the same shape as a PDF highlight's
+QuadPoints, and for the same reason: selected text wraps. A single enclosing
+rectangle would cover text the quote does not contain, which is the predecessor's
+line-range defect wearing coordinates.
+
+Every token carries the line it belongs to, assigned by the extractor. Matching
+joins tokens within a line and only ever continues onto the next line, so a quote
+cannot be assembled across a column gutter: the two columns are different lines
+and the phrase never forms. A quote it cannot re-locate, or cannot locate exactly
+once, is refused before it reaches the artifact. Citations may only name evidence
+actually delivered to that node.
 
 ---
 

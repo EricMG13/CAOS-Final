@@ -59,13 +59,19 @@ CREATE TABLE IF NOT EXISTS sources (
 CREATE TABLE IF NOT EXISTS source_tokens (
     source_id  uuid NOT NULL REFERENCES sources (source_id),
     page       integer NOT NULL CHECK (page > 0),
+    -- Both assigned by the extractor. A block is a column or a paragraph; a
+    -- quote may wrap onto the next line of its own block and nowhere else, so
+    -- two columns sharing a y-band cannot be joined into a phrase the page does
+    -- not carry (docs/DECISIONS.md section 15).
+    block_id   integer NOT NULL CHECK (block_id >= 0),
+    line_id    integer NOT NULL CHECK (line_id >= 0),
     ordinal    integer NOT NULL CHECK (ordinal >= 0),
     text       text NOT NULL,
     x0         numeric NOT NULL,
     y0         numeric NOT NULL,
     x1         numeric NOT NULL,
     y1         numeric NOT NULL,
-    PRIMARY KEY (source_id, page, ordinal)
+    PRIMARY KEY (source_id, page, block_id, line_id, ordinal)
 );
 
 -- Append-only means append-only. Enforced by the store, not by convention:

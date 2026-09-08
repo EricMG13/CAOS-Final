@@ -145,3 +145,23 @@ with nothing in between.
 `postgres:16-alpine` is pinned by digest
 `sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685` in CI;
 a tag alone is not a pin.
+
+## 2026-09-08 §15 — A citation carries one rectangle per line, not one rectangle
+
+`bbox` becomes `bboxes`: one rectangle for each line the quote covers. Every
+`source_tokens` row carries the line it belongs to, assigned by the extractor,
+and a match may run within a line or continue onto the next -- never across a
+gutter.
+
+**Reason.** The singular `bbox` cannot describe a quote that wraps, and every
+covenant worth citing wraps. Building the enclosing rectangle instead was
+verified to accept `"net debt"` spanning a two-column gutter -- a phrase not on
+the page -- and to return, for a quote crossing a line break, a rectangle
+enclosing two words that were never quoted. Either makes "one click from its
+evidence" false, which is the defect the rebuild exists to escape
+(`DECISIONS.md` §9).
+
+PDF highlight annotations use QuadPoints, a list of quads, for exactly this
+reason. Line identity comes from the extractor because separating two columns
+that share a y-band is layout analysis; a threshold in the anchoring path would
+be a heuristic on the evidence boundary.

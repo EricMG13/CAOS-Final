@@ -1,19 +1,24 @@
 """Coordinate-anchored citations (invariant 11).
 
 The host re-locates `matched_text` in its own token index at the stated page and
-derives the rectangle. A module's claim about where its quote sits is an
-expectation, not authority (invariant 3), so `anchor_citation` takes no bbox --
-it returns the one it derived, and refuses a quote it cannot re-locate.
+derives one rectangle per line the quote covers -- the shape of a PDF highlight's
+QuadPoints, and for the same reason: selected text wraps. A module's claim about
+where its quote sits is an expectation, not authority (invariant 3), so
+`anchor_citation` takes no rectangle; it returns the ones it derived.
 
-Matching is whitespace-insensitive in both directions: the index holds one token
-per extracted run, while a module quotes a running sentence. Nothing else about
-the text is normalised, so a quote that differs by a character is not a match.
+A quote may run within a line and continue onto the next line **of its own
+block**. Nothing joins across blocks, so two columns sharing a y-band cannot be
+assembled into a phrase the page does not carry. Matching is whitespace-
+insensitive in both directions -- the index holds one token per extracted run
+while a module quotes a running sentence -- and nothing else is normalised, so a
+quote differing by a character is not a match.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from decimal import Decimal
+from itertools import groupby
 
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
@@ -23,14 +28,19 @@ from server.store.sources import Token
 # predecessor's ~8x I/O defect (docs/AI_CODE_QUALITY.md section 1).
 IO_BUDGET = 2
 
+type Rectangle = tuple[Decimal, Decimal, Decimal, Decimal]
+
 
 @dataclass(frozen=True, slots=True)
 class Citation:
-    """`{document_sha256, page, bbox, matched_text}` -- the bbox host-derived."""
+    """`{document_sha256, page, bboxes, matched_text}`, the rectangles derived.
+
+    One rectangle per line the quote covers, in reading order.
+    """
 
     document_sha256: str
     page: int
-    bbox: tuple[Decimal, Decimal, Decimal, Decimal]
+    bboxes: tuple[Rectangle, ...]
     matched_text: str
 
 
@@ -38,25 +48,16 @@ def _collapse(text: str) -> str:
     return " ".join(text.split())
 
 
-def page_text(tokens: list[Token]) -> tuple[str, list[int]]:
-    """The page as one string, and the token each character came from.
-
-    Tokens are joined by a single space so a quote that runs across several of
-    them matches; the map is what turns a character span back into a rectangle.
-    """
-    parts: list[str] = []
-    owners: list[int] = []
-    for index, token in enumerate(tokens):
-        if parts:
-            parts.append(" ")
-            owners.append(index)
-        collapsed = _collapse(token.text)
-        parts.append(collapsed)
-        owners.extend([index] * len(collapsed))
-    return "".join(parts), owners
+def line_runs(tokens: list[Token]) -> list[tuple[str, list[Token]]]:
+    """Each line as its collapsed text and the tokens that make it up."""
+    runs = []
+    for _, line in groupby(tokens, key=lambda token: (token.block_id, token.line_id)):
+        members = list(line)
+        runs.append((" ".join(_collapse(token.text) for token in members), members))
+    return runs
 
 
-def enclosing_box(tokens: list[Token]) -> tuple[Decimal, Decimal, Decimal, Decimal]:
+def enclosing_box(tokens: list[Token]) -> Rectangle:
     """The smallest rectangle containing every token given."""
     return (
         min(token.x0 for token in tokens),
@@ -66,23 +67,50 @@ def enclosing_box(tokens: list[Token]) -> tuple[Decimal, Decimal, Decimal, Decim
     )
 
 
-def locate(tokens: list[Token], matched_text: str) -> list[Token]:
-    """The tokens a quote covers, or a refusal if the page does not carry it once.
+def _covered(
+    runs: list[tuple[str, list[Token]]], start: int, stop: int
+) -> list[list[Token]]:
+    """The tokens a character span covers, split back into one list per line."""
+    covering: list[list[Token]] = []
+    at = 0
+    for text, members in runs:
+        offset = 0
+        line: list[Token] = []
+        for token in members:
+            width = len(_collapse(token.text))
+            if at + offset < stop and at + offset + width > start:
+                line.append(token)
+            offset += width + 1
+        if line:
+            covering.append(line)
+        at += len(text) + 1
+    return covering
 
-    A quote appearing twice on a page has two rectangles, so it has none: a
-    citation that points at one of two places is not evidence. The module is
-    expected to quote enough context to be unambiguous.
+
+def locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
+    """The tokens a quote covers, one list per line, or a refusal.
+
+    A quote absent from every block is not locatable; one present in more than
+    one place has as many rectangles as occurrences, so it has none.
     """
     quote = _collapse(matched_text)
     if not quote:
         raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
-    text, owners = page_text(tokens)
-    start = text.find(quote)
-    if start < 0:
+
+    hits: list[list[list[Token]]] = []
+    for _, block in groupby(tokens, key=lambda token: token.block_id):
+        runs = line_runs(list(block))
+        text = " ".join(line for line, _ in runs)
+        at = text.find(quote)
+        while at >= 0:
+            hits.append(_covered(runs, at, at + len(quote)))
+            at = text.find(quote, at + 1)
+
+    if not hits:
         raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
-    if text.find(quote, start + 1) >= 0:
+    if len(hits) > 1:
         raise Refusal(RefusalCode.CITATION_AMBIGUOUS)
-    return tokens[owners[start] : owners[start + len(quote) - 1] + 1]
+    return hits[0]
 
 
 def _page_tokens(
@@ -90,25 +118,27 @@ def _page_tokens(
 ) -> list[Token]:
     # Scoped to the case. The same document in two cases is ordinary, and each
     # case holds its own copy: an unscoped lookup would return an arbitrary one.
-    found = store.execute(
-        "SELECT source_id FROM sources WHERE case_id = %s AND sha256 = %s",
-        (case_id, document_sha256),
-    ).fetchone()
-    if found is None:
-        raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
-    rows = store.execute(
-        "SELECT page, ordinal, text, x0, y0, x1, y1 FROM source_tokens"
-        " WHERE source_id = %s AND page = %s ORDER BY ordinal",
-        (found[0], page),
-    ).fetchall()
+    with store.transaction():
+        found = store.execute(
+            "SELECT source_id FROM sources WHERE case_id = %s AND sha256 = %s",
+            (case_id, document_sha256),
+        ).fetchone()
+        if found is None:
+            raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
+        rows = store.execute(
+            "SELECT page, block_id, line_id, ordinal, text, x0, y0, x1, y1"
+            " FROM source_tokens WHERE source_id = %s AND page = %s"
+            " ORDER BY block_id, line_id, ordinal",
+            (found[0], page),
+        ).fetchall()
     return [Token(*row) for row in rows]
 
 
 def anchor_citation(
     store: Store, *, case_id: str, document_sha256: str, page: int, matched_text: str
 ) -> Citation:
-    """Re-locate a quote within its case and derive its rectangle, or refuse it."""
-    covered = locate(
+    """Re-locate a quote within its case and derive its rectangles, or refuse it."""
+    covering = locate(
         _page_tokens(
             store, case_id=case_id, document_sha256=document_sha256, page=page
         ),
@@ -117,6 +147,6 @@ def anchor_citation(
     return Citation(
         document_sha256=document_sha256,
         page=page,
-        bbox=enclosing_box(covered),
+        bboxes=tuple(enclosing_box(line) for line in covering),
         matched_text=matched_text,
     )
