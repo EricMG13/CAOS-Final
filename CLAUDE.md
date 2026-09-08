@@ -194,6 +194,31 @@ system this size means nobody looked.
   the phase that creates it, and
   `test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` fails until
   it does.
+- **`artifacts` and `budget_ledger` refuse nothing.** Invariant 6 promises one
+  artifact, one charge and one terminal event per run; only the event is
+  guarded. `TRUNCATE budget_ledger` succeeds, and so does an UPDATE that
+  rewrites a charge. `SYSTEM_SPEC.md` §2 does not list either table as
+  append-only, so this is a spec question rather than a missing trigger --
+  but a money ledger that can be rewritten is worth deciding on deliberately.
+  `test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` cannot
+  catch it: the query polices tables already wired to `refuse_rewrite`, so a
+  table with no trigger at all is invisible to it. *Upgrade:* decide whether
+  either is append-only, and if so give it both triggers.
+- **The triggers stop an accident, not the application role.** The store
+  connects as the owner of its own tables, so `ALTER TABLE delivered_evidence
+  DISABLE TRIGGER ALL` followed by `TRUNCATE` succeeds -- verified. No
+  least-privilege role exists; dev, CI and the tests all connect as `postgres`.
+  The guards are worth having, and what they buy is a careless statement
+  refused, not an untrusted caller contained. *Upgrade:* a role that owns no
+  table and holds no TRUNCATE grant, in the phase that first deploys the store
+  somewhere real.
+- **Refusal is proven behaviourally for `run_events` only.** `source_sets`,
+  `source_set_members` and `delivered_evidence` are covered structurally --
+  the pairing test asserts each carries both triggers, and `run_events` proves
+  the shared `refuse_rewrite` function actually raises. A DELETE against the
+  other three touches zero rows in a fresh schema, so a behavioural test needs
+  a populated fixture for each. *Upgrade:* the slice that gives those tables
+  real fixtures.
 - **The identifier gates see only what git tracks.** A file added but not yet
   staged is invisible to `check_vocabulary.py` and `check_tested.py`, so
   `make check` can pass over code neither has read. *Upgrade:* stage before
