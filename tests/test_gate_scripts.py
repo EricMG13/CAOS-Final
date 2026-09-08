@@ -9,12 +9,14 @@ predecessor's `read_evidence` had exactly that defect.
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
 
 import check_tested
 import io_budget
+import pytest
 import scan_floors
 import tracked
 
@@ -149,3 +151,22 @@ def test_tracked_python_skips_a_file_that_is_no_longer_on_disk(
     (tmp_path / "gone.py").unlink()
 
     assert tracked.tracked_python(tmp_path) == [tmp_path / "here.py"]
+
+
+def test_tracked_python_fails_closed_on_an_unreadable_path(tmp_path: Path) -> None:
+    # Path.is_file() returns False for every OSError on 3.14, not only for a
+    # missing path, so a permission error would drop a tracked file from the
+    # scan silently. A gate that scanned less than it should is a failed gate.
+    if os.geteuid() == 0:
+        pytest.skip("root ignores the directory mode this test relies on")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "hidden.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+    locked.chmod(0o000)
+    try:
+        with pytest.raises(PermissionError):
+            tracked.tracked_python(tmp_path)
+    finally:
+        locked.chmod(0o755)
