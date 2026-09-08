@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS run_events (
 CREATE TABLE IF NOT EXISTS artifacts (
     run_id      uuid NOT NULL REFERENCES runs (run_id),
     node_id     text NOT NULL,
-    sha256      char(64) NOT NULL,
+    sha256      text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
     created_at  timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, node_id)
 );

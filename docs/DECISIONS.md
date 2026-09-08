@@ -146,6 +146,35 @@ with nothing in between.
 `sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685` in CI;
 a tag alone is not a pin.
 
+## 2026-09-08 §13 — Merges go through `make merge`
+
+`make merge PR=<n>` runs `gh pr checks` before `gh pr merge` and stops on
+anything not green. No new script: `gh pr checks` already exits non-zero when a
+check fails or is still pending.
+
+**Reason.** PR #1 merged with the size gate red at 983 lines because nothing
+stopped it. At the time nothing could: branch protection and rulesets are both
+refused on a private repository on GitHub's free plan. That has since been
+resolved -- see §14 -- and `make merge` is now a local convenience rather than
+the only control.
+
+`--delete-branch` is deliberately absent. Deleting a base branch **closes** the
+pull requests stacked on it rather than retargeting them; that is what happened
+to PR #3, which had to be reopened as #5.
+
+## 2026-09-08 §14 — The repository is public, and `main` has a ruleset
+
+Ruleset `main gates`, active on the default branch: `lint`, `types`, `test`,
+`security` and `size` are required status checks, and branch deletion and
+non-fast-forward pushes are refused.
+
+**Reason.** Overrides §13's premise. Making the repository public lifted the
+Pro-only restriction on rulesets, so the gates are enforced by the platform
+rather than by whoever remembers to run `make merge`. `postgres` is not yet in
+the required set because no job of that name exists on `main`; it is added with
+the store PR that introduces it, since a required check that never reports
+blocks every merge.
+
 ## 2026-09-08 §15 — A citation carries one rectangle per line, not one rectangle
 
 `bbox` becomes `bboxes`: one rectangle for each line the quote covers. Every
@@ -264,3 +293,17 @@ value, `READY_FOR_MODEL_ROUTE`. It does not: that is
 `SOURCE_READY_FOR_MODEL_ROUTE`, the `status` of a separate
 `model_route_source_assessment` object scoped `SOURCE_SUFFICIENCY_ONLY`. Source
 readiness is `READY`, `READY_WITH_LIMITATIONS`, `BLOCKED`, as the spec says.
+
+## 2026-09-08 §19 — `make merge` checks for the flag, not for a `gh` version
+
+The target refuses a `gh` whose `pr merge` has no `--match-head-commit`, rather
+than one whose version string is not an exact match. `GH_VERSION := 2.100.0` is
+removed.
+
+**Reason.** The pin refused every `gh` but one, including the 2.96.0 on the
+machine that has to run it, and would have refused each release after 2.100.0 as
+well. A version string is a proxy; the flag is the thing the target depends on,
+and an older `gh` without it already fails closed on an unknown flag.
+
+`tests/test_merge_gate.py` drives the target against a stub `gh` that refuses
+`pr merge`, because nothing watched it when it merged PR #6 by accident.
