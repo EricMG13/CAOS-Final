@@ -46,7 +46,9 @@ jobs:
     # gitleaks-action lists a pull request's commits; the default token cannot.
     permissions: {contents: read, pull-requests: read}
     steps:
+      # gitleaks scans a commit range; a depth-1 clone has no range to scan.
       - uses: actions/checkout@v4
+        with: {fetch-depth: 0}
       - uses: actions/setup-python@v5
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r requirements-security.txt
