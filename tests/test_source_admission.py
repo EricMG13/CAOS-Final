@@ -15,7 +15,7 @@ import pytest
 from server.boundary_text import BoundaryText
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.sources import SourceDocument, Token, admit_pack
+from server.store.sources import SourceDocument, Token, admit_pack, code_for
 
 CASE = BoundaryText.of("acme")
 DIGEST = "d" * 64
@@ -76,3 +76,13 @@ def test_a_refusal_names_no_constraint_table_or_vendor(store: Store) -> None:
     # No text is returned on refusal -- not in the exception chain either.
     assert caught.value.__cause__ is None
     assert caught.value.__context__ is None
+
+
+def test_code_for_names_the_rule_in_the_hosts_own_words() -> None:
+    # The mapping is the seam between a constraint the store enforces and the
+    # code a caller may act on. An unmapped constraint is still refused, never
+    # passed through as whatever the driver called it.
+    assert code_for("sources_case_id_sha256_key") is RefusalCode.SOURCE_ALREADY_ADMITTED
+    assert code_for("source_tokens_pkey") is RefusalCode.SOURCE_TOKEN_INDEX_INVALID
+    assert code_for("something_new_check") is RefusalCode.SOURCE_NOT_ADMISSIBLE
+    assert code_for(None) is RefusalCode.SOURCE_NOT_ADMISSIBLE

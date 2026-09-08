@@ -1,4 +1,4 @@
-"""Sources: admitting a pack, its blocks, its token index, and pinning a set.
+"""Admitting a pack of source documents: their blocks and their token index.
 
 Three things a source carries, easily confused because all three are numbered:
 
@@ -10,6 +10,9 @@ Three things a source carries, easily confused because all three are numbered:
 
 Blocks and regions are independent: nothing maps one onto the other, and
 nothing needs to. Tokens never leave the host.
+
+Pinning a source set lives in `server/store/source_sets.py`: it shares only the
+store and `code_for` with this module.
 """
 
 from __future__ import annotations
@@ -90,68 +93,21 @@ def admit_pack(
     try:
         return _admit_pack(store, case_id=case_id, documents=documents)
     except errors.IntegrityError as violation:
-        code = _code_for(violation)
+        code = code_for(violation.diag.constraint_name)
     # Raised outside the handler on purpose. Inside it, the driver exception is
     # attached as __context__ -- and `raise ... from None` only hides that from
     # a traceback, it does not detach it. The DETAIL line carries key values.
     raise Refusal(code)
 
 
-def _code_for(violation: errors.IntegrityError) -> RefusalCode:
-    """The host's word for a store rule the pack broke. Never the driver's."""
-    return _REFUSALS.get(
-        violation.diag.constraint_name or "", RefusalCode.SOURCE_NOT_ADMISSIBLE
-    )
+def code_for(constraint_name: str | None) -> RefusalCode:
+    """The host's word for a store rule that was broken. Never the driver's.
 
-
-def pin_source_set(
-    store: Store, *, case_id: BoundaryText, source_ids: tuple[str, ...]
-) -> int:
-    """Pin an immutable, versioned set of this case's sources; return its version.
-
-    A set is a set: naming a source twice pins it once. Naming none is refused --
-    a run pinned to no evidence is a mistake worth making early.
+    Takes the name rather than the exception so the mapping can be read and
+    tested without constructing a driver error, and so nothing downstream is
+    handed something carrying a DETAIL line.
     """
-    members = tuple(dict.fromkeys(source_ids))
-    if not members:
-        raise Refusal(RefusalCode.SOURCE_SET_EMPTY)
-    try:
-        return _pin(store, case_id=case_id, members=members)
-    except errors.IntegrityError as violation:
-        code = _code_for(violation)
-    raise Refusal(code)
-
-
-def _pin(store: Store, *, case_id: BoundaryText, members: tuple[str, ...]) -> int:
-    with store.transaction():
-        # The case row lock is taken before the current version is read, so two
-        # pins cannot allocate the same one.
-        store.execute(
-            "SELECT case_id FROM cases WHERE case_id = %s FOR UPDATE",
-            (case_id.value,),
-        )
-        mine = store.execute(
-            "SELECT count(*) FROM sources WHERE case_id = %s AND source_id = ANY(%s)",
-            (case_id.value, list(members)),
-        ).fetchone()
-        if mine is None or mine[0] != len(members):
-            raise Refusal(RefusalCode.SOURCE_NOT_IN_CASE)
-        allocated = store.execute(
-            "INSERT INTO source_sets (case_id, version)"
-            " SELECT %s, coalesce(max(version), 0) + 1 FROM source_sets"
-            " WHERE case_id = %s RETURNING version",
-            (case_id.value, case_id.value),
-        ).fetchone()
-        if allocated is None:  # pragma: no cover - RETURNING always yields a row
-            raise Refusal(RefusalCode.SOURCE_NOT_IN_CASE)
-        version = int(allocated[0])
-        with store.cursor() as cursor:
-            cursor.executemany(
-                "INSERT INTO source_set_members (case_id, version, source_id)"
-                " VALUES (%s, %s, %s)",
-                [(case_id.value, version, source_id) for source_id in members],
-            )
-    return version
+    return _REFUSALS.get(constraint_name or "", RefusalCode.SOURCE_NOT_ADMISSIBLE)
 
 
 def _admit_pack(

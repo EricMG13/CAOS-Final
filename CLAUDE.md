@@ -81,7 +81,8 @@ directory the repository does not have costs more than no map.
 - `server/store/` — Postgres owns everything transactional.
   `server/store/schema.sql` is applied whole at startup, with no migrations.
   The write paths are `server/store/runs.py`, `server/store/attempts.py`,
-  `server/store/routes.py` and `server/store/sources.py`;
+  `server/store/routes.py`, `server/store/sources.py` (admission) and
+  `server/store/source_sets.py` (pinning);
   `server/store/blobs.py` is the content-addressed blob store.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a

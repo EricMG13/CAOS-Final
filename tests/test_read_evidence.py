@@ -21,7 +21,8 @@ from server.evidence.reads import IO_BUDGET, EvidenceRequest, read_evidence
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.runs import start_run
-from server.store.sources import Block, SourceDocument, admit_pack, pin_source_set
+from server.store.source_sets import pin_source_set
+from server.store.sources import Block, SourceDocument, admit_pack
 
 CASE = BoundaryText.of("acme")
 NODE = BoundaryText.of("CP-1")
