@@ -1,8 +1,8 @@
 # Rebuild plan
 
-Ten phases. Each has an exit test — a named, runnable check that fails before
-the phase and passes after. A phase is not done because the code exists; it is
-done when its exit test passes and the prior phases' tests still pass.
+Eleven phases (0–10). Each has an exit test — a named, runnable check that fails
+before the phase and passes after. A phase is not done because the code exists;
+it is done when its exit test passes and the prior phases' tests still pass.
 
 Order is chosen so the thing most likely to be wrong is built earliest, when it
 is cheapest to change. The predecessor reached 29k lines of server code before
@@ -66,7 +66,9 @@ The phase the predecessor got wrong. Build it before anything depends on it.
 `test_optional_edge_blocks_when_source_ready`,
 `test_qa_gate_blocks_cp6_until_cp5_accepted`,
 `test_restricted_node_runs_and_carries_limitation`,
-`test_resolved_route_is_pinned_and_replays_identically`.
+`test_resolved_route_is_pinned_and_replays_identically`,
+`test_cp_cf_waits_for_all_required_owners`,
+`test_model_extension_refuses_missing_owner`.
 
 ## Phase 4 — The frontier loop
 
@@ -114,6 +116,14 @@ legacy" is either true or not.
 
 **Exit:** the ten parity tests in `MODEL_BUILDER_SPEC.md` §8, with LibreOffice
 present. `test_recalc_unavailable_fails_closed` proves the suite is not vacuous.
+`test_forecast_complete_requires_every_requested_period` refuses a missing,
+duplicate, extra or unavailable case-period; a full horizon with an explicitly
+unavailable zero-denominator ratio remains valid. An independently wrong
+residual and forward propagation are exercised by
+`test_forecast_residual_is_not_forced_to_zero` and
+`test_forecast_unavailability_propagates`.
+`test_overlay_renders_from_ir_without_reusing_a_workbook` protects the overlay
+boundary in `SYSTEM_SPEC.md` §6.
 
 ## Phase 8 — Publication
 
@@ -140,6 +150,8 @@ present. `test_recalc_unavailable_fails_closed` proves the suite is not vacuous.
 **Exit:** `npm run a11y` and `npm run test:workbench` green on three engines;
 `test_passport_contract` asserts all ten fields on an actual and on a projected
 cell.
+`test_book_binds_one_snapshot_per_compared_case` compares two issuers and
+refuses a late response carrying a different snapshot for either one.
 
 ## Phase 10 — Qualification
 
@@ -161,6 +173,12 @@ analyst approvals exist.
   creates it.
 - No new dependency without a dated `DECISIONS.md` entry.
 - Never edit an upstream bundle file.
+- The first phase exposing an HTTP route also ships the actor matrix for that
+  route. `test_production_never_trusts_role_header`,
+  `test_unauthorised_case_is_private_404` and
+  `test_membership_revocation_refuses_commit` enforce `SYSTEM_SPEC.md` §8;
+  production identity and commit-time authority checks do not wait for the
+  workspace or qualification phases.
 
 ## What is deliberately not in the plan
 
