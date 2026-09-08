@@ -22,7 +22,7 @@ a tool, not by intention. A control nobody runs is not a control.
 | **Naming inconsistency** | ~2× | One glossary. Every domain term in `CONTEXT.md`; a check that new identifiers do not introduce a synonym for an existing term | `CONTEXT.md` + `scripts/check_vocabulary.py` |
 | **Concurrency & dependencies** | ~2× | No new dependency without a dated decision entry. Fully pinned, hashed locks. Every governed race proven on two independent Postgres connections | `test_dependency_pins.py`, `--require-hashes`, `test_postgres_races.py` |
 | **Performance — excessive I/O** | **~8×** | A declared I/O budget per request path, asserted in tests. N+1 detection on every list endpoint | `scripts/io_budget.py` + `test_io_budget.py` |
-| **Critical/major severity** | 1.4–1.7× | Two independent review passes before merge: self-doubt enumeration, then hostile review | `confidence-review` and `adversarial-reviewer` skills; CodeRabbit on the PR |
+| **Critical/major severity** | 1.4–1.7× | Two independent review passes before merge: self-doubt enumeration, then hostile review. The hostile pass is the gate — it must find something, and each finding is either fixed or entered in the known-gaps ledger | `confidence-review` then `adversarial-reviewer`, both before the PR is opened; CodeRabbit when asked (§2) |
 | **Overall volume** | 1.7× | Small PRs. One concern per PR, hard cap on changed lines | CI size gate |
 
 **Excessive I/O deserves its own note.** It is the largest single multiple in
@@ -59,9 +59,29 @@ budget test is what stops it coming back.
 
 ### Review
 
-CodeRabbit on every PR — the report's own recommendation, and the tool that
-produced these numbers. Plus the two agent passes above. Three reviewers with
-different blind spots beats one careful one.
+The intent was three reviewers with different blind spots. It is two, and they
+share weights.
+
+**The gate is `adversarial-reviewer`, run before every PR is opened.** It is not
+advisory: each of its three personas must produce a finding, and every finding
+is either fixed in the PR or written into the CLAUDE.md known-gaps ledger with
+its reason. A pass that produced nothing means it was not run.
+
+**CodeRabbit is opportunistic.** It is installed, live and reading
+`.coderabbit.yaml`, but it does not auto-review this repository and the request
+cannot be automated — see the ledger entry in CLAUDE.md for both proofs. A
+person typing `@coderabbitai review` gets one in under a minute. Nobody should
+plan on it.
+
+The honest cost: `confidence-review` and `adversarial-reviewer` are the same
+model reading its own work in different postures, which is weaker than an
+independent tool. The persona structure is what buys back some independence,
+and it is not the same thing. The measured value so far, on the two changes
+this arrangement has reviewed: CodeRabbit contributed two docstrings to #20;
+the adversarial pass over that same merged change found the assertion in
+`test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` was half
+blind, and two tables with no guard at all (#24). Both had already passed
+`make check`.
 
 ---
 

@@ -92,6 +92,11 @@ Standing rules that back them:
 - **No new dependency without a dated decision entry.** Locks are fully pinned
   and hashed; the image and CI install with `--require-hashes`.
 - **A scanner that scanned nothing is a failure**, not a pass.
+- **Adversarial pass before every PR.** `confidence-review`, then
+  `adversarial-reviewer`, before the PR is opened. Each finding is fixed in the
+  PR or entered in the ledger below with its reason. This is the third
+  reviewer; CodeRabbit is not available on demand
+  (`docs/AI_CODE_QUALITY.md` §2).
 - **Regenerate, don't hand-maintain.** Inventories and ledgers are emitted from
   the suite. The previous tree carried ~500 KB of hand-written governance
   markdown; do not repeat that.
@@ -152,9 +157,13 @@ system this size means nobody looked.
   in this repository can make the request. `docs/AI_CODE_QUALITY.md` §2 counts
   it as the third reviewer beside `confidence-review` and
   `adversarial-reviewer`; **on every PR to date it is absent unless a human
-  types `@coderabbitai review`.** *Upgrade:* 10 stars, or a plan whose
-  auto-review does not gate on them. A workflow driven by a personal access
-  token would also work and is not worth a long-lived credential for this.
+  types `@coderabbitai review`.** `adversarial-reviewer` is the gate in its
+  place, which costs the independence CodeRabbit had: two of the two remaining
+  reviewers are the same model in different postures, and no tool with genuinely
+  different weights reads this repository unless somebody asks for one.
+  *Upgrade:* 10 stars, or a plan whose auto-review does not gate on them. A
+  workflow driven by a personal access token would also work and is not worth a
+  long-lived credential for this.
 **Phase 3.**
 
 - **Nothing calls `pin_route` yet.** The pin exists and is binding once written,
