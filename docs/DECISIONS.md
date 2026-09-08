@@ -214,3 +214,21 @@ and an older `gh` without it already fails closed on an unknown flag.
 
 `tests/test_merge_gate.py` drives the target against a stub `gh` that refuses
 `pr merge`, because nothing watched it when it merged PR #6 by accident.
+
+## 2026-09-08 §20 — The run row lock, not a conditional update
+
+`commit_terminal` reads the run state under `SELECT ... FOR UPDATE` and returns
+before writing anything when the state is not RUNNING. The standing rule in
+`CLAUDE.md` and `docs/SYSTEM_SPEC.md` named the conditional update as *the*
+mechanism; both now state the guarantee -- no event without the transition it
+records -- and admit either proof.
+
+**Reason.** The lock is already load-bearing for `run_events.seq`, allocated as
+`max(seq) + 1` and safe only because two callers cannot read the same sequence.
+Under that lock the state read is authoritative, so `AND state = 'RUNNING'` on
+the UPDATE is a branch that cannot be taken and a rowcount check that cannot
+fail. A review read the module docstring rather than the code and reported the
+mechanism as missing; the wording was what was wrong, and the docstring is
+fixed. `docs/REBUILD_PLAN.md` still records the original plan and is left
+alone: it is the plan of record, and this entry overrides it.
+
