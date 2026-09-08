@@ -111,8 +111,11 @@ jobs:
       - uses: actions/checkout@v4
         with: {fetch-depth: 0}
       - run: |
+          # 'vendor/**' as well as '**/vendor/**': the leading **/ requires at
+          # least one path component, so it never matches a top-level vendor/.
           n=$(git diff --numstat origin/${{ github.base_ref }}...HEAD -- . \
-              ':!*.lock' ':!requirements*.txt' ':!**/vendor/**' ':!docs/**' \
+              ':!*.lock' ':!requirements*.txt' ':!docs/**' \
+              ':!vendor/**' ':!**/vendor/**' \
               | awk '{s+=$1+$2} END {print s+0}')
           echo "changed lines: $n"
           [ "$n" -le 800 ] || { echo "PR too large; split it (docs/AI_CODE_QUALITY.md)"; exit 1; }
