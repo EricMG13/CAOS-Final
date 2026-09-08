@@ -8,7 +8,7 @@ reviews:
     # phase PR's base is never `main`, and CodeRabbit reviews only the default
     # branch unless told otherwise. This covers that. It does not cover the
     # other reason auto-review is off -- a public repository under 10 stars gets
-    # none at all -- which `.github/workflows/coderabbit.yml` asks around.
+    # none at all -- and nothing in this repository can. See CLAUDE.md.
     base_branches:
       - "phase-.*"
   request_changes_workflow: true

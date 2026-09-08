@@ -140,16 +140,21 @@ system this size means nobody looked.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **CodeRabbit never auto-reviews, on any PR.** It is installed and live,
-  reading `.coderabbit.yaml`, but it declines every PR in this repository with
-  *"does not receive automatic reviews because it has fewer than 10 stars"* —
-  its own words on PR #20, whose base was `main`. The stacked-base rule is real
-  and `base_branches` covers it, but it was never why this repository saw no
-  reviews. `docs/AI_CODE_QUALITY.md` §2 counts CodeRabbit as the third reviewer
-  beside `confidence-review` and `adversarial-reviewer`; until the star gate is
-  cleared it reviews only when asked. `.github/workflows/coderabbit.yml` asks on
-  every PR. *Upgrade:* 10 stars, or a plan whose auto-review does not gate on
-  them, at which point the workflow is redundant and goes.
+- **CodeRabbit never auto-reviews, and the ask cannot be automated.** It is
+  installed and live, reading `.coderabbit.yaml`, but it declines every PR here
+  with *"does not receive automatic reviews because it has fewer than 10
+  stars"* — its own words on PR #20, whose base was `main`. The stacked-base
+  rule is real and `base_branches` covers it, but it was never why this
+  repository saw no reviews. `@coderabbitai review` does start one, in under a
+  minute, when a person posts it (PR #20). The same comment posted by
+  `github-actions[bot]` from a workflow was ignored for nine minutes and never
+  answered (PR #22), so CodeRabbit does not honour a bot author and no workflow
+  in this repository can make the request. `docs/AI_CODE_QUALITY.md` §2 counts
+  it as the third reviewer beside `confidence-review` and
+  `adversarial-reviewer`; **on every PR to date it is absent unless a human
+  types `@coderabbitai review`.** *Upgrade:* 10 stars, or a plan whose
+  auto-review does not gate on them. A workflow driven by a personal access
+  token would also work and is not worth a long-lived credential for this.
 **Phase 3.**
 
 - **`pin_route` does not exist yet.** `route_digest` computes what the plan gate
