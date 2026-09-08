@@ -226,10 +226,13 @@ what is missing. It does not pretend.
 
 ## 5. Cross-section rules
 
-- **One snapshot per screen.** Every surface renders the shell's single visible
-  snapshot. No surface mints a second accepted identity. The visible lens and
-  the latest accepted authority are separate and both are named; a pinned lens
-  moves only through an explicit switch.
+- **One snapshot per case on screen.** Every surface for a case renders the
+  shell's single visible snapshot for that case. Book pins one accepted
+  snapshot per compared case and names each binding; the shared comparison
+  basis is period, scenario and accepted-only (§4.4), not a shared snapshot
+  across issuers. No surface mints a second accepted identity for the same
+  case. The visible lens and the latest accepted authority are separate and
+  both are named; a pinned lens moves only through an explicit switch.
 - **One evidence drawer.** Opened from a chip or an explicit control, its opener
   passed from the click, focus returned on Escape. There is no second inspector.
 - **Ask is scoped to what is on screen.** In Analysis it asks the case, in Book
@@ -265,7 +268,7 @@ notes).
 
 ## 7. Density and motion
 
-- Dark institutional terminal, single mode. Paper — light ink on cream — only
+- Dark institutional terminal, single mode. Paper — dark ink on cream — only
   inside published output and research documents.
 - Colour is signal: status, seniority, selection, lineage. Never decoration.
   Status is shape *and* hue, never hue alone.

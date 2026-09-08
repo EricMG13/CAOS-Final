@@ -1,0 +1,4 @@
+# Phase 0 development toolchain. Runtime dependencies live in requirements.in.
+ruff==0.14.0
+mypy==1.18.2
+pytest==9.0.3

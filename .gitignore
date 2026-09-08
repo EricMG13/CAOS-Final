@@ -10,3 +10,4 @@ frontend/.next/
 .DS_Store
 .env
 bandit.json
+uv.lock

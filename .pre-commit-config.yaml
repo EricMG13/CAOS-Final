@@ -20,6 +20,11 @@ repos:
     hooks:
       - id: vocabulary
         name: one term per concept (CONTEXT.md)
-        entry: python scripts/check_vocabulary.py
+        entry: .venv/bin/python scripts/check_vocabulary.py
+        language: system
+        pass_filenames: false
+      - id: tested
+        name: every public definition is named by a test
+        entry: .venv/bin/python scripts/check_tested.py
         language: system
         pass_filenames: false

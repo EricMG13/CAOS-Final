@@ -95,6 +95,7 @@ Standing rules that back them:
 
 ## Running
 
+- `make venv` — the two toolchains. `make lock` — recompile every lock.
 - `make dev` — API + worker + Postgres, seeded.
 - `make test` — the suite. `make test-model` additionally requires LibreOffice.
 - `make check` — lint, types, tests, security, in that order.
@@ -104,6 +105,34 @@ Standing rules that back them:
 
 ## Known gaps (honest ledger)
 
-Seeded empty. Every accepted limitation gets an entry here with its reason and
-its upgrade path, in the same breath as the code that creates it. An empty
-ledger on a system this size means nobody looked.
+Every accepted limitation gets an entry here with its reason and its upgrade
+path, in the same breath as the code that creates it. An empty ledger on a
+system this size means nobody looked.
+
+**Phase 0.**
+
+- **No `image` CI job.** There is no Dockerfile and no runtime lock with
+  packages in it, so Trivy would report every target as *not scanned*
+  (`docs/DECISIONS.md` §11). *Upgrade:* the phase that adds the Dockerfile adds
+  `trivy image` with `--exit-code 1` on fixable HIGH/CRITICAL and a scan floor
+  asserting a non-empty target list.
+- **`check_tested.py` matches a name as a whole word anywhere in the suite's
+  bytes,** docstrings and comments included. It catches the definition no test
+  mentions, not the definition whose test asserts nothing. *Upgrade:* resolve
+  references through the AST once the suite is large enough for the false
+  negatives to matter.
+- **`check_tested.py` sees module-level definitions only.** A method is covered
+  through the class that holds it. *Upgrade:* descend into classes when a
+  governed path first puts logic on a method.
+- **`check_vocabulary.py` enforces 9 of the 33 synonyms `CONTEXT.md` lists.**
+  The other 24 carry an ordinary technical meaning here — `file`, `state`,
+  `version`, `response` — and each is exempt with a stated reason in
+  `NOT_ENFORCED`. The check refuses to run if `CONTEXT.md` and that list drift
+  apart. *Upgrade:* enforce an exempt synonym the day it is actually misused.
+- **The two identifier gates read Python only.** TypeScript identifiers are
+  unchecked. *Upgrade:* Phase 9, with the frontend.
+- **`io_budget.py --assert` enforces only that some `server/` module declares
+  an `IO_BUDGET`.** Per-path budgets are asserted by the suite, and the first is
+  Phase 2's `test_io_budget_read_evidence`. *Upgrade:* Phase 2 raises the floor
+  to one budget per request path.
+- **`make dev` fails.** There is no API, worker or schema until Phase 1.
