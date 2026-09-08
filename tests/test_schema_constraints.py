@@ -49,12 +49,15 @@ def test_run_events_refuses_a_delete(store: Store) -> None:
     store.rollback()
 
 
-@pytest.mark.parametrize("table", ["run_events", "source_set_members"])
+@pytest.mark.parametrize(
+    "table", ["run_events", "source_set_members", "delivered_evidence"]
+)
 def test_an_append_only_table_refuses_a_truncate(store: Store, table: str) -> None:
+    """Refuse truncation for every directly guarded append-only table."""
     # A row-level trigger never sees TRUNCATE: it empties the table without
     # producing a row to fire on. Statement-level is the only guard that catches
     # it, and TRUNCATE is the one statement that erases a whole ledger at once.
-    # Nothing references these two, so each table's own trigger is what refuses.
+    # Nothing references these three, so each table's own trigger is what refuses.
     with pytest.raises(psycopg.errors.RaiseException) as caught:
         store.execute(f"TRUNCATE {table}")
     assert caught.value.diag.message_primary == "APPEND_ONLY_TABLE"
@@ -97,3 +100,25 @@ def test_a_source_digest_that_is_not_64_lowercase_hex_is_refused(
             (str(uuid.uuid4()), digest),
         )
     store.rollback()
+
+
+def test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate(
+    store: Store,
+) -> None:
+    """Require every rewrite-guarded table to also refuse truncation."""
+    # The truncate guards were enumerated by table name in schema.sql, and one
+    # table was missed. This derives the list instead: whatever refuses UPDATE
+    # and DELETE has a ledger to protect, and TRUNCATE erases that ledger in one
+    # statement. A new append-only table now fails here until it carries both.
+    guarded = store.execute(
+        "SELECT c.relname, bool_or(t.tgtype & 32 <> 0)"
+        " FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid"
+        " WHERE NOT t.tgisinternal"
+        " AND c.relnamespace = current_schema()::regnamespace"
+        " AND t.tgfoid = 'refuse_rewrite'::regproc"
+        " GROUP BY c.relname"
+    ).fetchall()
+    # A query that matched nothing would pass the assertion below without having
+    # read a single trigger. Four tables carry `refuse_rewrite` today.
+    assert len(guarded) >= 4
+    assert [table for table, refuses_truncate in guarded if not refuses_truncate] == []
