@@ -179,14 +179,11 @@ system this size means nobody looked.
   PDF has been extracted, so nothing shows that an extractor's blocks and
   lines are the ones this logic assumes. *Upgrade:* the extraction slice adds
   a real document fixture and re-runs these tests against it.
-- **`IO_BUDGET = 2` in `citations.py` is declared and not enforced.**
-  `io_budget.py --assert` scans `server/api/`, which does not exist yet, so
-  nothing holds the read path to its budget. *Upgrade:* the slice that adds
-  the first route, with `test_io_budget_read_evidence`.
-- **Citations are scoped to the case, not to the node's delivered evidence.**
-  Invariant 9 says citations may only name evidence actually delivered to
-  that node; a module can currently cite any document in its case.
-  *Upgrade:* the `read_evidence` slice, which is what mints a delivered set.
+- **`delivered_evidence` is recorded and not yet read.** `read_evidence` writes
+  what each node was handed, but `anchor_citation` still checks only the case,
+  so a module can cite a document it was never delivered. Invariant 9 is half
+  built: the ledger exists, the check does not. *Upgrade:* the next slice, which
+  binds anchoring to the delivered set.
 - **`admit_source` and `start_run` both mint a `cases` row.** Tenancy is
   created as a side effect, with no authority check at the boundary.
   *Upgrade:* the ingestion slice, where intake authority is decided.
