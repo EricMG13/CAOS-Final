@@ -29,7 +29,7 @@ a deployed vulnerability was observed.
 [System §11](SYSTEM_SPEC.md#11-deployment-and-failure),
 [Phase 4](REBUILD_PLAN.md#phase-4--the-frontier-loop).
 **Personas:** Saboteur + Security Auditor; WARNING → CRITICAL.
-**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §20. The attempt row is the durable call identity, committed before the provider call; an indeterminate reservation keeps its exposure; a retry is a new operation; the API process owns run recovery.
+**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §21. The attempt row is the durable call identity, committed before the provider call; an indeterminate reservation keeps its exposure; a retry is a new operation; the API process owns run recovery.
 
 The concrete failure is: reserve budget, the provider completes and bills the
 call, then the API process dies before the accepted-attempt commit. Recovery
@@ -53,7 +53,7 @@ ambiguity is documented in [AWS's idempotent API guidance](https://aws.amazon.co
 
 **Location:** [System §6.1](SYSTEM_SPEC.md#61-cash_flow_forecast--the-deterministic-forecast-calculator).
 **Personas:** Saboteur + New Hire; WARNING → CRITICAL.
-**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §21. CP-2G's required `debt_liquidity_rollforward` is the independent side: residual = model-asserted closing balance minus host-computed closing balance.
+**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §22. CP-2G's required `debt_liquidity_rollforward` is the independent side: residual = model-asserted closing balance minus host-computed closing balance.
 
 The spec defines equations that compute closing debt and cash, then requires
 an explicit non-zero residual to detect reconciliation failures. It does not

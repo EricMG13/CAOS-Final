@@ -55,8 +55,10 @@ Standing rules that back them:
   One document per section, never per widget.
 - **Transactional pairing.** Governed writes commit state + audit event in one
   transaction; run-state transitions commit state + run event in one
-  transaction, and every event insert rides a conditional update — zero rows
-  updated, no event. That is what makes terminal events exactly-once.
+  transaction, and no event is inserted without the transition it records —
+  proven either by the row lock the transition is taken under or by a
+  conditional update whose zero rows mean no event. That is what makes terminal
+  events exactly-once.
 - **Boundary text.** Every string that can reach pinned state, a revision, a
   frozen payload or an audit event carries `BoundaryText`, never a bare `str`.
   NFC-normalised before the length bound; rejects lone surrogates, Cc controls
@@ -97,7 +99,7 @@ Standing rules that back them:
 ## Running
 
 - `make venv` — the two toolchains. `make lock` — recompile every lock.
-- `make dev` — API + worker + Postgres, seeded.
+- `make dev` — fails until the first HTTP route exists (Phase 1).
 - `make test` — the suite. `make test-model` additionally requires LibreOffice.
 - `make check` — lint, types, tests, security, in that order.
 - The model job needs `soffice` on PATH. Without it the workbook build fails

@@ -78,7 +78,7 @@ The phase the predecessor got wrong. Build it before anything depends on it.
 
 **Exit:** `test_recovery_is_recomputation` — kill mid-run, restart, the run
 completes without restarting completed nodes and without a checkpoint file.
-Plus the three the provider-call contract owes (`docs/DECISIONS.md` §20):
+Plus the three the provider-call contract owes (`docs/DECISIONS.md` §21):
 `test_crash_after_remote_completion_keeps_its_reservation`,
 `test_a_retry_without_provider_idempotency_reserves_again` and
 `test_concurrent_reservations_at_the_ceiling_refuse`.
