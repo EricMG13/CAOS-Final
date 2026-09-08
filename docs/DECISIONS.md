@@ -201,8 +201,7 @@ reason. Line identity comes from the extractor because separating two columns
 that share a y-band is layout analysis; a threshold in the anchoring path would
 be a heuristic on the evidence boundary.
 
-## 2026-09-08 §16 — `BoundaryText` covers identifiers; document text is handled
-at extraction
+## 2026-09-08 §16 — `BoundaryText` covers identifiers, not document text
 
 Governed identifiers -- `case_id`, `node_id` -- are `BoundaryText` at the store
 boundary, and every digest is checked against `[0-9a-f]{64}` before it is used
