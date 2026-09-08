@@ -23,10 +23,10 @@ from server.boundary_text import BoundaryText
 from server.evidence.citations import (
     IO_BUDGET,
     Citation,
+    _enclosing_box,
+    _line_runs,
+    _locate,
     anchor_citation,
-    enclosing_box,
-    line_runs,
-    locate,
 )
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
@@ -207,13 +207,13 @@ def test_the_refusal_carries_no_document_text(store: Store, source: None) -> Non
 
 
 def test_line_runs_keeps_each_line_separate() -> None:
-    runs = line_runs(_tokens()[:8])
+    runs = _line_runs(_tokens()[:8])
     assert [text for text, _ in runs] == ["Net leverage was 4.2x", "at the year end"]
 
 
 def test_enclosing_box_is_the_smallest_rectangle_over_the_tokens() -> None:
     covering = _tokens()[1:3]
-    assert enclosing_box(covering) == (
+    assert _enclosing_box(covering) == (
         Decimal(88),
         Decimal(700),
         Decimal(136),
@@ -222,7 +222,7 @@ def test_enclosing_box_is_the_smallest_rectangle_over_the_tokens() -> None:
 
 
 def test_locate_splits_a_wrapped_quote_into_one_run_per_line() -> None:
-    covering = locate(_tokens()[:8], "was 4.2x at the")
+    covering = _locate(_tokens()[:8], "was 4.2x at the")
     assert [[token.text for token in line] for line in covering] == [
         ["was", "4.2x"],
         ["at", "the"],
@@ -235,7 +235,7 @@ def test_locate_refuses_a_quote_that_would_span_two_blocks() -> None:
         _token((2, 2, 0), "debt", (400, 700), page=1),
     ]
     with pytest.raises(Refusal):
-        locate(columns, "Total debt")
+        _locate(columns, "Total debt")
 
 
 def test_io_budget_anchor_citation(
