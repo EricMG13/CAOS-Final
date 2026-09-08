@@ -69,23 +69,100 @@ def test_io_budget_passes_while_no_request_paths_exist(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_io_budget_refuses_a_route_module_that_declares_no_budget(
-    tmp_path: Path,
-) -> None:
-    api = tmp_path / "server" / "api"
-    api.mkdir(parents=True)
-    (api / "routes.py").write_text("def list_cases() -> None: ...\n", encoding="utf-8")
+def test_io_budget_refuses_a_declared_budget_no_test_asserts(tmp_path: Path) -> None:
+    # A budget nothing asserts is a number in a comment. This is the half of
+    # io_budget.py's own contract that was written down and never implemented.
+    server = tmp_path / "server"
+    server.mkdir(parents=True)
+    (server / "reads.py").write_text("IO_BUDGET = 2\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
     result = _run("io_budget.py", "--assert", "--root", str(tmp_path))
     assert result.returncode != 0
-    assert "IO_BUDGET" in result.stdout + result.stderr
+    assert "reads.py" in result.stdout + result.stderr
 
 
-def test_io_budget_ignores_a_server_with_no_request_paths(tmp_path: Path) -> None:
-    # Phase 1 ships a store and no routes: there is nothing to budget yet.
-    store = tmp_path / "server" / "store"
-    store.mkdir(parents=True)
-    (store / "runs.py").write_text("def start_run() -> None: ...\n", encoding="utf-8")
+def test_io_budget_accepts_a_budget_a_test_asserts(tmp_path: Path) -> None:
+    server = tmp_path / "server"
+    server.mkdir(parents=True)
+    (server / "reads.py").write_text("IO_BUDGET = 2\n", encoding="utf-8")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_reads.py").write_text(
+        "from server.reads import IO_BUDGET\n\n"
+        "def test_io_budget_reads() -> None:\n"
+        "    assert statements == IO_BUDGET\n",
+        encoding="utf-8",
+    )
     assert _run("io_budget.py", "--assert", "--root", str(tmp_path)).returncode == 0
+
+
+def test_io_budget_says_so_when_nothing_declares_a_budget(tmp_path: Path) -> None:
+    (tmp_path / "server").mkdir()
+    assert _run("io_budget.py", "--assert", "--root", str(tmp_path)).returncode == 0
+
+
+def test_io_budget_reports_without_asserting(tmp_path: Path) -> None:
+    server = tmp_path / "server"
+    server.mkdir(parents=True)
+    (server / "reads.py").write_text("IO_BUDGET = 2\n", encoding="utf-8")
+    (tmp_path / "tests").mkdir()
+    assert _run("io_budget.py", "--root", str(tmp_path)).returncode == 0
+    assert _run("io_budget.py", "--assert", "--root", str(tmp_path)).returncode != 0
+
+
+def test_tracked_python_skips_a_file_that_is_no_longer_on_disk(
+    tmp_path: Path,
+) -> None:
+    # A tracked file can be absent mid-rebase, mid-checkout, or after a delete
+    # that is not staged yet. A gate must not stack-trace on it.
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "gone.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "here.py").write_text("y = 2\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+    (tmp_path / "gone.py").unlink()
+
+    assert tracked.tracked_python(tmp_path) == [tmp_path / "here.py"]
+
+
+def test_tracked_python_fails_closed_on_an_unreadable_path(tmp_path: Path) -> None:
+    # Path.is_file() returns False for every OSError on 3.14, not only for a
+    # missing path, so a permission error would drop a tracked file from the
+    # scan silently. A gate that scanned less than it should is a failed gate.
+    if os.geteuid() == 0:
+        pytest.skip("root ignores the directory mode this test relies on")
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    locked = tmp_path / "locked"
+    locked.mkdir()
+    (locked / "hidden.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+    locked.chmod(0o000)
+    try:
+        with pytest.raises(PermissionError):
+            tracked.tracked_python(tmp_path)
+    finally:
+        locked.chmod(0o755)
+
+
+def test_one_asserted_budget_does_not_cover_another_module(tmp_path: Path) -> None:
+    # The first version of this gate searched the whole suite for the string
+    # "assert IO_BUDGET", so any one assertion satisfied every module.
+    server = tmp_path / "server"
+    server.mkdir(parents=True)
+    (server / "reads.py").write_text("IO_BUDGET = 2\n", encoding="utf-8")
+    (server / "citations.py").write_text("IO_BUDGET = 2\n", encoding="utf-8")
+    tests = tmp_path / "tests"
+    tests.mkdir()
+    (tests / "test_reads.py").write_text(
+        "from server.reads import IO_BUDGET\n\n"
+        "def test_io_budget_reads() -> None:\n"
+        "    assert statements == IO_BUDGET\n",
+        encoding="utf-8",
+    )
+    result = _run("io_budget.py", "--assert", "--root", str(tmp_path))
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "citations.py" in output
+    assert "reads.py" not in output
 
 
 def test_covered_files_excludes_the_totals_row() -> None:
@@ -131,42 +208,47 @@ def test_tracked_python_keeps_a_path_containing_a_space(tmp_path: Path) -> None:
     assert tracked.tracked_python(tmp_path) == [tmp_path / "my file.py"]
 
 
-def test_io_budget_reports_without_asserting(tmp_path: Path) -> None:
-    api = tmp_path / "server" / "api"
-    api.mkdir(parents=True)
-    (api / "routes.py").write_text("def list_cases() -> None: ...\n", encoding="utf-8")
-    assert _run("io_budget.py", "--root", str(tmp_path)).returncode == 0
-    assert _run("io_budget.py", "--assert", "--root", str(tmp_path)).returncode != 0
-
-
-def test_tracked_python_skips_a_file_that_is_no_longer_on_disk(
+def test_declaring_modules_finds_every_budget_under_the_server(
     tmp_path: Path,
 ) -> None:
-    # A tracked file can be absent mid-rebase, mid-checkout, or after a delete
-    # that is not staged yet. A gate must not stack-trace on it.
+    server = tmp_path / "server"
+    (server / "evidence").mkdir(parents=True)
+    (server / "evidence" / "reads.py").write_text("IO_BUDGET = 2\n", encoding="utf-8")
+    (server / "quiet.py").write_text("x = 1\n", encoding="utf-8")
+    assert io_budget.declaring_modules(server) == [server / "evidence" / "reads.py"]
+
+
+def test_asserted_modules_needs_both_the_import_and_the_assertion(
+    tmp_path: Path,
+) -> None:
+    tests = tmp_path / "tests"
+    tests.mkdir(parents=True)
+    (tests / "test_imports_only.py").write_text(
+        "from server.reads import IO_BUDGET\n\ndef test_x() -> None:\n    pass\n",
+        encoding="utf-8",
+    )
+    assert io_budget.asserted_modules(tests, tmp_path) == set()
+
+    (tests / "test_asserts.py").write_text(
+        "from server.reads import IO_BUDGET\n\n"
+        "def test_x() -> None:\n    assert n == IO_BUDGET\n",
+        encoding="utf-8",
+    )
+    assert io_budget.asserted_modules(tests, tmp_path) == {
+        tmp_path / "server" / "reads.py"
+    }
+
+
+def test_tracked_python_ignores_vendored_upstream_code(tmp_path: Path) -> None:
+    # The methodology bundle is vendored verbatim and never edited, so our gates
+    # must not judge it: a vocabulary or coverage finding there is unactionable.
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    (tmp_path / "gone.py").write_text("x = 1\n", encoding="utf-8")
-    (tmp_path / "here.py").write_text("y = 2\n", encoding="utf-8")
+    (tmp_path / "ours.py").write_text("x = 1\n", encoding="utf-8")
+    vendored = tmp_path / "vendor" / "deploy-v" / "skills"
+    vendored.mkdir(parents=True)
+    (vendored / "routing.py").write_text(
+        "def get_deal_chunks(): ...\n", encoding="utf-8"
+    )
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
-    (tmp_path / "gone.py").unlink()
 
-    assert tracked.tracked_python(tmp_path) == [tmp_path / "here.py"]
-
-
-def test_tracked_python_fails_closed_on_an_unreadable_path(tmp_path: Path) -> None:
-    # Path.is_file() returns False for every OSError on 3.14, not only for a
-    # missing path, so a permission error would drop a tracked file from the
-    # scan silently. A gate that scanned less than it should is a failed gate.
-    if os.geteuid() == 0:
-        pytest.skip("root ignores the directory mode this test relies on")
-    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
-    locked = tmp_path / "locked"
-    locked.mkdir()
-    (locked / "hidden.py").write_text("x = 1\n", encoding="utf-8")
-    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
-    locked.chmod(0o000)
-    try:
-        with pytest.raises(PermissionError):
-            tracked.tracked_python(tmp_path)
-    finally:
-        locked.chmod(0o755)
+    assert tracked.tracked_python(tmp_path) == [tmp_path / "ours.py"]

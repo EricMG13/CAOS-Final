@@ -201,6 +201,99 @@ reason. Line identity comes from the extractor because separating two columns
 that share a y-band is layout analysis; a threshold in the anchoring path would
 be a heuristic on the evidence boundary.
 
+## 2026-09-08 §16 — `BoundaryText` covers identifiers; document text is handled
+at extraction
+
+Governed identifiers -- `case_id`, `node_id` -- are `BoundaryText` at the store
+boundary, and every digest is checked against `[0-9a-f]{64}` before it is used
+as a key or a path. Document-derived text (`Block.text`, `Token.text`) is not
+`BoundaryText` and will be handled by the extractor instead.
+
+**Reason.** `BoundaryText` existed, was tested thoroughly, and was called from
+nowhere: an adversarial review found `grep -rn BoundaryText server/` returned
+only its own module. An invariant with a type nothing constructs is decoration.
+
+The split is deliberate. Refusing a whole document because it contains U+202B
+would refuse legitimate Arabic and Hebrew filings, which is the wrong answer for
+a credit system that reads what issuers actually publish. The identifier path
+has no such tension: nothing legitimate names a case with a bidirectional
+override. Document text needs a narrower rule -- strip the control, keep the
+document, keep the coordinates -- and that belongs where extraction happens,
+under its own decision entry, not bolted onto a type meant for host-authored
+strings.
+
+## 2026-09-08 §17 — The Deploy V bundle is vendored at build `a43cb903`
+
+`vendor/deploy-v/`, copied verbatim from the user-supplied package, minus `.git`
+and `.DS_Store`. 349 files, 5.3 MB. Build id
+`a43cb903ca2751f79e77b6da71f6ea131b8462a32e1b549d65fd0f67389d185f`, from the
+bundle's own `DEPLOY_V_INTEGRITY_v1.json`; the host does not mint an identity
+for something that ships with one.
+
+`tests/test_bundle_pin.py` hashes every file the manifest covers and asserts the
+facts the specification rests on. Every one verified against these bytes:
+
+| Claim | Source | Found |
+|---|---|---|
+| typed edges live in `profile["edges"]` | `DECISIONS.md` §2 | `catalog.profiles.*.edges` |
+| 25 OPTIONAL, 22 ADVISORY, one QA_GATE | `DECISIONS.md` §2 | exactly, plus 44 REQUIRED |
+| `navigation.dependencies` is 97 untyped pairs | `DECISIONS.md` §2 | 97, no `type` key on any |
+| 18 pathways across two profiles | `SYSTEM_SPEC.md` §4 | 10 FULL + 8 LITE |
+| CP-PARSE superseded by CP-0 | `DECISIONS.md` §5 | `absorbed_by: CP-0` |
+| `preparation_stage.runnable: false` | `DECISIONS.md` §5 | exactly |
+| `research_extension` at stage 99 | `SYSTEM_SPEC.md` §4 | `route_stage: 99` |
+
+**Two corrections to how the specification reads, not to what it says.**
+
+`profile["edges"]` means the profile inside
+`skills/cp-os-credit-os/references/CREDIT_OS_V_MODULE_CATALOG_v2.json`, not the
+profile in `CP_DEPLOY_V_EXECUTION_PROFILES_v1.json`. Both files have a
+`profiles` key and only one has edges; the execution-profiles file points at the
+catalog through `pathway_execution.source`. Anyone reading `profile["edges"]`
+and opening the wrong file finds nothing, which is one step from reading
+`navigation.dependencies` instead -- the predecessor's exact defect.
+
+**The catalog declares no CONDITIONAL edge at all.** `CONTEXT.md` lists
+`CONDITIONAL` as a blocking edge type and `SYSTEM_SPEC.md` §4 has
+`resolve_route` freezing predicates for it. Zero edges of that type exist in
+either profile, so predicate freezing has nothing to act on against this build.
+The type stays implemented -- it is the bundle's vocabulary and a later build may
+use it -- but no test can exercise it with real data, and `CLAUDE.md` says so.
+
+Gates do not scan `vendor/`: it is authority we never edit (§6), so a vocabulary
+or coverage finding inside it names something no PR is allowed to fix. `ruff`,
+`mypy` and both identifier gates exclude it, and the CI size gate already did.
+
+## 2026-09-08 §18 — There is no bootstrap cycle; readiness is an artifact
+
+Resolves W1 of `docs/ADVERSARIAL_REVIEW.md`.
+
+**The route resolves before any node runs.** `resolve_route` takes
+`(profile_id, selection_id)`, both chosen by the analyst at run creation. The
+bundle settles this itself: `CP0_PROFILE_ANCHOR_CONTRACT_v1.md` says "CP-0 is the
+first, zero-upstream invocation" and "the profile is immutable within a run;
+source content cannot change it". CP-0 is the first node *of* the pinned route,
+not a precondition for having one. Its `module_order` is an optional narrowing
+recorded in the pin, never a re-resolution.
+
+**`source_readiness` stops being a parameter.** `node_states(route, accepted)`
+derives readiness from the accepted CP-0 artifact in the attempt ledger it
+already reads. This is the whole of W1's second half: there is no separate state
+whose persistence was unstated, because there is no separate state. Recovery
+stays recomputation (§3) and a crash leaves nothing to restore.
+
+**Withdrawal never touches the route.** Invariant 1 checks withdrawal live at
+every use while invariant 10 pins the route once, and both hold because
+withdrawal is a predicate in `read_evidence` -- already the only path to bytes.
+A withdrawn source makes its consumer fail or carry a limitation through edges
+that already exist. The pin is never rewritten.
+
+**Checked and not a problem.** CP-0's schema appears to carry a fourth readiness
+value, `READY_FOR_MODEL_ROUTE`. It does not: that is
+`SOURCE_READY_FOR_MODEL_ROUTE`, the `status` of a separate
+`model_route_source_assessment` object scoped `SOURCE_SUFFICIENCY_ONLY`. Source
+readiness is `READY`, `READY_WITH_LIMITATIONS`, `BLOCKED`, as the spec says.
+
 ## 2026-09-08 §19 — `make merge` checks for the flag, not for a `gh` version
 
 The target refuses a `gh` whose `pr merge` has no `--match-head-commit`, rather

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP_MODULE_PAYLOAD_BASE.schema.txt",
+  "description": "Canonical module-payload base. Every accepted analytical identity emits CANONICAL_MARKDOWN. Legacy IDs and retired output classes are normalized before schema validation and are not emitted here.",
+  "type": "object",
+  "required": [
+    "module_id",
+    "module_name",
+    "owned_object",
+    "schema_family",
+    "output_class",
+    "runtime_output",
+    "evidence_trace",
+    "confidence_score",
+    "confidence_band",
+    "limitation_flags",
+    "qa_status",
+    "validation_warnings",
+    "downstream_consumers"
+  ],
+  "properties": {
+    "module_id": {
+      "type": "string",
+      "enum": [
+        "CP-PARSE", "CP-0", "CP-X", "CP-1", "CP-1A", "CP-1B", "CP-1C",
+        "CP-2", "CP-2A", "CP-2B", "CP-2C", "CP-2D", "CP-2E", "CP-2F", "CP-2G", "CP-2H",
+        "CP-3", "CP-3A", "CP-3B", "CP-3C", "CP-3D", "CP-4", "CP-4A", "CP-4B", "CP-4C",
+        "CP-5", "CP-5A", "CP-6", "CP-6A", "CP-8", "CP-DR"
+      ]
+    },
+    "module_name": {"type": "string", "minLength": 1},
+    "owned_object": {"type": "string", "minLength": 1},
+    "schema_family": {"type": "string", "enum": ["Nested", "Infrastructure"]},
+    "output_class": {"const": "CANONICAL_MARKDOWN"},
+    "runtime_output": {"type": "object"},
+    "evidence_trace": {"type": "object"},
+    "confidence_score": {"type": "integer", "minimum": 0, "maximum": 100},
+    "confidence_band": {
+      "type": "string",
+      "enum": ["High", "Medium", "Low", "Insufficient Information"]
+    },
+    "limitation_flags": {"type": "array", "items": {"type": "string"}},
+    "qa_status": {"type": "string", "enum": ["Not Reviewed", "Passed", "Restricted", "Blocked"]},
+    "validation_warnings": {"type": "array", "items": {"type": "string"}},
+    "downstream_consumers": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": false
+}

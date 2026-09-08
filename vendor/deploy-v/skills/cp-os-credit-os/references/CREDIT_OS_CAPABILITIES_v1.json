@@ -1,0 +1,125 @@
+{
+  "schema_version": "1.0",
+  "authority": "CREDIT_OS_CAPABILITIES_v1",
+  "scope": "Storage capability modes, the operations each supports, and the exact claims each may and may not make. Declared as data so the claim set is testable rather than asserted in prose.",
+  "deployment_mode": "HOST_READ_ONLY",
+  "deployment_note": "The deployment environment provides a OneDrive or SharePoint _RUNS folder reached through the direct folder URL stored in the installed CREDIT_OS_CONFIG.template.md file, offering list and read only. There is no writable location and no local filesystem. HOST_READ_ONLY is the only reachable mode; ATTACHED_READ_ONLY and UNAVAILABLE remain reachable as degradations.",
+  "modes": {
+    "HOST_READ_ONLY": {
+      "reachable": true,
+      "description": "Connector-resolved _RUNS folder from the direct URL in the installed CREDIT_OS_CONFIG.template.md file. Lists and reads; never writes.",
+      "operations": [
+        "list",
+        "read"
+      ],
+      "trusted_state": false,
+      "reconciliation": "full",
+      "continuation": "completion reconstructs from artifacts; intent must be re-established",
+      "may_claim": [
+        "listed the configured folder",
+        "read a named artifact and verified its declared identity",
+        "reproduced an artifact's invocation digest from current authorities",
+        "a module is complete, restricted, blocked, stale or missing, with evidence",
+        "recomputed the runnable frontier from the artifacts present"
+      ],
+      "must_not_claim": [
+        "saved, wrote, created or moved anything",
+        "remembered anything from a previous session beyond what the folder shows",
+        "an acceptance is protected from later modification",
+        "detected or prevented tampering by a holder of write access",
+        "attested to the provenance or authenticity of any artifact",
+        "inspected the contents of a ZIP archive or workbook"
+      ]
+    },
+    "ATTACHED_READ_ONLY": {
+      "reachable": true,
+      "description": "No folder access. The user attaches files directly to the session.",
+      "operations": [
+        "read_attachment"
+      ],
+      "trusted_state": false,
+      "reconciliation": "attached files only",
+      "continuation": "none beyond what is attached in the current session",
+      "may_claim": [
+        "inspected the files attached to this session",
+        "validated an attached artifact"
+      ],
+      "must_not_claim": [
+        "scanned any folder",
+        "knows about any artifact that was not attached",
+        "saved anything"
+      ]
+    },
+    "UNAVAILABLE": {
+      "reachable": true,
+      "description": "No folder and no attachments reachable.",
+      "operations": [],
+      "trusted_state": false,
+      "reconciliation": "none",
+      "continuation": "none",
+      "may_claim": [],
+      "must_not_claim": [
+        "scanned any folder",
+        "read any artifact",
+        "knows the state of any run"
+      ]
+    },
+    "LOCAL_READ_WRITE": {
+      "reachable": false,
+      "unreachable_reason": "No local filesystem is exposed to the skill runtime. Retained as a specification for a future environment; must never be selected here.",
+      "description": "Verified local artifact path plus a protected control store on non-sync-managed local storage.",
+      "operations": [
+        "list",
+        "read",
+        "write"
+      ],
+      "trusted_state": true,
+      "reconciliation": "full",
+      "continuation": "full",
+      "may_claim": [],
+      "must_not_claim": []
+    },
+    "HOST_READ_WRITE": {
+      "reachable": false,
+      "unreachable_reason": "The connector exposes list and read only. Retained as a specification; enabling it requires documented conditional writes, stable resource versions, permission metadata and immutable tenant/drive/folder identity.",
+      "description": "Documented host adapter with conditional writes.",
+      "operations": [
+        "list",
+        "read",
+        "write"
+      ],
+      "trusted_state": true,
+      "reconciliation": "full",
+      "continuation": "full",
+      "may_claim": [],
+      "must_not_claim": []
+    }
+  },
+  "selection_rules": [
+    "A mode marked reachable:false must never be selected, and no code path may attempt an operation it declares.",
+    "The mode is the result of what the connector actually returned, never a configuration assertion.",
+    "Failure to list or read degrades to ATTACHED_READ_ONLY, then UNAVAILABLE. It never escalates.",
+    "Every user-facing status must be satisfiable by the active mode's may_claim list."
+  ],
+  "provenance_limit": "In a shared folder, anyone with write access may add, alter or remove an artifact. CREDIT OS validates identity, structure, lineage and freshness. It does not and cannot attest to provenance. This limitation is stated in the interface, not only in documentation.",
+  "execution": "code_interpreter",
+  "execution_note": "Scripts do not auto-run as session activity, but a code interpreter is available and the model invokes the packaged runtime through it deliberately. The interpreter is a sandbox with no connector access: the model lists and reads the folder, then passes content in. Computation is therefore available over anything already read into context — digests, envelope reproduction, lineage and staleness all work for Markdown handoffs. It is NOT available over large binaries, because moving a workbook through context is not viable.",
+  "lost_controls": {
+    "note": "What remains out of reach once the data path is understood: the interpreter computes only over content the model passed in, and large binaries cannot travel that way.",
+    "archive_and_workbook_inspection": "A workbook or evidence ZIP in the folder cannot be moved through context to reach the interpreter, so CP-OS cannot inspect one it finds there. Narrower than first recorded: the code interpreter does accept user-uploaded Word, Excel, PowerPoint, PDF, CSV/TSV and TXT, so a workbook the user attaches to the session CAN be inspected. ZIP is not an accepted upload type either way. validators.py and its 42 tests cover both paths; CP-MODEL owns workbook validation.",
+    "streaming_byte_budgets": "Ceilings apply to the size the listing declares, checked before the model reads. Streaming limits over content already in context are meaningless."
+  },
+  "interpreter_facts": {
+    "note": "Confirmed against Microsoft's code interpreter documentation, not inferred.",
+    "sandbox": "Fresh VM per run, destroyed after the session. No inbound or outbound network traffic, which is why it cannot reach the connector-resolved folder.",
+    "output_persistence": "Files it generates are hosted for the active session only and are not persisted, so it is not a write path either.",
+    "accepted_uploads": [
+      "Word",
+      "Excel",
+      "PowerPoint",
+      "PDF",
+      "CSV/TSV",
+      "TXT/UTF8"
+    ]
+  }
+}

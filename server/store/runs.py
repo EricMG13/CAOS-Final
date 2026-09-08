@@ -12,6 +12,8 @@ import uuid
 from dataclasses import dataclass
 from decimal import Decimal
 
+from server.boundary_text import BoundaryText
+from server.digests import checked_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 
@@ -21,22 +23,22 @@ class TerminalCommit:
     """Everything one terminal delivery writes. Money is Decimal, never float."""
 
     run_id: str
-    node_id: str
+    node_id: BoundaryText
     artifact_sha256: str
     charge: Decimal
 
 
-def start_run(connection: Store, *, case_id: str) -> str:
+def start_run(connection: Store, *, case_id: BoundaryText) -> str:
     """Open a run in RUNNING and return its id."""
     run_id = str(uuid.uuid4())
     with connection.transaction():
         connection.execute(
             "INSERT INTO cases (case_id) VALUES (%s) ON CONFLICT DO NOTHING",
-            (case_id,),
+            (case_id.value,),
         )
         connection.execute(
             "INSERT INTO runs (run_id, case_id, state) VALUES (%s, %s, 'RUNNING')",
-            (run_id, case_id),
+            (run_id, case_id.value),
         )
     return run_id
 
@@ -73,11 +75,15 @@ def commit_terminal(connection: Store, commit: TerminalCommit) -> bool:
         )
         connection.execute(
             "INSERT INTO artifacts (run_id, node_id, sha256) VALUES (%s, %s, %s)",
-            (commit.run_id, commit.node_id, commit.artifact_sha256),
+            (
+                commit.run_id,
+                commit.node_id.value,
+                checked_digest(commit.artifact_sha256),
+            ),
         )
         connection.execute(
             "INSERT INTO budget_ledger (run_id, node_id, amount) VALUES (%s, %s, %s)",
-            (commit.run_id, commit.node_id, commit.charge),
+            (commit.run_id, commit.node_id.value, commit.charge),
         )
         connection.execute(
             "INSERT INTO run_events (run_id, seq, kind)"

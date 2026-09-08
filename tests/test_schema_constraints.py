@@ -12,17 +12,21 @@ from decimal import Decimal
 import psycopg
 import pytest
 
+from server.boundary_text import BoundaryText
 from server.store import Store
 from server.store.runs import TerminalCommit, commit_terminal, start_run
 
+CASE = BoundaryText.of("acme")
+NODE = BoundaryText.of("CP-1")
+
 
 def _one_event(store: Store) -> None:
-    run_id = start_run(store, case_id="acme")
+    run_id = start_run(store, case_id=CASE)
     commit_terminal(
         store,
         TerminalCommit(
             run_id=run_id,
-            node_id="CP-1",
+            node_id=NODE,
             artifact_sha256="b" * 64,
             charge=Decimal("0.42"),
         ),

@@ -76,3 +76,21 @@ def test_two_writers_of_the_same_bytes_do_not_share_a_temp_file(
     assert len(set(chosen)) == 2
     monkeypatch.undo()
     assert store.get(DIGEST) == PAYLOAD
+
+
+def test_a_write_that_fails_leaves_no_partial_behind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # The temp name is unique per call, so a failure that leaves one behind
+    # leaves one behind forever -- nothing ever reuses that name.
+    store = BlobStore(tmp_path)
+
+    def refusing(self: Path, target: Path) -> None:
+        raise OSError
+
+    monkeypatch.setattr(Path, "replace", refusing)
+    with pytest.raises(OSError):
+        store.put(PAYLOAD)
+
+    monkeypatch.undo()
+    assert list(tmp_path.rglob("*.partial")) == []

@@ -1,0 +1,1 @@
+{"allOf":[{"$ref":"../../../CP_MODULE_PAYLOAD_BASE.schema.txt"}],"properties":{"module_id":{"const":"CP-2E"},"module_name":{"const":"MacroFXHedgingSensitivity"},"owned_object":{"const":"macro_fx_hedging_sensitivity"},"schema_family":{"const":"Nested"},"runtime_output":{"type":"object","properties":{"macro_sensitivity":{},"fx_exposure":{},"hedging_assessment":{}}}}}

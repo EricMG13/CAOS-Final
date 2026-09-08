@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP-2G__ForwardCreditModel__payload.schema.txt",
+  "allOf": [{"$ref": "../../../CP_MODULE_PAYLOAD_BASE.schema.txt"}],
+  "if": {
+    "properties": {
+      "downstream_consumers": {"contains": {"const": "CP-MODEL"}}
+    },
+    "required": ["downstream_consumers"]
+  },
+  "then": {
+    "properties": {
+      "runtime_output": {"required": ["cp_model_forecast_drivers"]}
+    }
+  },
+  "properties": {
+    "module_id": {"const": "CP-2G"},
+    "module_name": {"const": "ForwardCreditModel"},
+    "owned_object": {"const": "forward_credit_model"},
+    "schema_family": {"const": "Nested"},
+    "runtime_output": {
+      "type": "object",
+      "required": [
+        "assumption_register", "forecast_cases", "debt_liquidity_rollforward",
+        "credit_metric_trajectory", "breakpoint_matrix"
+      ],
+      "properties": {
+        "assumption_register": {"type": "array"},
+        "forecast_cases": {"type": "array"},
+        "debt_liquidity_rollforward": {"type": "array"},
+        "credit_metric_trajectory": {"type": "array"},
+        "breakpoint_matrix": {"type": "array"},
+        "deleveraging_handoff": {"type": "array"},
+        "gaps_conflicts": {"type": "array"},
+        "cp_model_forecast_drivers": {
+          "$comment": "The first fiscal_year is no earlier than the latest CP-1 actual fiscal year, or the following year when that latest year contains a directly reported FY period.",
+          "type": "array",
+          "items": {"$ref": "#/$defs/forecast_driver"},
+          "minItems": 42,
+          "maxItems": 42,
+          "uniqueItems": true
+        }
+      }
+    }
+  },
+  "$defs": {
+    "forecast_driver": {
+      "type": "object",
+      "required": [
+        "driver_id", "slot_id", "case", "period_id", "fiscal_year",
+        "value", "unit", "assumption_id", "status", "source_id",
+        "source_locator", "as_of"
+      ],
+      "properties": {
+        "driver_id": {
+          "type": "string",
+          "enum": [
+            "division_growth", "acquisitions_disposals",
+            "net_equity_issue_repay", "dividends_paid",
+            "other_investing_financing"
+          ]
+        },
+        "slot_id": {
+          "enum": ["DIVISION_1", "DIVISION_2", "DIVISION_3", "", null]
+        },
+        "case": {"type": "string", "enum": ["BASE", "DOWNSIDE"]},
+        "period_id": {"type": "string", "minLength": 1},
+        "fiscal_year": {"type": "integer", "minimum": 1900, "maximum": 2200},
+        "value": {"type": ["number", "null"]},
+        "unit": {"type": "string", "enum": ["PERCENT_DECIMAL", "CURRENCY_MM"]},
+        "assumption_id": {"type": ["string", "null"]},
+        "status": {"type": "string", "enum": ["READY", "NOT_APPLICABLE"]},
+        "source_id": {"type": ["string", "null"]},
+        "source_locator": {"type": ["string", "null"]},
+        "as_of": {"type": ["string", "null"], "format": "date"}
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {"driver_id": {"const": "division_growth"}},
+            "required": ["driver_id"]
+          },
+          "then": {
+            "properties": {
+              "slot_id": {"enum": ["DIVISION_1", "DIVISION_2", "DIVISION_3"]},
+              "unit": {"const": "PERCENT_DECIMAL"}
+            }
+          },
+          "else": {
+            "properties": {
+              "slot_id": {"enum": ["", null]},
+              "unit": {"const": "CURRENCY_MM"}
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {"status": {"const": "READY"}},
+            "required": ["status"]
+          },
+          "then": {
+            "properties": {
+              "value": {"type": "number"},
+              "assumption_id": {"type": "string", "minLength": 1},
+              "source_id": {"type": "string", "minLength": 1},
+              "source_locator": {"type": "string", "minLength": 1},
+              "as_of": {"type": "string", "format": "date"}
+            }
+          },
+          "else": {
+            "properties": {"value": {"type": "null"}}
+          }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

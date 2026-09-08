@@ -1,0 +1,454 @@
+{
+  "schema_version": "1.0",
+  "authority": "CP_DEPLOY_V_EXECUTION_PROFILES_v1",
+  "deployment_scope": [
+    "V"
+  ],
+  "installed_package_authority": "CP_DEPLOY_V_RETRIEVAL_INDEX_v1.json",
+  "profile_selection": {
+    "selection_scope": "PER_RUN",
+    "immutable_within_run": true,
+    "installation_membership_is_separate": true,
+    "route_membership_is_separate": true,
+    "unknown_profiles_fail_closed": true
+  },
+  "allowed_input_compatibility": [
+    "PROFILE_AGNOSTIC",
+    "NAMED_LITE_OBJECT_ACCEPTED",
+    "FULL_INPUTS_ONLY"
+  ],
+  "profiles": {
+    "FULL_CREDIT_32": {
+      "profile_id": "FULL_CREDIT_32",
+      "immutable_within_run": true,
+      "logical_capability_count": 32,
+      "capability_membership": {
+        "source": "CP_DEPLOY_V_PACKAGE_REGISTRY_v1.json#base_profile_reference",
+        "resolved_profile": "CP_DEPLOYMENT_PACKAGE_REGISTRY_v1.json#profiles/CREDIT_OS_32",
+        "expected_count": 32
+      },
+      "pathway_execution": {
+        "source": "skills/cp-os-credit-os/references/CREDIT_OS_V_MODULE_CATALOG_v2.json",
+        "membership_is_not_inferred_from_installation": true,
+        "non_executable_module_ids": []
+      }
+    },
+    "LITE_CREDIT_22": {
+      "profile_id": "LITE_CREDIT_22",
+      "immutable_within_run": true,
+      "logical_capability_count": 22,
+      "capability_membership": [
+        "CP-L10",
+        "CP-L20",
+        "CP-L23",
+        "CP-L30",
+        "CP-L40",
+        "CP-PARSE",
+        "CP-0",
+        "CP-1A",
+        "CP-1C",
+        "CP-2A",
+        "CP-2B",
+        "CP-2H",
+        "CP-3B",
+        "CP-3C",
+        "CP-4C",
+        "CP-5",
+        "CP-5A",
+        "CP-6",
+        "CP-6A",
+        "CP-8",
+        "CP-DR",
+        "CP-OS"
+      ],
+      "pathway_execution": {
+        "membership_is_not_inferred_from_capability_membership": true,
+        "default_route_eligible_module_ids": [
+          "CP-L10",
+          "CP-L20",
+          "CP-L23",
+          "CP-L30",
+          "CP-L40",
+          "CP-PARSE",
+          "CP-0",
+          "CP-1A",
+          "CP-1C",
+          "CP-2A",
+          "CP-2B",
+          "CP-2H",
+          "CP-3C",
+          "CP-4C",
+          "CP-5",
+          "CP-5A",
+          "CP-8",
+          "CP-DR",
+          "CP-OS"
+        ],
+        "non_default_module_ids": [],
+        "non_executable_module_ids": [
+          "CP-3B",
+          "CP-6",
+          "CP-6A"
+        ],
+        "source": "skills/cp-os-credit-os/references/CREDIT_OS_V_MODULE_CATALOG_v2.json"
+      }
+    }
+  },
+  "redirect_only_capabilities": [],
+  "retained_lite_capabilities": [
+    {
+      "module_id": "CP-PARSE",
+      "input_compatibility": "PROFILE_AGNOSTIC",
+      "accepted_lite_object_ids": []
+    },
+    {
+      "module_id": "CP-0",
+      "input_compatibility": "PROFILE_AGNOSTIC",
+      "accepted_lite_object_ids": []
+    },
+    {
+      "module_id": "CP-1A",
+      "input_compatibility": "PROFILE_AGNOSTIC",
+      "accepted_lite_object_ids": []
+    },
+    {
+      "module_id": "CP-1C",
+      "input_compatibility": "NAMED_LITE_OBJECT_ACCEPTED",
+      "accepted_lite_object_ids": [
+        "lite_financial_change_screen"
+      ]
+    },
+    {
+      "module_id": "CP-2A",
+      "input_compatibility": "NAMED_LITE_OBJECT_ACCEPTED",
+      "accepted_lite_object_ids": [
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen"
+      ]
+    },
+    {
+      "module_id": "CP-2B",
+      "input_compatibility": "PROFILE_AGNOSTIC",
+      "accepted_lite_object_ids": []
+    },
+    {
+      "module_id": "CP-2H",
+      "input_compatibility": "NAMED_LITE_OBJECT_ACCEPTED",
+      "accepted_lite_object_ids": [
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen"
+      ]
+    },
+    {
+      "module_id": "CP-3B",
+      "input_compatibility": "FULL_INPUTS_ONLY",
+      "accepted_lite_object_ids": [],
+      "rejects_all_cp_l_objects": true,
+      "default_lite_route_node": false
+    },
+    {
+      "module_id": "CP-3C",
+      "input_compatibility": "NAMED_LITE_OBJECT_ACCEPTED",
+      "accepted_lite_object_ids": [
+        "lite_liquidity_sensitivity_screen",
+        "lite_market_recovery_opportunity_screen",
+        "lite_legal_structure_capacity_screen"
+      ]
+    },
+    {
+      "module_id": "CP-4C",
+      "input_compatibility": "NAMED_LITE_OBJECT_ACCEPTED",
+      "accepted_lite_object_ids": [
+        "lite_legal_structure_capacity_screen"
+      ]
+    },
+    {
+      "module_id": "CP-5",
+      "input_compatibility": "NAMED_LITE_OBJECT_ACCEPTED",
+      "accepted_lite_object_ids": [
+        "lite_financial_change_screen",
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen",
+        "lite_market_recovery_opportunity_screen",
+        "lite_legal_structure_capacity_screen"
+      ]
+    },
+    {
+      "module_id": "CP-5A",
+      "input_compatibility": "NAMED_LITE_OBJECT_ACCEPTED",
+      "accepted_lite_object_ids": [
+        "lite_financial_change_screen",
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen",
+        "lite_market_recovery_opportunity_screen",
+        "lite_legal_structure_capacity_screen"
+      ]
+    },
+    {
+      "module_id": "CP-6",
+      "input_compatibility": "FULL_INPUTS_ONLY",
+      "accepted_lite_object_ids": [],
+      "rejects_all_cp_l_objects": true,
+      "default_lite_route_node": false
+    },
+    {
+      "module_id": "CP-6A",
+      "input_compatibility": "FULL_INPUTS_ONLY",
+      "accepted_lite_object_ids": [],
+      "rejects_all_cp_l_objects": true,
+      "default_lite_route_node": false
+    },
+    {
+      "module_id": "CP-8",
+      "input_compatibility": "PROFILE_AGNOSTIC",
+      "accepted_lite_object_ids": []
+    },
+    {
+      "module_id": "CP-DR",
+      "input_compatibility": "PROFILE_AGNOSTIC",
+      "accepted_lite_object_ids": []
+    },
+    {
+      "module_id": "CP-OS",
+      "input_compatibility": "PROFILE_AGNOSTIC",
+      "accepted_lite_object_ids": []
+    }
+  ],
+  "compatibility_decision_table": [
+    {
+      "consumer_module_id": "CP-1C",
+      "required_upstream_object": "current CP-1C input contract",
+      "accepted_lite_object_ids": [
+        "lite_financial_change_screen"
+      ],
+      "allowed_use": "SCREENING_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-2A",
+      "required_upstream_object": "current CP-2A input contract",
+      "accepted_lite_object_ids": [
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen"
+      ],
+      "allowed_use": "SCREENING_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-2B",
+      "required_upstream_object": "current CP-2B input contract",
+      "accepted_lite_object_ids": [],
+      "allowed_use": "SCREENING_ONLY",
+      "missing_input_behavior": "OMIT_OR_UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-2H",
+      "required_upstream_object": "current CP-2H input contract",
+      "accepted_lite_object_ids": [
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen"
+      ],
+      "allowed_use": "SCREENING_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-3B",
+      "required_upstream_object": "complete CP-3 recommendation and portfolio constraints",
+      "accepted_lite_object_ids": [],
+      "allowed_use": "FULL_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-3C",
+      "required_upstream_object": "current CP-3C input contract",
+      "accepted_lite_object_ids": [
+        "lite_liquidity_sensitivity_screen",
+        "lite_market_recovery_opportunity_screen",
+        "lite_legal_structure_capacity_screen"
+      ],
+      "allowed_use": "SCREENING_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-4C",
+      "required_upstream_object": "current CP-4C input contract",
+      "accepted_lite_object_ids": [
+        "lite_legal_structure_capacity_screen"
+      ],
+      "allowed_use": "SCREENING_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-5",
+      "required_upstream_object": "CP-L artifact plus evidence trace",
+      "accepted_lite_object_ids": [
+        "lite_financial_change_screen",
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen",
+        "lite_market_recovery_opportunity_screen",
+        "lite_legal_structure_capacity_screen"
+      ],
+      "allowed_use": "QA_ONLY",
+      "missing_input_behavior": "GAP_OR_FAIL"
+    },
+    {
+      "consumer_module_id": "CP-5A",
+      "required_upstream_object": "CP-L artifact plus evidence trace",
+      "accepted_lite_object_ids": [
+        "lite_financial_change_screen",
+        "lite_fundamental_credit_screen",
+        "lite_liquidity_sensitivity_screen",
+        "lite_market_recovery_opportunity_screen",
+        "lite_legal_structure_capacity_screen"
+      ],
+      "allowed_use": "QA_ONLY",
+      "missing_input_behavior": "GAP_OR_FAIL"
+    },
+    {
+      "consumer_module_id": "CP-6",
+      "required_upstream_object": "complete FULL decision inputs",
+      "accepted_lite_object_ids": [],
+      "allowed_use": "FULL_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-6A",
+      "required_upstream_object": "complete FULL portfolio decision inputs",
+      "accepted_lite_object_ids": [],
+      "allowed_use": "FULL_ONLY",
+      "missing_input_behavior": "UPGRADE"
+    },
+    {
+      "consumer_module_id": "CP-8",
+      "required_upstream_object": "profile-bound decision ledger input",
+      "accepted_lite_object_ids": [],
+      "allowed_use": "LITE_LEDGER_ONLY",
+      "missing_input_behavior": "KEEP_LITE_STATUS_EXPLICIT"
+    }
+  ],
+  "pathways": [
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "COVENANT_REFINANCING",
+      "source_selection_id": "COVENANT_REFINANCING",
+      "menu_label": "Covenant and Refinancing"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "DECISION_LEDGER",
+      "source_selection_id": "DECISION_LEDGER",
+      "menu_label": "Decision Ledger"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "DEEP_RESEARCH",
+      "source_selection_id": "DEEP_RESEARCH",
+      "menu_label": "Deep Research"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "DISTRESSED_RESTRUCTURING",
+      "source_selection_id": "DISTRESSED_RESTRUCTURING",
+      "menu_label": "Distressed and Restructuring"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "EARNINGS_UPDATE",
+      "source_selection_id": "EARNINGS_UPDATE",
+      "menu_label": "Earnings Update"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "FULL_CREDIT_ASSESSMENT",
+      "source_selection_id": "FULL_CREDIT_ASSESSMENT",
+      "menu_label": "Full Credit Assessment"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "LIQUIDITY_REVIEW",
+      "source_selection_id": "LIQUIDITY_REVIEW",
+      "menu_label": "Near-Term Liquidity"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "MARKET_DISLOCATION",
+      "source_selection_id": "MARKET_DISLOCATION",
+      "menu_label": "Market Dislocation"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "PORTFOLIO_DECISION",
+      "source_selection_id": "PORTFOLIO_DECISION",
+      "menu_label": "Portfolio Decision"
+    },
+    {
+      "profile_id": "FULL_CREDIT_32",
+      "selection_id": "RELATIVE_VALUE",
+      "source_selection_id": "RELATIVE_VALUE",
+      "menu_label": "Relative Value"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_COVENANT_REFINANCING",
+      "source_selection_id": "LITE_COVENANT_REFINANCING",
+      "menu_label": "Consolidated Covenant and Refinancing Screen"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_DECISION_LEDGER",
+      "source_selection_id": "LITE_DECISION_LEDGER",
+      "menu_label": "LITE Decision Ledger"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_DEEP_RESEARCH",
+      "source_selection_id": "LITE_DEEP_RESEARCH",
+      "menu_label": "LITE Deep Research"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_DISTRESSED_RESTRUCTURING",
+      "source_selection_id": "LITE_DISTRESSED_RESTRUCTURING",
+      "menu_label": "Consolidated Distressed and Restructuring Screen"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_EARNINGS_UPDATE",
+      "source_selection_id": "LITE_EARNINGS_UPDATE",
+      "menu_label": "Consolidated Earnings Update"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_FULL_CREDIT_SCREEN",
+      "source_selection_id": "LITE_FULL_CREDIT_SCREEN",
+      "menu_label": "Consolidated Full Credit Screen"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_PORTFOLIO_DECISION",
+      "source_selection_id": "LITE_PORTFOLIO_DECISION",
+      "menu_label": "Consolidated Portfolio Screen"
+    },
+    {
+      "profile_id": "LITE_CREDIT_22",
+      "selection_id": "LITE_RELATIVE_VALUE",
+      "source_selection_id": "LITE_RELATIVE_VALUE",
+      "menu_label": "Consolidated Relative Value Screen"
+    }
+  ],
+  "upgrade": {
+    "mode": "NEW_RUN_ONLY",
+    "target_profile_id": "FULL_CREDIT_32",
+    "requires_user_confirmation": true,
+    "may_mutate_current_run_profile": false,
+    "linked_run_required": true
+  },
+  "fail_closed": {
+    "unknown_profile": true,
+    "unknown_role": true,
+    "unknown_scope": true,
+    "unknown_input_compatibility": true,
+    "unknown_output_class": true,
+    "unknown_replacement_id": true
+  }
+}

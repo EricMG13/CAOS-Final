@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP-MODEL__CreditSnapshotModelWorkbook__payload.schema.txt",
+  "allOf": [{"$ref": "CP_WORKBOOK_EXPORT_PAYLOAD_BASE.schema.txt"}],
+  "properties": {
+    "module_id": {"const": "CP-MODEL"},
+    "module_name": {"const": "CreditSnapshotModelWorkbook"},
+    "owned_object": {"const": "credit_snapshot_model_workbook"},
+    "schema_family": {"const": "Infrastructure"},
+    "output_class": {"const": "WORKBOOK_EXPORT"},
+    "runtime_output": {
+      "type": "object",
+      "required": [
+        "quarter_periods",
+        "annual_periods",
+        "analysis_columns",
+        "formulas_validated",
+        "semantic_checks"
+      ],
+      "properties": {
+        "quarter_periods": {
+          "type": "array",
+          "items": {"type": "string"},
+          "minItems": 4,
+          "uniqueItems": true
+        },
+        "annual_periods": {
+          "type": "array",
+          "items": {"type": "string"},
+          "uniqueItems": true
+        },
+        "analysis_columns": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "column_id",
+              "group",
+              "label",
+              "end_date",
+              "fiscal_year",
+              "component_period_ids",
+              "balance_period_id",
+              "source_period_id",
+              "comparison_column_id",
+              "growth_comparison_column_id",
+              "rollforward_column_id",
+              "forecast_period_id",
+              "case",
+              "day_count",
+              "available"
+            ],
+            "properties": {
+              "column_id": {"type": "string", "minLength": 1},
+              "group": {
+                "type": "string",
+                "enum": ["QUARTER", "YTD", "FY", "LTM", "PF", "BASE", "DOWNSIDE"]
+              },
+              "label": {"type": "string", "minLength": 1},
+              "end_date": {"type": "string", "format": "date"},
+              "fiscal_year": {"type": ["integer", "null"]},
+              "component_period_ids": {
+                "type": "array",
+                "items": {"type": "string"}
+              },
+              "balance_period_id": {"type": ["string", "null"]},
+              "source_period_id": {"type": ["string", "null"]},
+              "comparison_column_id": {"type": ["string", "null"]},
+              "growth_comparison_column_id": {"type": ["string", "null"]},
+              "rollforward_column_id": {"type": ["string", "null"]},
+              "forecast_period_id": {"type": ["string", "null"]},
+              "case": {"type": "string", "minLength": 1},
+              "day_count": {"type": "integer", "minimum": 0},
+              "available": {"type": "boolean"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "formulas_validated": {"type": "integer", "minimum": 1},
+        "semantic_checks": {"type": "integer", "minimum": 1}
+      },
+      "additionalProperties": false
+    }
+  }
+}

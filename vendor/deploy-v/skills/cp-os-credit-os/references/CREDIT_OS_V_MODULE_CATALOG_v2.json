@@ -1,0 +1,2931 @@
+{
+  "compatibility_redirect": null,
+  "generated_by": "verify_package.py local authority rebuild",
+  "generated_note": "Reviewed local Deploy V dependency and module projection; runtime pins rebuilt explicitly.",
+  "modules": [
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 16,
+        "required_table_ids": [
+          "P1",
+          "P2",
+          "P3",
+          "P4",
+          "P5",
+          "P6",
+          "P7",
+          "P8",
+          "T1",
+          "T2",
+          "T3",
+          "T4",
+          "T5",
+          "T6",
+          "T7",
+          "T8"
+        ]
+      },
+      "description": "Reads the source pack, prepares evidence where needed, freezes the effective source set and identifies which analytical modules are ready.",
+      "display": "CP-0 \u2014 SourceReadiness",
+      "has_presentation_profile": false,
+      "layer_id": "L0",
+      "module_id": "CP-0",
+      "module_name": "SourceReadiness",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Inventories and reads the source pack, adaptively parses what needs restructuring, freezes one effective source set, and establishes readiness plus the exact source-to-module map.",
+      "skill_md": "skills/cp-0-source-readiness/SKILL.md",
+      "skip_implication": "Downstream modules cannot be navigated without a confirmed source-readiness context.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 19,
+        "required_table_ids": [
+          "T4.1",
+          "T4.10",
+          "T4.11",
+          "T4.12",
+          "T4.13",
+          "T4.14",
+          "T4.15",
+          "T4.16",
+          "T4.17",
+          "T4.18",
+          "T4.19",
+          "T4.2",
+          "T4.3",
+          "T4.4",
+          "T4.5",
+          "T4.6",
+          "T4.7",
+          "T4.8",
+          "T4.9"
+        ]
+      },
+      "description": "Builds the canonical financial data and KPI foundation used by downstream analysis.",
+      "display": "CP-1 \u2014 CanonicalDataFoundation",
+      "has_presentation_profile": false,
+      "layer_id": "L1",
+      "module_id": "CP-1",
+      "module_name": "CanonicalDataFoundation",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Builds the canonical financial data and KPI foundation used by downstream analysis.",
+      "skill_md": "skills/cp-1-canonical-data-foundation/SKILL.md",
+      "skip_implication": "Later modules will lack the canonical financial and KPI foundation.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [
+          "cp1a.cp_model_snapshot_fields"
+        ],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 22,
+        "required_table_ids": [
+          "T2D.1",
+          "T2D.10",
+          "T2D.11",
+          "T2D.2",
+          "T2D.3",
+          "T2D.4",
+          "T2D.5",
+          "T2D.6",
+          "T2D.7",
+          "T2D.8",
+          "T2D.9",
+          "company_description",
+          "conflict_log",
+          "credit_translation",
+          "downstream_readiness",
+          "events_timeline",
+          "gaps_ledger",
+          "operating_model",
+          "ownership_register",
+          "revenue_business_mix",
+          "source_classification",
+          "transaction_summary"
+        ]
+      },
+      "description": "Establishes the business and transaction fact pack: what the issuer does and what deal is in front of you.",
+      "display": "CP-1A \u2014 BusinessTransactionFactPack",
+      "has_presentation_profile": false,
+      "layer_id": "L1",
+      "module_id": "CP-1A",
+      "module_name": "BusinessTransactionFactPack",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Establishes the business and transaction fact pack: what the issuer does and what deal is in front of you.",
+      "skill_md": "skills/cp-1a-business-transaction-fact-pack/SKILL.md",
+      "skip_implication": "Later transaction analysis will lack the verified business and deal fact base.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 15,
+        "required_table_ids": [
+          "T4.1",
+          "T4.10",
+          "T4.11",
+          "T4.12",
+          "T4.13",
+          "T4.14",
+          "T4.15",
+          "T4.2",
+          "T4.3",
+          "T4.4",
+          "T4.5",
+          "T4.6",
+          "T4.7",
+          "T4.8",
+          "T4.9"
+        ]
+      },
+      "description": "Quantifies the earnings delta between reporting periods and explains what moved.",
+      "display": "CP-1B \u2014 EarningsDelta",
+      "has_presentation_profile": false,
+      "layer_id": "L1",
+      "module_id": "CP-1B",
+      "module_name": "EarningsDelta",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Quantifies the earnings delta between reporting periods and explains what moved.",
+      "skill_md": "skills/cp-1b-earnings-delta/SKILL.md",
+      "skip_implication": "Later analysis will lack the period-to-period earnings movement bridge.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [
+          "T4.D1"
+        ],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 11,
+        "required_table_ids": [
+          "T4.1",
+          "T4.10",
+          "T4.11",
+          "T4.2",
+          "T4.3",
+          "T4.4",
+          "T4.5",
+          "T4.6",
+          "T4.7",
+          "T4.8",
+          "T4.9"
+        ]
+      },
+      "description": "Benchmarks the issuer against a defined peer universe and flags outliers.",
+      "display": "CP-1C \u2014 PeerBenchmark",
+      "has_presentation_profile": false,
+      "layer_id": "L1",
+      "module_id": "CP-1C",
+      "module_name": "PeerBenchmark",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Benchmarks the issuer against a defined peer universe and flags outliers.",
+      "skill_md": "skills/cp-1c-peer-benchmark/SKILL.md",
+      "skip_implication": "Later relative-value work will lack issuer-to-peer benchmark context.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 13,
+        "required_table_ids": [
+          "T1E.1",
+          "T1E.2",
+          "T1E.3",
+          "T1E.4",
+          "T1E.5",
+          "T1E.6",
+          "T1D.1",
+          "T1D.2",
+          "T1D.3",
+          "T1D.4",
+          "T1D.5",
+          "T1D.6",
+          "T1D.7"
+        ]
+      },
+      "description": "Tests adjusted-EBITDA add-backs for evidence, achievability and recurrence, reconciles earnings to cash, and restates leverage.",
+      "display": "CP-1D \u2014 EarningsQuality",
+      "has_presentation_profile": true,
+      "layer_id": "L1",
+      "module_id": "CP-1D",
+      "module_name": "EarningsQuality",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Challenges the adjusted-EBITDA bridge: tests each add-back for achievability and recurrence against evidence, reconciles adjusted EBITDA to cash, and restates leverage on the earnings the evidence supports.",
+      "skill_md": "skills/cp-1d-earnings-quality/SKILL.md",
+      "skip_implication": "Later leverage and forecast conclusions will retain untested earnings adjustments.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [
+          "cp2.cp_model_strengths_weaknesses"
+        ],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 5,
+        "required_table_ids": [
+          "T2.1",
+          "T2.10",
+          "T2.11",
+          "T2.12",
+          "T2.7"
+        ]
+      },
+      "description": "Synthesises the fundamental credit view from the canonical data and supporting registers.",
+      "display": "CP-2 \u2014 FundamentalCreditSynthesizer",
+      "has_presentation_profile": false,
+      "layer_id": "L2",
+      "module_id": "CP-2",
+      "module_name": "FundamentalCreditSynthesizer",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Synthesises the fundamental credit view from the canonical data and supporting registers.",
+      "skill_md": "skills/cp-2-fundamental-credit-synthesizer/SKILL.md",
+      "skip_implication": "Relative-value and committee conclusions will lack a synthesised fundamental credit view.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 16,
+        "required_table_ids": [
+          "T5.1",
+          "T5.2",
+          "T5.3",
+          "T5.4",
+          "T5.5",
+          "T5.6",
+          "T5.7",
+          "T2B.1",
+          "T2B.2",
+          "T2B.3",
+          "T2B.4",
+          "T2B.5",
+          "T2B.6",
+          "T2B.7",
+          "T2B.8",
+          "T2B.9"
+        ]
+      },
+      "description": "Builds the downside and stress pathway: what breaks first and how far it falls.",
+      "display": "CP-2A \u2014 DownsidePathway",
+      "has_presentation_profile": false,
+      "layer_id": "L2",
+      "module_id": "CP-2A",
+      "module_name": "DownsidePathway",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Builds the downside and stress pathway: what breaks first and how far it falls.",
+      "skill_md": "skills/cp-2a-downside-pathway/SKILL.md",
+      "skip_implication": "Forecast, recovery and committee work will lack a downside stress pathway.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 17,
+        "required_table_ids": [
+          "T2G.1",
+          "T2G.2",
+          "T2G.3",
+          "T2G.4",
+          "T2G.5",
+          "T2G.6",
+          "T2G.7",
+          "T2G.8",
+          "T2F.1",
+          "T2F.2",
+          "T2F.3",
+          "T2F.4",
+          "T2F.5",
+          "T2F.6",
+          "T2F.7",
+          "T2F.8",
+          "T2F.9"
+        ]
+      },
+      "description": "Assesses macro, FX and hedging sensitivity of the credit.",
+      "display": "CP-2E \u2014 MacroFXHedgingSensitivity",
+      "has_presentation_profile": false,
+      "layer_id": "L2",
+      "module_id": "CP-2E",
+      "module_name": "MacroFXHedgingSensitivity",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Assesses macro, FX and hedging sensitivity of the credit.",
+      "skill_md": "skills/cp-2e-macro-fx-hedging-sensitivity/SKILL.md",
+      "skip_implication": "Committee work will lack macro, FX and hedging sensitivity.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [
+          "cp2g.cp_model_forecast_drivers"
+        ],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 9,
+        "required_table_ids": [
+          "T2H.1",
+          "T2H.2",
+          "T2H.3",
+          "T2H.4",
+          "T2H.5",
+          "T2H.6",
+          "T2H.7",
+          "T2H.8",
+          "T2H.9"
+        ]
+      },
+      "description": "Builds the forward credit model: deleveraging path and forecast cases.",
+      "display": "CP-2G \u2014 ForwardCreditModel",
+      "has_presentation_profile": false,
+      "layer_id": "L2",
+      "module_id": "CP-2G",
+      "module_name": "ForwardCreditModel",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Builds the forward credit model: deleveraging path and forecast cases.",
+      "skill_md": "skills/cp-2g-forward-credit-model/SKILL.md",
+      "skip_implication": "Rating and recovery analysis will lack the forecast deleveraging path.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 10,
+        "required_table_ids": [
+          "T2R.1",
+          "T2R.10",
+          "T2R.2",
+          "T2R.3",
+          "T2R.4",
+          "T2R.5",
+          "T2R.6",
+          "T2R.7",
+          "T2R.8",
+          "T2R.9"
+        ]
+      },
+      "description": "Maps rating migration risk, trigger headroom and agency divergence.",
+      "display": "CP-2H \u2014 RatingTransitionCase",
+      "has_presentation_profile": false,
+      "layer_id": "L2",
+      "module_id": "CP-2H",
+      "module_name": "RatingTransitionCase",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Maps rating migration risk, trigger headroom and agency divergence.",
+      "skill_md": "skills/cp-2h-ratings-migration-trigger/SKILL.md",
+      "skip_implication": "Relative-value and committee conclusions will lack rating-trigger headroom.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 27,
+        "required_table_ids": [
+          "T3C.1",
+          "T3C.2",
+          "T3C.3",
+          "T3C.4",
+          "T3C.5",
+          "T3C.6",
+          "T3C.7",
+          "T3C.8",
+          "T3C.9",
+          "T3B.1",
+          "T3B.10",
+          "T3B.11",
+          "T3B.2",
+          "T3B.3",
+          "T3B.4",
+          "T3B.5",
+          "T3B.6",
+          "T3B.7",
+          "T3B.8",
+          "T3.1",
+          "T3.10",
+          "T3.3",
+          "T3.4",
+          "T3.5",
+          "T3.6",
+          "T3.7",
+          "T3.9"
+        ]
+      },
+      "description": "Determines relative value and security selection across the capital structure.",
+      "display": "CP-3 \u2014 RelativeValueSecuritySelection",
+      "has_presentation_profile": false,
+      "layer_id": "L3",
+      "module_id": "CP-3",
+      "module_name": "RelativeValueSecuritySelection",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Determines relative value and security selection across the capital structure.",
+      "skill_md": "skills/cp-3-relative-value-security-selection/SKILL.md",
+      "skip_implication": "Committee conclusions will lack relative-value and security-selection evidence.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 31,
+        "required_table_ids": [
+          "T4C.11",
+          "T4C.12",
+          "T4C.2",
+          "T4C.3",
+          "T4C.4",
+          "T4C.5",
+          "T4C.6",
+          "T4C.7",
+          "T4C.8",
+          "T4C.9",
+          "T4F.1",
+          "T4F.2",
+          "T4F.3",
+          "T4F.4",
+          "T4F.5",
+          "T4F.6",
+          "T4D.1",
+          "T4D.2",
+          "T4D.3",
+          "T4D.4",
+          "T4D.5",
+          "T4D.6",
+          "T4D.7",
+          "T4D.8",
+          "T4.10",
+          "T4.11",
+          "T4.12",
+          "T4.13",
+          "T4.2",
+          "T4.3",
+          "T4.9"
+        ]
+      },
+      "description": "Interprets the legal and covenant package and what it actually permits.",
+      "display": "CP-4 \u2014 LegalCovenantInterpreter",
+      "has_presentation_profile": false,
+      "layer_id": "L4",
+      "module_id": "CP-4",
+      "module_name": "LegalCovenantInterpreter",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Interprets the legal and covenant package and what it actually permits.",
+      "skill_md": "skills/cp-4-legal-covenant-interpreter/SKILL.md",
+      "skip_implication": "Recovery and covenant conclusions will lack the governing legal interpretation.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 10,
+        "required_table_ids": [
+          "T4E.1",
+          "T4E.10",
+          "T4E.2",
+          "T4E.3",
+          "T4E.4",
+          "T4E.5",
+          "T4E.6",
+          "T4E.7",
+          "T4E.8",
+          "T4E.9"
+        ]
+      },
+      "description": "Models the restructuring scenario, fulcrum security and plan recovery.",
+      "display": "CP-4C \u2014 RestructuringScenario",
+      "has_presentation_profile": false,
+      "layer_id": "L4",
+      "module_id": "CP-4C",
+      "module_name": "RestructuringScenario",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Models the restructuring scenario, fulcrum security and plan recovery.",
+      "skill_md": "skills/cp-4c-restructuring-fulcrum/SKILL.md",
+      "skip_implication": "Evidence and committee conclusions will lack the restructuring and fulcrum scenario.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 17,
+        "required_table_ids": [
+          "T5.1",
+          "T5.2",
+          "T5.3",
+          "T5.4",
+          "T5.5",
+          "T5.6",
+          "T5.7",
+          "T5.8",
+          "T5.9",
+          "T5B.1",
+          "T5B.2",
+          "T5B.3",
+          "T5B.4",
+          "T5B.5",
+          "T5B.6",
+          "T5B.7",
+          "T5B.8"
+        ]
+      },
+      "description": "Validates the evidence trace behind every material claim in the run.",
+      "display": "CP-5 \u2014 EvidenceTraceValidator",
+      "has_presentation_profile": false,
+      "layer_id": "L5",
+      "module_id": "CP-5",
+      "module_name": "EvidenceTraceValidator",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Validates the evidence trace behind every material claim in the run.",
+      "skill_md": "skills/cp-5-evidence-trace-validator/SKILL.md",
+      "skip_implication": "Committee conclusions will not have independent evidence-trace validation.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 8,
+        "required_table_ids": [
+          "T6E.11",
+          "T6E.4",
+          "T6E.6",
+          "T6E.7",
+          "T6A.11",
+          "T6A.4",
+          "T6A.6",
+          "T6A.7"
+        ]
+      },
+      "description": "Runs the investment-committee debate and challenge, producing an action bias.",
+      "display": "CP-6 \u2014 ICDebateChallenge",
+      "has_presentation_profile": false,
+      "layer_id": "L6",
+      "module_id": "CP-6",
+      "module_name": "ICDebateChallenge",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Runs the investment-committee debate and challenge, producing an action bias.",
+      "skill_md": "skills/cp-6-ic-debate-challenge/SKILL.md",
+      "skip_implication": "Decision review will lack the formal investment-committee debate and challenge.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 8,
+        "required_table_ids": [
+          "T7.1",
+          "T7.2",
+          "T7.3",
+          "T7.4",
+          "T7.5",
+          "T7.6",
+          "T7.7",
+          "T7.8"
+        ]
+      },
+      "description": "Records the decision ledger and post-mortem against the realised outcome.",
+      "display": "CP-8 \u2014 DecisionLedgerPostMortem",
+      "has_presentation_profile": false,
+      "layer_id": "L8",
+      "module_id": "CP-8",
+      "module_name": "DecisionLedgerPostMortem",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Records the decision ledger and post-mortem against the realised outcome.",
+      "skill_md": "skills/cp-8-decision-ledger-post-mortem/SKILL.md",
+      "skip_implication": "The realised outcome will not be reconciled to a governed decision ledger.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [
+          "run-scoped research brief control JSON"
+        ],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 3,
+        "required_table_ids": [
+          "TDR.1",
+          "TDR.2",
+          "TDR.3"
+        ]
+      },
+      "description": "Resolves named diligence questions before their receiving analyses, with cited findings and explicit adoption.",
+      "display": "CP-DR \u2014 DeepResearch",
+      "has_presentation_profile": true,
+      "layer_id": null,
+      "module_id": "CP-DR",
+      "module_name": "DeepResearch",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Resolve material evidence gaps for named consumers, or answer a standalone issuer/sector research question.",
+      "skill_md": "skills/cp-dr-deep-research/SKILL.md",
+      "skip_implication": "Named research questions remain unresolved; only their receiving modules must wait.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "decision_scope": "SCREENING_ONLY",
+        "owned_object": "lite_financial_change_screen",
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_columns": {
+          "TL10.1": [
+            "subject_identity",
+            "source_ref",
+            "source_owner_module",
+            "as_of_or_period",
+            "scope_status",
+            "topics_supported",
+            "limitation"
+          ],
+          "TL10.2": [
+            "topic_id",
+            "topic_label",
+            "source_owner_modules",
+            "materiality",
+            "evidence_status",
+            "disposition",
+            "priority_rank",
+            "summary",
+            "source_refs",
+            "upgrade_module_ids"
+          ],
+          "TL10.3": [
+            "screen_item",
+            "assessment",
+            "evidence",
+            "credit_transmission",
+            "screening_implication",
+            "confidence",
+            "source_refs"
+          ],
+          "TL10.4": [
+            "topic_id",
+            "trigger",
+            "missing_inputs",
+            "decision_impact",
+            "required_source",
+            "target_full_module_id",
+            "expected_owned_object",
+            "blocking_for_full_decision"
+          ]
+        },
+        "required_table_count": 20,
+        "required_table_ids": [
+          "TL40.1",
+          "TL40.2",
+          "TL40.3",
+          "TL40.4",
+          "TL30.1",
+          "TL30.2",
+          "TL30.3",
+          "TL30.4",
+          "TL23.1",
+          "TL23.2",
+          "TL23.3",
+          "TL23.4",
+          "TL20.1",
+          "TL20.2",
+          "TL20.3",
+          "TL20.4",
+          "TL10.1",
+          "TL10.2",
+          "TL10.3",
+          "TL10.4"
+        ]
+      },
+      "description": "Runs a bounded LITE screening synthesis for CP-1, CP-1B.",
+      "display": "CP-L10 \u2014 LiteFinancialChangeScreen",
+      "has_presentation_profile": true,
+      "layer_id": "L1",
+      "module_id": "CP-L10",
+      "module_name": "LiteFinancialChangeScreen",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Runs a bounded LITE screening synthesis for CP-1, CP-1B.",
+      "skill_md": "skills/cp-l10-financial-change-screen/SKILL.md",
+      "skip_implication": "Later LITE consumers will lack the consolidated evidence-proportionate screen.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "xlsx_workbook",
+        "required_sheet_names": [
+          "Credit Snapshot",
+          "Model",
+          "KPIs",
+          "_INPUTS",
+          "_MAP",
+          "_CHECKS",
+          "_AUDIT"
+        ],
+        "required_table_count": 0,
+        "required_table_ids": []
+      },
+      "description": "Builds the validated credit snapshot model workbook from accepted upstream handoffs.",
+      "display": "CP-MODEL \u2014 CreditSnapshotModelWorkbook",
+      "has_presentation_profile": false,
+      "layer_id": null,
+      "module_id": "CP-MODEL",
+      "module_name": "CreditSnapshotModelWorkbook",
+      "navigable": false,
+      "output_owner": true,
+      "purpose": "Builds the validated credit snapshot model workbook from accepted upstream handoffs.",
+      "skill_md": "skills/cp-model/SKILL.md",
+      "skip_implication": null,
+      "surface_role": "workbook_export"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "docx_report",
+        "required_sheet_names": [],
+        "required_table_ids": []
+      },
+      "description": "Editorially consolidates every eligible live issuer-run handoff into one governed Word credit research report without performing analysis.",
+      "display": "CP-MEMO \u2014 CreditResearchReport",
+      "has_presentation_profile": false,
+      "layer_id": null,
+      "module_id": "CP-MEMO",
+      "module_name": "CreditResearchReport",
+      "navigable": false,
+      "output_owner": true,
+      "purpose": "Editorially consolidates every eligible live issuer-run handoff into one governed Word credit research report without performing analysis.",
+      "skill_md": "skills/cp-memo-credit-research-report/SKILL.md",
+      "skip_implication": null,
+      "surface_role": "docx_report_export"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 8,
+        "required_table_ids": [
+          "T2E.1",
+          "T2E.2",
+          "T2E.3",
+          "T2E.4",
+          "T2E.5",
+          "T2E.6",
+          "T2E.7",
+          "T2E.9"
+        ]
+      },
+      "description": "Builds the near-term liquidity bridge and cash runway.",
+      "display": "CP-2D \u2014 LiquidityCashFlowBridge",
+      "has_presentation_profile": true,
+      "layer_id": "L2",
+      "module_id": "CP-2D",
+      "module_name": "LiquidityCashFlowBridge",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Builds the near-term liquidity bridge and cash runway.",
+      "skill_md": "skills/cp-2d-liquidity-cash-flow-bridge/SKILL.md",
+      "skip_implication": "Builds the near-term liquidity bridge and cash runway. This evidence will remain missing.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 11,
+        "required_table_ids": [
+          "T3D.1",
+          "T3D.10",
+          "T3D.11",
+          "T3D.2",
+          "T3D.3",
+          "T3D.4",
+          "T3D.5",
+          "T3D.6",
+          "T3D.7",
+          "T3D.8",
+          "T3D.9"
+        ]
+      },
+      "description": "Assesses refinancing and liability-management risk before or during distress.",
+      "display": "CP-3C \u2014 RefinancingLMERisk",
+      "has_presentation_profile": true,
+      "layer_id": "L3",
+      "module_id": "CP-3C",
+      "module_name": "RefinancingLMERisk",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Assesses refinancing and liability-management risk before or during distress.",
+      "skill_md": "skills/cp-3c-refinancing-lme-risk/SKILL.md",
+      "skip_implication": "Assesses refinancing and liability-management risk before or during distress. This evidence will remain missing.",
+      "surface_role": "canonical_markdown_output"
+    },
+    {
+      "artifact_contract": {
+        "allowed_sidecars": [],
+        "conditional_table_ids": [],
+        "primary_kind": "markdown_handoff",
+        "required_sheet_names": [],
+        "required_table_count": 10,
+        "required_table_ids": [
+          "T3E.1",
+          "T3E.10",
+          "T3E.2",
+          "T3E.3",
+          "T3E.4",
+          "T3E.5",
+          "T3E.6",
+          "T3E.7",
+          "T3E.8",
+          "T3E.9"
+        ]
+      },
+      "description": "Assesses market-implied credit risk and trading technicals.",
+      "display": "CP-3D \u2014 MarketImpliedRisk",
+      "has_presentation_profile": true,
+      "layer_id": "L3",
+      "module_id": "CP-3D",
+      "module_name": "MarketImpliedRisk",
+      "navigable": true,
+      "output_owner": true,
+      "purpose": "Assesses market-implied credit risk and trading technicals.",
+      "skill_md": "skills/cp-3d-market-implied-risk/SKILL.md",
+      "skip_implication": "Assesses market-implied credit risk and trading technicals. This evidence will remain missing.",
+      "surface_role": "canonical_markdown_output"
+    }
+  ],
+  "navigation": {
+    "dependencies": [
+      {
+        "source": "CP-0",
+        "target": "CP-1"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-1A"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-1B"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-1C"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-1D"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-2"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-2A"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-2D"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-2E"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-2G"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-2H"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-3D"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-4"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-4C"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-8"
+      },
+      {
+        "source": "CP-0",
+        "target": "CP-L10"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-1B"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-1C"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-1D"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-2"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-2A"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-2D"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-2G"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-2H"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-4"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-4C"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-1",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-1A",
+        "target": "CP-2"
+      },
+      {
+        "source": "CP-1A",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-1A",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-1A",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-1A",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-1B",
+        "target": "CP-1D"
+      },
+      {
+        "source": "CP-1B",
+        "target": "CP-2"
+      },
+      {
+        "source": "CP-1B",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-1C",
+        "target": "CP-2"
+      },
+      {
+        "source": "CP-1C",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-1C",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-1D",
+        "target": "CP-2"
+      },
+      {
+        "source": "CP-1D",
+        "target": "CP-2G"
+      },
+      {
+        "source": "CP-1D",
+        "target": "CP-2H"
+      },
+      {
+        "source": "CP-1D",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-1D",
+        "target": "CP-4"
+      },
+      {
+        "source": "CP-2",
+        "target": "CP-2D"
+      },
+      {
+        "source": "CP-2",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-2",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-2",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-2A",
+        "target": "CP-2G"
+      },
+      {
+        "source": "CP-2A",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-2A",
+        "target": "CP-4C"
+      },
+      {
+        "source": "CP-2A",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-2A",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-2D",
+        "target": "CP-2G"
+      },
+      {
+        "source": "CP-2D",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-2D",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-2D",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-2D",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-2E",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-2E",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-2G",
+        "target": "CP-2H"
+      },
+      {
+        "source": "CP-2G",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-2G",
+        "target": "CP-4C"
+      },
+      {
+        "source": "CP-2G",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-2H",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-2H",
+        "target": "CP-3D"
+      },
+      {
+        "source": "CP-2H",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-3",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-3",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-3C",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-3C",
+        "target": "CP-4C"
+      },
+      {
+        "source": "CP-3C",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-3C",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-3D",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-3D",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-3D",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-3D",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-4",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-4",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-4",
+        "target": "CP-4C"
+      },
+      {
+        "source": "CP-4",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-4C",
+        "target": "CP-3"
+      },
+      {
+        "source": "CP-4C",
+        "target": "CP-5"
+      },
+      {
+        "source": "CP-5",
+        "target": "CP-6"
+      },
+      {
+        "source": "CP-6",
+        "target": "CP-8"
+      },
+      {
+        "source": "CP-L10",
+        "target": "CP-1C"
+      },
+      {
+        "source": "CP-L10",
+        "target": "CP-2A"
+      },
+      {
+        "source": "CP-L10",
+        "target": "CP-2H"
+      },
+      {
+        "source": "CP-L10",
+        "target": "CP-3C"
+      },
+      {
+        "source": "CP-L10",
+        "target": "CP-4C"
+      },
+      {
+        "source": "CP-L10",
+        "target": "CP-5"
+      }
+    ],
+    "layers": [
+      {
+        "label": "Source readiness",
+        "layer_id": "L0"
+      },
+      {
+        "label": "Data foundation",
+        "layer_id": "L1"
+      },
+      {
+        "label": "Fundamental and downside analysis",
+        "layer_id": "L2"
+      },
+      {
+        "label": "Relative value",
+        "layer_id": "L3"
+      },
+      {
+        "label": "Legal and recovery",
+        "layer_id": "L4"
+      },
+      {
+        "label": "Evidence validation",
+        "layer_id": "L5"
+      },
+      {
+        "label": "Committee challenge",
+        "layer_id": "L6"
+      },
+      {
+        "label": "Decision review",
+        "layer_id": "L8"
+      }
+    ],
+    "schema_version": "1.0"
+  },
+  "preparation_stage": {
+    "module_id": "CP-0",
+    "phase": "preparation",
+    "required_before": "CP-0 readiness phase",
+    "runnable": false
+  },
+  "profile_selection": {
+    "immutable_within_run": true,
+    "installation_membership_is_separate": true,
+    "route_membership_is_separate": true,
+    "selection_scope": "PER_RUN",
+    "unknown_profiles_fail_closed": true
+  },
+  "profiles": {
+    "FULL_CREDIT_32": {
+      "capability_module_ids": [
+        "CP-0",
+        "CP-1",
+        "CP-1A",
+        "CP-1B",
+        "CP-1C",
+        "CP-1D",
+        "CP-2",
+        "CP-2A",
+        "CP-2E",
+        "CP-2G",
+        "CP-2H",
+        "CP-3",
+        "CP-4",
+        "CP-4C",
+        "CP-5",
+        "CP-6",
+        "CP-8",
+        "CP-DR",
+        "CP-MODEL",
+        "CP-OS",
+        "CP-MEMO"
+      ],
+      "edges": [
+        {
+          "source": "CP-0",
+          "target": "CP-1",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-1A",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-1B",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-1C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2A",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2G",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2E",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2H",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-3",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-4",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-5",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-6",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-8",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-DR",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-MODEL",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-1B",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-1C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-2",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-2A",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-2G",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-2H",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-3",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-4",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-6",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1A",
+          "target": "CP-2",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-1B",
+          "target": "CP-2",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-1C",
+          "target": "CP-2",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-1C",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2",
+          "target": "CP-3",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2",
+          "target": "CP-6",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2A",
+          "target": "CP-2G",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2G",
+          "target": "CP-2H",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2G",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2H",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-4",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-3",
+          "target": "CP-6",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2A",
+          "target": "CP-6",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-1A",
+          "target": "CP-6",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2E",
+          "target": "CP-6",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2G",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-1A",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2A",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-6",
+          "target": "CP-8",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-5",
+          "target": "CP-6",
+          "type": "QA_GATE"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1A",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1B",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1C",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2A",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2G",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2E",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2H",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-3",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-4C",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-4",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-1D",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-1D",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1B",
+          "target": "CP-1D",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-1D",
+          "target": "CP-2",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1D",
+          "target": "CP-2G",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1D",
+          "target": "CP-4",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1D",
+          "target": "CP-2H",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1D",
+          "target": "CP-3",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-4",
+          "target": "CP-3",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2D",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-2D",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2",
+          "target": "CP-2D",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-3C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-1",
+          "target": "CP-3C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2D",
+          "target": "CP-3C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-3D",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2D",
+          "target": "CP-2G",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-1A",
+          "target": "CP-3C",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2A",
+          "target": "CP-3C",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-4",
+          "target": "CP-3C",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2H",
+          "target": "CP-3D",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-3D",
+          "target": "CP-3C",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-3D",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-3C",
+          "target": "CP-4C",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-3C",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-4C",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2D",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-3C",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-3D",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2D",
+          "target": "CP-3",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-2D",
+          "target": "CP-6",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-3C",
+          "target": "CP-6",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-3D",
+          "target": "CP-6",
+          "type": "OPTIONAL"
+        }
+      ],
+      "logical_capability_count": 32,
+      "pathways": {
+        "COVENANT_REFINANCING": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Covenant and Refinancing",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-COVENANT_REFINANCING-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-1",
+              "module_name": "CanonicalDataFoundation",
+              "route_node_id": "RN-FULL_CREDIT_32-COVENANT_REFINANCING-02-CP-1",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-4",
+              "module_name": "LegalCovenantInterpreter",
+              "route_node_id": "RN-FULL_CREDIT_32-COVENANT_REFINANCING-03-CP-4",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-2",
+              "module_name": "FundamentalCreditSynthesizer",
+              "route_node_id": "RN-FULL_CREDIT_32-COVENANT_REFINANCING-04-CP-2",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-2D",
+              "module_name": "LiquidityCashFlowBridge",
+              "route_node_id": "RN-FULL_CREDIT_32-COVENANT_REFINANCING-05-CP-2D",
+              "stage": 5
+            },
+            {
+              "module_id": "CP-3C",
+              "module_name": "RefinancingLMERisk",
+              "route_node_id": "RN-FULL_CREDIT_32-COVENANT_REFINANCING-06-CP-3C",
+              "stage": 6
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-FULL_CREDIT_32-COVENANT_REFINANCING-07-CP-5",
+              "stage": 7
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "COVENANT_REFINANCING",
+          "terminal_deliverable": "CP-5",
+          "use_case": "New credit agreement, amendment, covenant capacity or refinancing question."
+        },
+        "DECISION_LEDGER": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Decision Ledger",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-DECISION_LEDGER-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-8",
+              "module_name": "DecisionLedgerPostMortem",
+              "route_node_id": "RN-FULL_CREDIT_32-DECISION_LEDGER-02-CP-8",
+              "stage": 2
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "DECISION_LEDGER",
+          "terminal_deliverable": "CP-8",
+          "use_case": "Record a decision and review it against the realised outcome."
+        },
+        "DEEP_RESEARCH": {
+          "decision_scope": "FULL",
+          "identity_kind": "RESEARCH_SCOPE",
+          "menu_label": "Deep Research",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-DEEP_RESEARCH-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-DR",
+              "module_name": "DeepResearch",
+              "route_node_id": "RN-FULL_CREDIT_32-DEEP_RESEARCH-02-CP-DR",
+              "stage": 2
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "DEEP_RESEARCH",
+          "terminal_deliverable": "CP-DR",
+          "use_case": "User-scoped sector, theme or issuer research against an approved plan."
+        },
+        "DISTRESSED_RESTRUCTURING": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Distressed and Restructuring",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-1",
+              "module_name": "CanonicalDataFoundation",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-02-CP-1",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-2",
+              "module_name": "FundamentalCreditSynthesizer",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-03-CP-2",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-2A",
+              "module_name": "DownsidePathway",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-04-CP-2A",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-4",
+              "module_name": "LegalCovenantInterpreter",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-05-CP-4",
+              "stage": 5
+            },
+            {
+              "module_id": "CP-2D",
+              "module_name": "LiquidityCashFlowBridge",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-06-CP-2D",
+              "stage": 6
+            },
+            {
+              "module_id": "CP-2G",
+              "module_name": "ForwardCreditModel",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-07-CP-2G",
+              "stage": 7
+            },
+            {
+              "module_id": "CP-2H",
+              "module_name": "RatingTransitionCase",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-08-CP-2H",
+              "stage": 8
+            },
+            {
+              "module_id": "CP-3C",
+              "module_name": "RefinancingLMERisk",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-09-CP-3C",
+              "stage": 9
+            },
+            {
+              "module_id": "CP-4C",
+              "module_name": "RestructuringScenario",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-10-CP-4C",
+              "stage": 10
+            },
+            {
+              "module_id": "CP-3",
+              "module_name": "RelativeValueSecuritySelection",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-11-CP-3",
+              "stage": 11
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-12-CP-5",
+              "stage": 12
+            },
+            {
+              "module_id": "CP-6",
+              "module_name": "ICDebateChallenge",
+              "route_node_id": "RN-FULL_CREDIT_32-DISTRESSED_RESTRUCTURING-13-CP-6",
+              "stage": 13
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "DISTRESSED_RESTRUCTURING",
+          "terminal_deliverable": "CP-6",
+          "use_case": "Maturity wall, exchange offer, or creditor-on-creditor risk."
+        },
+        "EARNINGS_UPDATE": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Earnings Update",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-EARNINGS_UPDATE-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-1",
+              "module_name": "CanonicalDataFoundation",
+              "route_node_id": "RN-FULL_CREDIT_32-EARNINGS_UPDATE-02-CP-1",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-1B",
+              "module_name": "EarningsDelta",
+              "route_node_id": "RN-FULL_CREDIT_32-EARNINGS_UPDATE-03-CP-1B",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-2",
+              "module_name": "FundamentalCreditSynthesizer",
+              "route_node_id": "RN-FULL_CREDIT_32-EARNINGS_UPDATE-04-CP-2",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-FULL_CREDIT_32-EARNINGS_UPDATE-05-CP-5",
+              "stage": 5
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "EARNINGS_UPDATE",
+          "terminal_deliverable": "CP-5",
+          "use_case": "Issuer reported quarterly or annual results."
+        },
+        "FULL_CREDIT_ASSESSMENT": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Full Credit Assessment",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-1",
+              "module_name": "CanonicalDataFoundation",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-02-CP-1",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-1A",
+              "module_name": "BusinessTransactionFactPack",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-03-CP-1A",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-1B",
+              "module_name": "EarningsDelta",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-04-CP-1B",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-1D",
+              "module_name": "EarningsQuality",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-05-CP-1D",
+              "stage": 5
+            },
+            {
+              "module_id": "CP-1C",
+              "module_name": "PeerBenchmark",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-06-CP-1C",
+              "stage": 6
+            },
+            {
+              "module_id": "CP-2",
+              "module_name": "FundamentalCreditSynthesizer",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-07-CP-2",
+              "stage": 7
+            },
+            {
+              "module_id": "CP-2A",
+              "module_name": "DownsidePathway",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-08-CP-2A",
+              "stage": 8
+            },
+            {
+              "module_id": "CP-2E",
+              "module_name": "MacroFXHedgingSensitivity",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-09-CP-2E",
+              "stage": 9
+            },
+            {
+              "module_id": "CP-4",
+              "module_name": "LegalCovenantInterpreter",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-10-CP-4",
+              "stage": 10
+            },
+            {
+              "module_id": "CP-2D",
+              "module_name": "LiquidityCashFlowBridge",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-11-CP-2D",
+              "stage": 11
+            },
+            {
+              "module_id": "CP-2G",
+              "module_name": "ForwardCreditModel",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-12-CP-2G",
+              "stage": 12
+            },
+            {
+              "module_id": "CP-2H",
+              "module_name": "RatingTransitionCase",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-13-CP-2H",
+              "stage": 13
+            },
+            {
+              "module_id": "CP-3D",
+              "module_name": "MarketImpliedRisk",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-14-CP-3D",
+              "stage": 14
+            },
+            {
+              "module_id": "CP-3C",
+              "module_name": "RefinancingLMERisk",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-15-CP-3C",
+              "stage": 15
+            },
+            {
+              "module_id": "CP-4C",
+              "module_name": "RestructuringScenario",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-16-CP-4C",
+              "stage": 16
+            },
+            {
+              "module_id": "CP-3",
+              "module_name": "RelativeValueSecuritySelection",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-17-CP-3",
+              "stage": 17
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-18-CP-5",
+              "stage": 18
+            },
+            {
+              "module_id": "CP-6",
+              "module_name": "ICDebateChallenge",
+              "route_node_id": "RN-FULL_CREDIT_32-FULL_CREDIT_ASSESSMENT-19-CP-6",
+              "stage": 19
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "FULL_CREDIT_ASSESSMENT",
+          "terminal_deliverable": "CP-6",
+          "use_case": "New issuer or new investment opportunity; the complete route."
+        },
+        "LIQUIDITY_REVIEW": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Near-Term Liquidity",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-LIQUIDITY_REVIEW-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-1",
+              "module_name": "CanonicalDataFoundation",
+              "route_node_id": "RN-FULL_CREDIT_32-LIQUIDITY_REVIEW-02-CP-1",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-2",
+              "module_name": "FundamentalCreditSynthesizer",
+              "route_node_id": "RN-FULL_CREDIT_32-LIQUIDITY_REVIEW-03-CP-2",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-2D",
+              "module_name": "LiquidityCashFlowBridge",
+              "route_node_id": "RN-FULL_CREDIT_32-LIQUIDITY_REVIEW-04-CP-2D",
+              "stage": 4
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "LIQUIDITY_REVIEW",
+          "terminal_deliverable": "CP-2D",
+          "use_case": "Near-Term Liquidity"
+        },
+        "MARKET_DISLOCATION": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Market Dislocation",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-MARKET_DISLOCATION-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-3D",
+              "module_name": "MarketImpliedRisk",
+              "route_node_id": "RN-FULL_CREDIT_32-MARKET_DISLOCATION-02-CP-3D",
+              "stage": 2
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "MARKET_DISLOCATION",
+          "terminal_deliverable": "CP-3D",
+          "use_case": "Market Dislocation"
+        },
+        "PORTFOLIO_DECISION": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Portfolio Decision",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-1",
+              "module_name": "CanonicalDataFoundation",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-02-CP-1",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-2",
+              "module_name": "FundamentalCreditSynthesizer",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-03-CP-2",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-4",
+              "module_name": "LegalCovenantInterpreter",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-04-CP-4",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-3D",
+              "module_name": "MarketImpliedRisk",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-05-CP-3D",
+              "stage": 5
+            },
+            {
+              "module_id": "CP-3",
+              "module_name": "RelativeValueSecuritySelection",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-06-CP-3",
+              "stage": 6
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-07-CP-5",
+              "stage": 7
+            },
+            {
+              "module_id": "CP-6",
+              "module_name": "ICDebateChallenge",
+              "route_node_id": "RN-FULL_CREDIT_32-PORTFOLIO_DECISION-08-CP-6",
+              "stage": 8
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "PORTFOLIO_DECISION",
+          "terminal_deliverable": "CP-6",
+          "use_case": "Credit view needed through to an allocation decision."
+        },
+        "RELATIVE_VALUE": {
+          "decision_scope": "FULL",
+          "identity_kind": "ISSUER",
+          "menu_label": "Relative Value",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-1",
+              "module_name": "CanonicalDataFoundation",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-02-CP-1",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-1C",
+              "module_name": "PeerBenchmark",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-03-CP-1C",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-2",
+              "module_name": "FundamentalCreditSynthesizer",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-04-CP-2",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-4",
+              "module_name": "LegalCovenantInterpreter",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-05-CP-4",
+              "stage": 5
+            },
+            {
+              "module_id": "CP-3D",
+              "module_name": "MarketImpliedRisk",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-06-CP-3D",
+              "stage": 6
+            },
+            {
+              "module_id": "CP-2A",
+              "module_name": "DownsidePathway",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-07-CP-2A",
+              "stage": 7
+            },
+            {
+              "module_id": "CP-2G",
+              "module_name": "ForwardCreditModel",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-08-CP-2G",
+              "stage": 8
+            },
+            {
+              "module_id": "CP-3",
+              "module_name": "RelativeValueSecuritySelection",
+              "route_node_id": "RN-FULL_CREDIT_32-RELATIVE_VALUE-09-CP-3",
+              "stage": 9
+            }
+          ],
+          "profile_id": "FULL_CREDIT_32",
+          "selection_id": "RELATIVE_VALUE",
+          "terminal_deliverable": "CP-3",
+          "use_case": "Compare instruments and determine security preference."
+        }
+      },
+      "profile_id": "FULL_CREDIT_32",
+      "research_extension": {
+        "brief_schema": "CP_DR_RESEARCH_BRIEF_V1",
+        "module_id": "CP-DR",
+        "route_stage": 99
+      },
+      "route_eligible_module_ids": [
+        "CP-0",
+        "CP-1",
+        "CP-1A",
+        "CP-1B",
+        "CP-1C",
+        "CP-1D",
+        "CP-2",
+        "CP-2A",
+        "CP-2E",
+        "CP-2G",
+        "CP-2H",
+        "CP-3",
+        "CP-4",
+        "CP-4C",
+        "CP-5",
+        "CP-6",
+        "CP-8",
+        "CP-DR",
+        "CP-MODEL",
+        "CP-MEMO"
+      ]
+    },
+    "LITE_CREDIT_22": {
+      "capability_module_ids": [
+        "CP-0",
+        "CP-1A",
+        "CP-1C",
+        "CP-2A",
+        "CP-2H",
+        "CP-4C",
+        "CP-5",
+        "CP-6",
+        "CP-8",
+        "CP-DR",
+        "CP-L10",
+        "CP-OS",
+        "CP-MEMO"
+      ],
+      "edges": [
+        {
+          "source": "CP-0",
+          "target": "CP-1A",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-1C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2A",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-2H",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-5",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-8",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-DR",
+          "type": "REQUIRED"
+        },
+        {
+          "accepted_object_id": "lite_financial_change_screen",
+          "allowed_use": "SCREENING_ONLY",
+          "source": "CP-L10",
+          "target": "CP-1C",
+          "type": "REQUIRED"
+        },
+        {
+          "accepted_object_id": "lite_liquidity_sensitivity_screen",
+          "allowed_use": "SCREENING_ONLY",
+          "source": "CP-L10",
+          "target": "CP-2H",
+          "type": "REQUIRED"
+        },
+        {
+          "accepted_object_id": "lite_legal_structure_capacity_screen",
+          "allowed_use": "SCREENING_ONLY",
+          "source": "CP-L10",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-2A",
+          "target": "CP-4C",
+          "type": "REQUIRED"
+        },
+        {
+          "accepted_object_id": "lite_financial_change_screen",
+          "allowed_use": "QA_ONLY",
+          "source": "CP-L10",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1A",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-1C",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2A",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-2H",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-4C",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-L10",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-L10",
+          "target": "CP-2A",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-0",
+          "target": "CP-3C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-L10",
+          "target": "CP-3C",
+          "type": "REQUIRED"
+        },
+        {
+          "source": "CP-3C",
+          "target": "CP-4C",
+          "type": "OPTIONAL"
+        },
+        {
+          "source": "CP-3C",
+          "target": "CP-5",
+          "type": "ADVISORY"
+        }
+      ],
+      "logical_capability_count": 22,
+      "pathways": {
+        "LITE_COVENANT_REFINANCING": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "ISSUER",
+          "menu_label": "Consolidated Covenant and Refinancing Screen",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_COVENANT_REFINANCING-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-L10",
+              "module_name": "LiteFinancialChangeScreen",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_COVENANT_REFINANCING-02-CP-L10",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-3C",
+              "module_name": "RefinancingLMERisk",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_COVENANT_REFINANCING-03-CP-3C",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_COVENANT_REFINANCING-04-CP-5",
+              "stage": 4
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_COVENANT_REFINANCING",
+          "terminal_deliverable": "CP-5",
+          "use_case": "New credit agreement, amendment, covenant capacity or refinancing question."
+        },
+        "LITE_DECISION_LEDGER": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "ISSUER",
+          "menu_label": "LITE Decision Ledger",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DECISION_LEDGER-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-8",
+              "module_name": "DecisionLedgerPostMortem",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DECISION_LEDGER-02-CP-8",
+              "stage": 2
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_DECISION_LEDGER",
+          "terminal_deliverable": "CP-8",
+          "use_case": "Record a decision and review it against the realised outcome."
+        },
+        "LITE_DEEP_RESEARCH": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "RESEARCH_SCOPE",
+          "menu_label": "LITE Deep Research",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DEEP_RESEARCH-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-DR",
+              "module_name": "DeepResearch",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DEEP_RESEARCH-02-CP-DR",
+              "stage": 2
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_DEEP_RESEARCH",
+          "terminal_deliverable": "CP-DR",
+          "use_case": "User-scoped sector, theme or issuer research against an approved plan."
+        },
+        "LITE_DISTRESSED_RESTRUCTURING": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "ISSUER",
+          "menu_label": "Consolidated Distressed and Restructuring Screen",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DISTRESSED_RESTRUCTURING-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-L10",
+              "module_name": "LiteFinancialChangeScreen",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DISTRESSED_RESTRUCTURING-02-CP-L10",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-2A",
+              "module_name": "DownsidePathway",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DISTRESSED_RESTRUCTURING-03-CP-2A",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-2H",
+              "module_name": "RatingTransitionCase",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DISTRESSED_RESTRUCTURING-04-CP-2H",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-4C",
+              "module_name": "RestructuringScenario",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_DISTRESSED_RESTRUCTURING-05-CP-4C",
+              "stage": 5
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_DISTRESSED_RESTRUCTURING",
+          "terminal_deliverable": "CP-4C",
+          "use_case": "Maturity wall, exchange offer, or creditor-on-creditor risk."
+        },
+        "LITE_EARNINGS_UPDATE": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "ISSUER",
+          "menu_label": "Consolidated Earnings Update",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_EARNINGS_UPDATE-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-L10",
+              "module_name": "LiteFinancialChangeScreen",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_EARNINGS_UPDATE-02-CP-L10",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_EARNINGS_UPDATE-03-CP-5",
+              "stage": 3
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_EARNINGS_UPDATE",
+          "terminal_deliverable": "CP-5",
+          "use_case": "Issuer reported quarterly or annual results."
+        },
+        "LITE_FULL_CREDIT_SCREEN": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "ISSUER",
+          "menu_label": "Consolidated Full Credit Screen",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-L10",
+              "module_name": "LiteFinancialChangeScreen",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-02-CP-L10",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-1A",
+              "module_name": "BusinessTransactionFactPack",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-03-CP-1A",
+              "stage": 3
+            },
+            {
+              "module_id": "CP-1C",
+              "module_name": "PeerBenchmark",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-04-CP-1C",
+              "stage": 4
+            },
+            {
+              "module_id": "CP-2A",
+              "module_name": "DownsidePathway",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-05-CP-2A",
+              "stage": 5
+            },
+            {
+              "module_id": "CP-2H",
+              "module_name": "RatingTransitionCase",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-06-CP-2H",
+              "stage": 6
+            },
+            {
+              "module_id": "CP-3C",
+              "module_name": "RefinancingLMERisk",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-07-CP-3C",
+              "stage": 7
+            },
+            {
+              "module_id": "CP-4C",
+              "module_name": "RestructuringScenario",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-08-CP-4C",
+              "stage": 8
+            },
+            {
+              "module_id": "CP-5",
+              "module_name": "EvidenceTraceValidator",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_FULL_CREDIT_SCREEN-09-CP-5",
+              "stage": 9
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_FULL_CREDIT_SCREEN",
+          "terminal_deliverable": "CP-5",
+          "use_case": "New issuer or new investment opportunity; the complete route."
+        },
+        "LITE_PORTFOLIO_DECISION": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "ISSUER",
+          "menu_label": "Consolidated Portfolio Screen",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_PORTFOLIO_DECISION-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-L10",
+              "module_name": "LiteFinancialChangeScreen",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_PORTFOLIO_DECISION-02-CP-L10",
+              "stage": 2
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_PORTFOLIO_DECISION",
+          "terminal_deliverable": "CP-L10",
+          "use_case": "Credit view needed through to an allocation decision."
+        },
+        "LITE_RELATIVE_VALUE": {
+          "decision_scope": "SCREENING_ONLY",
+          "identity_kind": "ISSUER",
+          "menu_label": "Consolidated Relative Value Screen",
+          "nodes": [
+            {
+              "module_id": "CP-0",
+              "module_name": "SourceReadiness",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_RELATIVE_VALUE-01-CP-0",
+              "stage": 1
+            },
+            {
+              "module_id": "CP-L10",
+              "module_name": "LiteFinancialChangeScreen",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_RELATIVE_VALUE-02-CP-L10",
+              "stage": 2
+            },
+            {
+              "module_id": "CP-1C",
+              "module_name": "PeerBenchmark",
+              "route_node_id": "RN-LITE_CREDIT_22-LITE_RELATIVE_VALUE-03-CP-1C",
+              "stage": 3
+            }
+          ],
+          "profile_id": "LITE_CREDIT_22",
+          "selection_id": "LITE_RELATIVE_VALUE",
+          "terminal_deliverable": "CP-L10",
+          "use_case": "Compare instruments and determine security preference."
+        }
+      },
+      "profile_id": "LITE_CREDIT_22",
+      "research_extension": {
+        "brief_schema": "CP_DR_RESEARCH_BRIEF_V1",
+        "module_id": "CP-DR",
+        "route_stage": 99
+      },
+      "route_eligible_module_ids": [
+        "CP-0",
+        "CP-1A",
+        "CP-1C",
+        "CP-2A",
+        "CP-2H",
+        "CP-4C",
+        "CP-5",
+        "CP-8",
+        "CP-DR",
+        "CP-L10",
+        "CP-MEMO"
+      ]
+    }
+  },
+  "schema_version": "2.0",
+  "superseded_module_ids": {
+    "CP-1E": {
+      "absorbed_by": "CP-1D",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-2B": {
+      "absorbed_by": "CP-2A",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-2C": {
+      "absorbed_by": "CP-1A",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-2F": {
+      "absorbed_by": "CP-2E",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-3A": {
+      "absorbed_by": "CP-3",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-3B": {
+      "absorbed_by": "CP-3",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-4A": {
+      "absorbed_by": "CP-4",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-4B": {
+      "absorbed_by": "CP-4",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-4D": {
+      "absorbed_by": "CP-4",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-5A": {
+      "absorbed_by": "CP-5",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-6A": {
+      "absorbed_by": "CP-6",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-L20": {
+      "absorbed_by": "CP-L10",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-L23": {
+      "absorbed_by": "CP-L10",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-L30": {
+      "absorbed_by": "CP-L10",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-L40": {
+      "absorbed_by": "CP-L10",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    },
+    "CP-PARSE": {
+      "absorbed_by": "CP-0",
+      "reason": "Alternate command for the complete owner workflow; no separate artifact."
+    }
+  },
+  "upgrade": {
+    "linked_run_required": true,
+    "may_mutate_current_run_profile": false,
+    "mode": "NEW_RUN_ONLY",
+    "requires_user_confirmation": true,
+    "target_profile_id": "FULL_CREDIT_32"
+  }
+}

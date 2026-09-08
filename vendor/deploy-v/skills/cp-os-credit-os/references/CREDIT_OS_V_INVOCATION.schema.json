@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CREDIT_OS_V_INVOCATION_V2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "accepted_cp0_sha256", "attempt_id", "authority_bundle_sha256",
+    "expected_output_filename", "module_id", "module_name", "parent_run_id",
+    "profile_id", "required_upstream_digests", "route_node_id", "run_id",
+    "selection_id", "upgrade_source_sha256"
+  ],
+  "properties": {
+    "accepted_cp0_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "attempt_id": {"type": "string", "pattern": "^ATT-CP-[A-Z0-9]{1,8}-[0-9a-f]{16}$"},
+    "authority_bundle_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "expected_output_filename": {"type": "string", "minLength": 1},
+    "module_id": {"type": "string", "pattern": "^CP-[A-Z0-9]{1,8}$"},
+    "module_name": {"type": "string", "pattern": "^[A-Za-z0-9]+$"},
+    "parent_run_id": {"type": ["string", "null"], "pattern": "^COS-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$"},
+    "profile_id": {"enum": ["FULL_CREDIT_32", "LITE_CREDIT_22"]},
+    "required_upstream_digests": {
+      "type": "object",
+      "propertyNames": {"pattern": "^RN-(FULL_CREDIT_32|LITE_CREDIT_22)-[A-Z][A-Z0-9_]{2,63}-[0-9]{2}-CP-[A-Z0-9]{1,8}$"},
+      "additionalProperties": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+    },
+    "route_node_id": {"type": "string", "pattern": "^RN-(FULL_CREDIT_32|LITE_CREDIT_22)-[A-Z][A-Z0-9_]{2,63}-[0-9]{2}-CP-[A-Z0-9]{1,8}$"},
+    "run_id": {"type": "string", "pattern": "^COS-[0-9]{8}T[0-9]{6}Z-[0-9a-f]{32}$"},
+    "selection_id": {"type": "string", "pattern": "^[A-Z][A-Z0-9_]{2,63}$"},
+    "upgrade_source_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+  },
+  "$comment": "allOf mirrors the module_id tri-state rule enforced at runtime by tools/credit_os_v/envelope.py build(): CP-PARSE is the run anchor (zero CP-0 digest, no upstreams); CP-0 is the second gate (zero CP-0 self-digest, requires the accepted CP-PARSE upstream); every other node requires a non-zero accepted_cp0_sha256. required_upstream_digests stays profile/selection-bound via its own propertyNames pattern above.",
+  "allOf": [
+    {
+      "if": {"properties": {"module_id": {"const": "CP-PARSE"}}},
+      "then": {
+        "properties": {
+          "accepted_cp0_sha256": {"const": "0000000000000000000000000000000000000000000000000000000000000000"},
+          "required_upstream_digests": {"maxProperties": 0}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"module_id": {"const": "CP-0"}}},
+      "then": {
+        "properties": {
+          "accepted_cp0_sha256": {"const": "0000000000000000000000000000000000000000000000000000000000000000"},
+          "required_upstream_digests": {"minProperties": 1}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"module_id": {"not": {"enum": ["CP-PARSE", "CP-0"]}}}},
+      "then": {
+        "properties": {
+          "accepted_cp0_sha256": {"not": {"const": "0000000000000000000000000000000000000000000000000000000000000000"}}
+        }
+      }
+    }
+  ]
+}
