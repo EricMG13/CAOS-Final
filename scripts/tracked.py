@@ -28,4 +28,7 @@ def tracked_python(repo: Path) -> list[Path]:
         text=True,
         check=True,
     )
-    return [repo / name for name in listed.stdout.split("\0") if name]
+    listed_paths = (repo / name for name in listed.stdout.split("\0") if name)
+    # A tracked file can be absent mid-rebase or after an unstaged delete.
+    # Scanning what is not there is a crash, not a finding.
+    return [path for path in listed_paths if path.is_file()]

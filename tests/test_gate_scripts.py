@@ -67,15 +67,23 @@ def test_io_budget_passes_while_no_request_paths_exist(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stdout + result.stderr
 
 
-def test_io_budget_refuses_a_server_that_declares_no_budget(tmp_path: Path) -> None:
-    server = tmp_path / "server"
-    server.mkdir()
-    (server / "routes.py").write_text(
-        "def list_cases() -> None: ...\n", encoding="utf-8"
-    )
+def test_io_budget_refuses_a_route_module_that_declares_no_budget(
+    tmp_path: Path,
+) -> None:
+    api = tmp_path / "server" / "api"
+    api.mkdir(parents=True)
+    (api / "routes.py").write_text("def list_cases() -> None: ...\n", encoding="utf-8")
     result = _run("io_budget.py", "--assert", "--root", str(tmp_path))
     assert result.returncode != 0
     assert "IO_BUDGET" in result.stdout + result.stderr
+
+
+def test_io_budget_ignores_a_server_with_no_request_paths(tmp_path: Path) -> None:
+    # Phase 1 ships a store and no routes: there is nothing to budget yet.
+    store = tmp_path / "server" / "store"
+    store.mkdir(parents=True)
+    (store / "runs.py").write_text("def start_run() -> None: ...\n", encoding="utf-8")
+    assert _run("io_budget.py", "--assert", "--root", str(tmp_path)).returncode == 0
 
 
 def test_covered_files_excludes_the_totals_row() -> None:
@@ -122,10 +130,22 @@ def test_tracked_python_keeps_a_path_containing_a_space(tmp_path: Path) -> None:
 
 
 def test_io_budget_reports_without_asserting(tmp_path: Path) -> None:
-    server = tmp_path / "server"
-    server.mkdir()
-    (server / "routes.py").write_text(
-        "def list_cases() -> None: ...\n", encoding="utf-8"
-    )
+    api = tmp_path / "server" / "api"
+    api.mkdir(parents=True)
+    (api / "routes.py").write_text("def list_cases() -> None: ...\n", encoding="utf-8")
     assert _run("io_budget.py", "--root", str(tmp_path)).returncode == 0
     assert _run("io_budget.py", "--assert", "--root", str(tmp_path)).returncode != 0
+
+
+def test_tracked_python_skips_a_file_that_is_no_longer_on_disk(
+    tmp_path: Path,
+) -> None:
+    # A tracked file can be absent mid-rebase, mid-checkout, or after a delete
+    # that is not staged yet. A gate must not stack-trace on it.
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "gone.py").write_text("x = 1\n", encoding="utf-8")
+    (tmp_path / "here.py").write_text("y = 2\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+    (tmp_path / "gone.py").unlink()
+
+    assert tracked.tracked_python(tmp_path) == [tmp_path / "here.py"]

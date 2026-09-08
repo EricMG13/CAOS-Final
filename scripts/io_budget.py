@@ -7,9 +7,10 @@ evidence blocks lived in one JSON column, so `read_evidence` parsed every block
 of a source on every call.
 
 A module that serves a request path declares `IO_BUDGET`, the number of store
-round-trips that path may cost. This gate is the floor: the moment `server/`
-exists, at least one budget must be declared, and every declared budget must be
-asserted by the suite. Until then there is nothing to budget and it says so.
+round-trips that path may cost. This gate is the floor: the moment `server/api/`
+exists, at least one budget must be declared. A module with no request path --
+the store, the methodology boundary -- has no round-trip budget to declare, so
+the floor is the route directory, not the whole server.
 """
 
 from __future__ import annotations
@@ -35,9 +36,9 @@ def declares_budget(source: str, filename: str) -> bool:
     return any(isinstance(t, ast.Name) and t.id == DECLARATION for t in targets)
 
 
-def _budgeted_modules(server: Path) -> tuple[list[Path], list[Path]]:
-    """Server modules split into those declaring a budget and those not."""
-    modules = sorted(p for p in server.rglob("*.py") if p.name != "__init__.py")
+def _budgeted_modules(api: Path) -> tuple[list[Path], list[Path]]:
+    """Route modules split into those declaring a budget and those not."""
+    modules = sorted(p for p in api.rglob("*.py") if p.name != "__init__.py")
     declared = [
         p for p in modules if declares_budget(p.read_text(encoding="utf-8"), str(p))
     ]
@@ -50,20 +51,20 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=REPO)
     args = parser.parse_args(argv)
 
-    server = args.root / "server"
-    if not server.is_dir():
+    api = args.root / "server" / "api"
+    if not api.is_dir():
         print("no request paths yet; nothing to budget")
         return 0
 
-    declared, modules = _budgeted_modules(server)
+    declared, modules = _budgeted_modules(api)
     if not declared:
         print(
-            f"{server}: {len(modules)} module(s), none declaring {DECLARATION}; "
+            f"{api}: {len(modules)} module(s), none declaring {DECLARATION}; "
             "every request path needs a declared I/O budget",
             file=sys.stderr,
         )
         return 1 if args.assert_ else 0
-    print(f"{len(declared)} of {len(modules)} server module(s) declare {DECLARATION}")
+    print(f"{len(declared)} of {len(modules)} route module(s) declare {DECLARATION}")
     return 0
 
 
