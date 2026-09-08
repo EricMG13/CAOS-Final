@@ -42,5 +42,10 @@ security:  # the floor is checked first: a report that parsed nothing must fail
 
 check: lint types test security
 
+merge:  ## refuse to merge a PR whose checks are not all green
+	@test -n "$(PR)" || { echo "usage: make merge PR=<number>"; exit 1; }
+	gh pr checks $(PR)
+	gh pr merge $(PR) --merge
+
 dev:
 	@echo "no application code yet; the API and worker arrive in Phase 1" && exit 1

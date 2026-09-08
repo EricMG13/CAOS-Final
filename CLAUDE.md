@@ -135,4 +135,11 @@ system this size means nobody looked.
   an `IO_BUDGET`.** Per-path budgets are asserted by the suite, and the first is
   Phase 2's `test_io_budget_read_evidence`. *Upgrade:* Phase 2 raises the floor
   to one budget per request path.
+- **No branch protection; the size gate is advisory.** GitHub refuses both
+  classic protection and rulesets on a private repository on the free plan
+  (`403: Upgrade to GitHub Pro or make this repository public`), so no check is
+  required and PR #1 merged with `size` red at 983 lines. `make merge PR=<n>`
+  refuses a PR whose checks are not green, but it binds only whoever runs it --
+  it is a habit, not a gate. *Upgrade:* GitHub Pro, then require `lint`,
+  `types`, `test`, `postgres`, `security` and `size` on `main`.
 - **`make dev` fails.** There is no API, worker or schema until Phase 1.

@@ -127,3 +127,19 @@ but there is no image to scan and no runtime lock with packages in it; `trivy fs
 over this tree reports every target as *not scanned*. A gate that passes because
 it found nothing is precisely the failure §4 of `docs/AI_CODE_QUALITY.md`
 forbids, so the job waits for its subject rather than shipping vacuous.
+
+## 2026-09-08 §13 — Merges go through `make merge`
+
+`make merge PR=<n>` runs `gh pr checks` before `gh pr merge` and stops on
+anything not green. No new script: `gh pr checks` already exits non-zero when a
+check fails or is still pending.
+
+**Reason.** Branch protection and rulesets are both refused on a private
+repository on GitHub's free plan, so no status check can be made required. PR #1
+merged with the size gate red at 983 lines because nothing stopped it. This is
+weaker than a required check -- it binds only the person who runs it -- and the
+`CLAUDE.md` known-gaps entry says so rather than pretending otherwise.
+
+`--delete-branch` is deliberately absent. Deleting a base branch **closes** the
+pull requests stacked on it rather than retargeting them; that is what happened
+to PR #3, which had to be reopened as #5.
