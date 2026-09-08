@@ -105,6 +105,18 @@ CREATE TABLE IF NOT EXISTS source_set_members (
     FOREIGN KEY (case_id, version) REFERENCES source_sets (case_id, version)
 );
 
+-- What a node was actually handed. Invariant 9: a citation may only name
+-- evidence delivered to that node, and this is the ledger that says so.
+CREATE TABLE IF NOT EXISTS delivered_evidence (
+    run_id       uuid NOT NULL REFERENCES runs (run_id),
+    node_id      text NOT NULL,
+    source_id    uuid NOT NULL REFERENCES sources (source_id),
+    block_id     integer NOT NULL,
+    delivered_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (run_id, node_id, source_id, block_id),
+    FOREIGN KEY (source_id, block_id) REFERENCES source_blocks (source_id, block_id)
+);
+
 -- Append-only means append-only. Enforced by the store, not by convention:
 -- a UPDATE or DELETE path that exists is a path that gets used.
 CREATE OR REPLACE FUNCTION refuse_rewrite() RETURNS trigger AS $$
@@ -121,6 +133,10 @@ CREATE OR REPLACE TRIGGER run_events_append_only
 -- what an already-executed run was pinned to.
 CREATE OR REPLACE TRIGGER source_sets_append_only
     BEFORE UPDATE OR DELETE ON source_sets
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER delivered_evidence_append_only
+    BEFORE UPDATE OR DELETE ON delivered_evidence
     FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
 
 CREATE OR REPLACE TRIGGER source_set_members_append_only

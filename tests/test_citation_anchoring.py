@@ -17,9 +17,11 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from conftest import Counter
 
 from server.boundary_text import BoundaryText
 from server.evidence.citations import (
+    IO_BUDGET,
     Citation,
     anchor_citation,
     enclosing_box,
@@ -234,3 +236,12 @@ def test_locate_refuses_a_quote_that_would_span_two_blocks() -> None:
     ]
     with pytest.raises(Refusal):
         locate(columns, "Total debt")
+
+
+def test_io_budget_anchor_citation(
+    store: Store, source: None, count_io: Counter
+) -> None:
+    # One source lookup and one page fetch, whatever the page holds.
+    with count_io(store) as tally:
+        _anchor(store, "leverage was")
+    assert tally.statements == IO_BUDGET
