@@ -28,4 +28,22 @@ def tracked_python(repo: Path) -> list[Path]:
         text=True,
         check=True,
     )
-    return [repo / name for name in listed.stdout.split("\0") if name]
+    listed_paths = (repo / name for name in listed.stdout.split("\0") if name)
+    return [path for path in listed_paths if _present(path)]
+
+
+def _present(path: Path) -> bool:
+    """True if the file is there. Any other filesystem error propagates.
+
+    A tracked file can be absent mid-rebase or after an unstaged delete, and
+    scanning what is not there is a crash rather than a finding. `Path.is_file`
+    cannot express that distinction: on Python 3.14 it answers False for every
+    OSError, so an unreadable file would leave the scan silently -- a gate that
+    scanned less than it should, which is the failure `scan_floors.py` exists to
+    catch at the other end.
+    """
+    try:
+        path.stat()
+    except FileNotFoundError:
+        return False
+    return True

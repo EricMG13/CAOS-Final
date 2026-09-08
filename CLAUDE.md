@@ -131,15 +131,9 @@ system this size means nobody looked.
   apart. *Upgrade:* enforce an exempt synonym the day it is actually misused.
 - **The two identifier gates read Python only.** TypeScript identifiers are
   unchecked. *Upgrade:* Phase 9, with the frontend.
-- **`io_budget.py --assert` enforces only that some `server/` module declares
-  an `IO_BUDGET`.** Per-path budgets are asserted by the suite, and the first is
-  Phase 2's `test_io_budget_read_evidence`. *Upgrade:* Phase 2 raises the floor
-  to one budget per request path.
-- **No branch protection; the size gate is advisory.** GitHub refuses both
-  classic protection and rulesets on a private repository on the free plan
-  (`403: Upgrade to GitHub Pro or make this repository public`), so no check is
-  required and PR #1 merged with `size` red at 983 lines. `make merge PR=<n>`
-  refuses a PR whose checks are not green, but it binds only whoever runs it --
-  it is a habit, not a gate. *Upgrade:* GitHub Pro, then require `lint`,
-  `types`, `test`, `postgres`, `security` and `size` on `main`.
+- **`io_budget.py --assert` enforces only that some `server/api/` module
+  declares an `IO_BUDGET`.** It keys on the route directory, not on `server/`:
+  a store module has no request path and no round-trip budget to declare.
+  *Upgrade:* Phase 2 raises the floor to one budget per request path, with
+  `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API, worker or schema until Phase 1.

@@ -22,7 +22,7 @@ lint:
 	$(PY) scripts/check_tested.py
 
 types:
-	$(PY) -m mypy scripts tests
+	$(PY) -m mypy scripts tests server
 
 test:
 	$(PY) -m pytest
@@ -33,9 +33,9 @@ test-model:  ## needs soffice on PATH; a green model suite without it is vacuous
 	$(PY) -m pytest -m model_parity
 
 security:  # the floor is checked first: a report that parsed nothing must fail
-	$(SEC)/bandit -r scripts -f json -o bandit.json || true
+	$(SEC)/bandit -r scripts server -f json -o bandit.json || true
 	$(PY) scripts/scan_floors.py bandit.json --min-files 1 --no-parse-errors
-	$(SEC)/bandit -r scripts
+	$(SEC)/bandit -r scripts server
 	$(SEC)/pip-audit --require-hashes -r requirements.txt -r requirements-dev.txt \
 		-r requirements-security.txt
 	gitleaks git --no-banner

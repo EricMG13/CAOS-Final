@@ -28,7 +28,7 @@ jobs:
       - uses: actions/setup-python@v5
         with: {python-version: "3.14"}
       - run: pip install --require-hashes -r requirements-dev.txt
-      - run: mypy scripts tests
+      - run: mypy scripts tests server
 
   test:
     runs-on: ubuntu-latest
@@ -56,9 +56,9 @@ jobs:
       - run: pip install --require-hashes -r requirements-security.txt
       # `|| true` so the floor check, not bandit's exit code, is the verdict:
       # a report that parsed nothing must fail even when it found nothing.
-      - run: bandit -r scripts -f json -o bandit.json || true
+      - run: bandit -r scripts server -f json -o bandit.json || true
       - run: python scripts/scan_floors.py bandit.json --min-files 1 --no-parse-errors
-      - run: bandit -r scripts
+      - run: bandit -r scripts server
       - run: |
           pip-audit --require-hashes -r requirements.txt \
                     -r requirements-dev.txt -r requirements-security.txt

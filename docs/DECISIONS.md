@@ -134,12 +134,25 @@ forbids, so the job waits for its subject rather than shipping vacuous.
 anything not green. No new script: `gh pr checks` already exits non-zero when a
 check fails or is still pending.
 
-**Reason.** Branch protection and rulesets are both refused on a private
-repository on GitHub's free plan, so no status check can be made required. PR #1
-merged with the size gate red at 983 lines because nothing stopped it. This is
-weaker than a required check -- it binds only the person who runs it -- and the
-`CLAUDE.md` known-gaps entry says so rather than pretending otherwise.
+**Reason.** PR #1 merged with the size gate red at 983 lines because nothing
+stopped it. At the time nothing could: branch protection and rulesets are both
+refused on a private repository on GitHub's free plan. That has since been
+resolved -- see §14 -- and `make merge` is now a local convenience rather than
+the only control.
 
 `--delete-branch` is deliberately absent. Deleting a base branch **closes** the
 pull requests stacked on it rather than retargeting them; that is what happened
 to PR #3, which had to be reopened as #5.
+
+## 2026-09-08 §14 — The repository is public, and `main` has a ruleset
+
+Ruleset `main gates`, active on the default branch: `lint`, `types`, `test`,
+`security` and `size` are required status checks, and branch deletion and
+non-fast-forward pushes are refused.
+
+**Reason.** Overrides §13's premise. Making the repository public lifted the
+Pro-only restriction on rulesets, so the gates are enforced by the platform
+rather than by whoever remembers to run `make merge`. `postgres` is not yet in
+the required set because no job of that name exists on `main`; it is added with
+the store PR that introduces it, since a required check that never reports
+blocks every merge.
