@@ -147,6 +147,16 @@ system this size means nobody looked.
   next so the base is the default branch.
 **Phase 3.**
 
+- **`pin_route` does not exist yet.** `route_digest` computes what the plan gate
+  will pin, and nothing writes it to `run_routes` or reads execution from a pin.
+  Resolution is pure and replayable; the pin that makes invariant 10 binding is
+  the gate slice. *Upgrade:* the next slice, with the run surface.
+- **The model extension is not built.** `CP-CF` rides a host-declared extension
+  with synthesised `REQUIRED` edges from CP-1, CP-2G and CP-4
+  (`SYSTEM_SPEC.md` §6.2), and `test_cp_cf_waits_for_all_required_owners` and
+  `test_model_extension_refuses_missing_owner` are unwritten. *Upgrade:* the
+  next slice.
+
 - **No CONDITIONAL edge exists in the pinned bundle.** `CONTEXT.md` lists it as
   a blocking edge type and `resolve_route` freezes predicates for it, but the
   catalog at build `a43cb903` declares zero of them (`docs/DECISIONS.md` §17).
