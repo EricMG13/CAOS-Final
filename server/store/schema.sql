@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS budget_ledger (
 CREATE TABLE IF NOT EXISTS sources (
     source_id   uuid PRIMARY KEY,
     case_id     text NOT NULL REFERENCES cases (case_id),
-    sha256      char(64) NOT NULL,
+    sha256      text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
     created_at  timestamptz NOT NULL DEFAULT now(),
     UNIQUE (case_id, sha256)
 );
@@ -126,3 +126,18 @@ CREATE OR REPLACE TRIGGER source_sets_append_only
 CREATE OR REPLACE TRIGGER source_set_members_append_only
     BEFORE UPDATE OR DELETE ON source_set_members
     FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+-- TRUNCATE empties a table without producing a row, so a row-level trigger
+-- never fires on it. Statement-level is the only guard that sees the one
+-- statement that erases a whole ledger at once.
+CREATE OR REPLACE TRIGGER run_events_no_truncate
+    BEFORE TRUNCATE ON run_events
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER source_sets_no_truncate
+    BEFORE TRUNCATE ON source_sets
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER source_set_members_no_truncate
+    BEFORE TRUNCATE ON source_set_members
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
