@@ -145,6 +145,29 @@ system this size means nobody looked.
   the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
   review` per stacked PR, or merge each phase to `main` before opening the
   next so the base is the default branch.
+**Phase 3.**
+
+- **`pin_route` does not exist yet.** `route_digest` computes what the plan gate
+  will pin, and nothing writes it to `run_routes` or reads execution from a pin.
+  Resolution is pure and replayable; the pin that makes invariant 10 binding is
+  the gate slice. *Upgrade:* the next slice, with the run surface.
+- **The model extension is not built.** `CP-CF` rides a host-declared extension
+  with synthesised `REQUIRED` edges from CP-1, CP-2G and CP-4
+  (`SYSTEM_SPEC.md` §6.2), and `test_cp_cf_waits_for_all_required_owners` and
+  `test_model_extension_refuses_missing_owner` are unwritten. *Upgrade:* the
+  next slice.
+
+- **No CONDITIONAL edge exists in the pinned bundle.** `CONTEXT.md` lists it as
+  a blocking edge type and `resolve_route` freezes predicates for it, but the
+  catalog at build `a43cb903` declares zero of them (`docs/DECISIONS.md` §17).
+  The code path will be written and cannot be exercised against real data.
+  *Upgrade:* a bundle that uses the type, or a decision to drop it.
+- **The bundle is verified at rest, not at use.** `tests/test_bundle_pin.py`
+  hashes the vendored tree against its own manifest; nothing yet re-checks the
+  bytes when a module is loaded, and no run records the build it ran under.
+  *Upgrade:* Phase 5, which owns `assemble_authority` and the per-module
+  `authority_digest`.
+
 **Phase 1.**
 
 - **`commit_terminal` assumes it opens the outermost transaction.** Called
@@ -179,17 +202,25 @@ system this size means nobody looked.
   PDF has been extracted, so nothing shows that an extractor's blocks and
   lines are the ones this logic assumes. *Upgrade:* the extraction slice adds
   a real document fixture and re-runs these tests against it.
-- **`IO_BUDGET = 2` in `citations.py` is declared and not enforced.**
-  `io_budget.py --assert` scans `server/api/`, which does not exist yet, so
-  nothing holds the read path to its budget. *Upgrade:* the slice that adds
-  the first route, with `test_io_budget_read_evidence`.
-- **Citations are scoped to the case, not to the node's delivered evidence.**
-  Invariant 9 says citations may only name evidence actually delivered to
-  that node; a module can currently cite any document in its case.
-  *Upgrade:* the `read_evidence` slice, which is what mints a delivered set.
+- **`delivered_evidence` is recorded and not yet read.** `read_evidence` writes
+  what each node was handed, but `anchor_citation` still checks only the case,
+  so a module can cite a document it was never delivered. Invariant 9 is half
+  built: the ledger exists, the check does not. *Upgrade:* the next slice, which
+  binds anchoring to the delivered set.
 - **`admit_source` and `start_run` both mint a `cases` row.** Tenancy is
   created as a side effect, with no authority check at the boundary.
   *Upgrade:* the ingestion slice, where intake authority is decided.
+- **Document-derived text is not `BoundaryText`.** `Block.text` and
+  `Token.text` reach pinned state unvalidated; identifiers and digests do not
+  (`docs/DECISIONS.md` §16). A document carrying a bidirectional override is
+  stored as given. *Upgrade:* the extraction slice strips the control rather
+  than refusing the document.
+- **Nothing bounds the size of anything ingested.** Token text, block text,
+  blob payloads and tokens per page are all unbounded, and `IO_BUDGET` counts
+  round-trips rather than rows -- so one dense page is unbounded memory per
+  citation. Invariant 8 says every ceiling refuses before overspend; the
+  ingestion path has no ceilings. *Upgrade:* the extraction slice, which is the
+  first code that knows how large a real document is.
 - **Blocks are accepted as given.** Nothing checks that a block's page exists
   in the source, that blocks cover the document, or that they respect the size
   rule in `SYSTEM_SPEC.md` §5 (one per line while small, bounded line groups

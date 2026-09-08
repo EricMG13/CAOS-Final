@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "CP_DEPLOY_V_CHILD_SCHEMA_REGISTRY_v1.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "authority", "deployment_scope", "base_schema", "modules"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "authority": {"const": "CP_DEPLOY_V_CHILD_SCHEMA_REGISTRY_v1"},
+    "deployment_scope": {"const": ["V"]},
+    "base_schema": {"$ref": "#/$defs/schema_record"},
+    "modules": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "uniqueItems": true,
+      "items": {
+        "allOf": [
+          {"$ref": "#/$defs/schema_record"},
+          {"type": "object", "required": ["validator"], "properties": {"validator": {"const": "validate_cp_l_payload"}}}
+        ]
+      }
+    }
+  },
+  "$defs": {
+    "schema_record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module_id", "source_path", "package_path", "sha256"],
+      "properties": {
+        "module_id": {"type": "string", "pattern": "^CP-[A-Z0-9-]+$"},
+        "source_path": {"type": "string", "minLength": 1},
+        "package_path": {"type": "string", "pattern": "^references/[^/]+$"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+      }
+    }
+  }
+}

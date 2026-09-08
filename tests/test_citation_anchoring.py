@@ -17,8 +17,11 @@ from __future__ import annotations
 from decimal import Decimal
 
 import pytest
+from conftest import Counter
 
+from server.boundary_text import BoundaryText
 from server.evidence.citations import (
+    IO_BUDGET,
     Citation,
     anchor_citation,
     enclosing_box,
@@ -28,6 +31,9 @@ from server.evidence.citations import (
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.sources import SourceDocument, Token, admit_pack
+
+CASE = BoundaryText.of("acme")
+RIVAL = BoundaryText.of("rival")
 
 DIGEST = "a" * 64
 
@@ -68,7 +74,9 @@ def _tokens() -> list[Token]:
     return tokens
 
 
-def _admit(store: Store, case_id: str, digest: str, tokens: list[Token]) -> None:
+def _admit(
+    store: Store, case_id: BoundaryText, digest: str, tokens: list[Token]
+) -> None:
     admit_pack(
         store,
         case_id=case_id,
@@ -78,12 +86,12 @@ def _admit(store: Store, case_id: str, digest: str, tokens: list[Token]) -> None
 
 @pytest.fixture
 def source(store: Store) -> None:
-    _admit(store, "acme", DIGEST, _tokens())
+    _admit(store, CASE, DIGEST, _tokens())
 
 
 def _anchor(store: Store, quote: str, page: int = 3) -> Citation:
     return anchor_citation(
-        store, case_id="acme", document_sha256=DIGEST, page=page, matched_text=quote
+        store, case_id=CASE, document_sha256=DIGEST, page=page, matched_text=quote
     )
 
 
@@ -124,11 +132,11 @@ def test_a_wrapped_quote_gets_one_rectangle_per_line(
 def test_a_quote_cannot_be_assembled_across_a_column_gutter(store: Store) -> None:
     # Two columns share a y-band and are consecutive lines, so line identity
     # alone would still join them. The extractor gives each column its own
-    # block; "net debt" is on no line of this page and must not be citable.
+    # region; "net debt" is on no line of this page and must not be citable.
     digest = "c" * 64
     _admit(
         store,
-        "acme",
+        CASE,
         digest,
         [
             _token((1, 1, 0), "Total", (72, 700), page=1),
@@ -140,7 +148,7 @@ def test_a_quote_cannot_be_assembled_across_a_column_gutter(store: Store) -> Non
     with pytest.raises(Refusal) as caught:
         anchor_citation(
             store,
-            case_id="acme",
+            case_id=CASE,
             document_sha256=digest,
             page=1,
             matched_text="net debt",
@@ -160,7 +168,7 @@ def test_a_quote_appearing_twice_on_a_page_is_refused(store: Store) -> None:
     digest = "e" * 64
     _admit(
         store,
-        "acme",
+        CASE,
         digest,
         [
             _token((1, 1, 0), "total", (72, 700), page=1),
@@ -172,7 +180,7 @@ def test_a_quote_appearing_twice_on_a_page_is_refused(store: Store) -> None:
     with pytest.raises(Refusal) as caught:
         anchor_citation(
             store,
-            case_id="acme",
+            case_id=CASE,
             document_sha256=digest,
             page=1,
             matched_text="total debt",
@@ -182,10 +190,10 @@ def test_a_quote_appearing_twice_on_a_page_is_refused(store: Store) -> None:
 
 def test_a_quote_anchors_only_within_its_own_case(store: Store) -> None:
     shared = "f" * 64
-    _admit(store, "acme", shared, _tokens())
-    _admit(store, "rival", shared, [_token((1, 1, 0), "Net leverage", (500, 100))])
+    _admit(store, CASE, shared, _tokens())
+    _admit(store, RIVAL, shared, [_token((1, 1, 0), "Net leverage", (500, 100))])
     citation = anchor_citation(
-        store, case_id="acme", document_sha256=shared, page=3, matched_text="Net"
+        store, case_id=CASE, document_sha256=shared, page=3, matched_text="Net"
     )
     assert citation.bboxes[0][0] == Decimal(72)
 
@@ -228,3 +236,12 @@ def test_locate_refuses_a_quote_that_would_span_two_blocks() -> None:
     ]
     with pytest.raises(Refusal):
         locate(columns, "Total debt")
+
+
+def test_io_budget_anchor_citation(
+    store: Store, source: None, count_io: Counter
+) -> None:
+    # One source lookup and one page fetch, whatever the page holds.
+    with count_io(store) as tally:
+        _anchor(store, "leverage was")
+    assert tally.statements == IO_BUDGET

@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-"""Refuse a server that declares no I/O budget for its request paths.
+"""Refuse an I/O budget that no test asserts.
 
 Excessive I/O is the largest single multiple in the measurements behind
 docs/AI_CODE_QUALITY.md (~8x), and the predecessor had exactly that defect:
 evidence blocks lived in one JSON column, so `read_evidence` parsed every block
 of a source on every call.
 
-A module that serves a request path declares `IO_BUDGET`, the number of store
-round-trips that path may cost. This gate is the floor: the moment `server/api/`
-exists, at least one budget must be declared. A module with no request path --
-the store, the methodology boundary -- has no round-trip budget to declare, so
-the floor is the route directory, not the whole server.
+A module whose cost matters declares `IO_BUDGET`, the number of store
+round-trips one call of its path may make. A number nothing asserts is a number
+in a comment, so this gate holds the other half of that bargain: every declared
+budget must be named by a test that asserts it.
 """
 
 from __future__ import annotations
@@ -36,13 +35,56 @@ def declares_budget(source: str, filename: str) -> bool:
     return any(isinstance(t, ast.Name) and t.id == DECLARATION for t in targets)
 
 
-def _budgeted_modules(api: Path) -> tuple[list[Path], list[Path]]:
-    """Route modules split into those declaring a budget and those not."""
-    modules = sorted(p for p in api.rglob("*.py") if p.name != "__init__.py")
-    declared = [
-        p for p in modules if declares_budget(p.read_text(encoding="utf-8"), str(p))
+def declaring_modules(server: Path) -> list[Path]:
+    """Every module under `server` that declares a budget."""
+    return [
+        module
+        for module in sorted(server.rglob("*.py"))
+        if declares_budget(module.read_text(encoding="utf-8"), str(module))
     ]
-    return declared, modules
+
+
+def asserted_modules(tests: Path, root: Path) -> set[Path]:
+    """The modules whose budget some test both imports and asserts.
+
+    Both halves are required, and per module. Searching the whole suite for the
+    string "assert IO_BUDGET" would let one module's assertion vouch for every
+    other module's budget, which is a gate that passes because it found
+    something rather than because it checked something.
+    """
+    asserted: set[Path] = set()
+    if not tests.is_dir():
+        return asserted
+    for path in sorted(tests.rglob("*.py")):
+        source = path.read_text(encoding="utf-8")
+        if DECLARATION not in source:
+            continue
+        tree = ast.parse(source, filename=str(path))
+        if not _asserts_budget(tree, source):
+            continue
+        asserted |= {
+            root / f"{dotted.replace('.', '/')}.py" for dotted in _sources(tree)
+        }
+    return asserted
+
+
+def _asserts_budget(tree: ast.Module, source: str) -> bool:
+    return any(
+        DECLARATION in (ast.get_source_segment(source, node) or "")
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Assert)
+    )
+
+
+def _sources(tree: ast.Module) -> set[str]:
+    """The modules a test imports `IO_BUDGET` from."""
+    return {
+        node.module
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ImportFrom)
+        and node.module
+        and any(alias.name == DECLARATION for alias in node.names)
+    }
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -51,20 +93,26 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--root", type=Path, default=REPO)
     args = parser.parse_args(argv)
 
-    api = args.root / "server" / "api"
-    if not api.is_dir():
-        print("no request paths yet; nothing to budget")
+    server = args.root / "server"
+    if not server.is_dir():
+        print("no server yet; nothing to budget")
         return 0
 
-    declared, modules = _budgeted_modules(api)
+    declared = declaring_modules(server)
     if not declared:
+        print(f"no module under {server} declares {DECLARATION}")
+        return 0
+
+    asserted = asserted_modules(args.root / "tests", args.root)
+    missing = [module for module in declared if module not in asserted]
+    for module in missing:
         print(
-            f"{api}: {len(modules)} module(s), none declaring {DECLARATION}; "
-            "every request path needs a declared I/O budget",
+            f"{module}: declares {DECLARATION} and no test asserts it",
             file=sys.stderr,
         )
-        return 1 if args.assert_ else 0
-    print(f"{len(declared)} of {len(modules)} route module(s) declare {DECLARATION}")
+    if missing and args.assert_:
+        return 1
+    print(f"{len(declared) - len(missing)} of {len(declared)} budget(s) asserted")
     return 0
 
 

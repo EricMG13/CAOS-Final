@@ -8,7 +8,7 @@ dependencies = []
 [tool.ruff]
 target-version = "py314"
 line-length = 88
-extend-exclude = [".venv"]
+extend-exclude = [".venv", "vendor"]
 
 [tool.ruff.lint]
 # One rule family per measured failure mode in docs/AI_CODE_QUALITY.md section 1.
@@ -31,7 +31,7 @@ max-complexity = 10
 [tool.mypy]
 python_version = "3.14"
 strict = true
-exclude = ["^\\.venv/"]
+exclude = ["^\\.venv/", "^vendor/"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

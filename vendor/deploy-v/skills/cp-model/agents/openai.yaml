@@ -1,0 +1,4 @@
+interface:
+  display_name: "CP-MODEL Credit Snapshot + Model"
+  short_description: "Build the validated CP-MODEL Excel workbook"
+  default_prompt: "Use $cp-model to populate a new CP-MODEL workbook from the canonical upstream handoffs."
