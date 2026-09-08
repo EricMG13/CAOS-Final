@@ -1,7 +1,6 @@
 # Jobs arrive with the phase whose code they can actually scan. A job that
 # passes because it found nothing is the failure mode docs/AI_CODE_QUALITY.md
 # section 4 exists to prevent, so none is scaffolded ahead of its subject:
-#   postgres (two-connection races) .. Phase 1
 #   model    (LibreOffice recalc) .... Phase 7
 #   frontend (lint, tsc, a11y) ....... Phase 9
 #   image    (Trivy) ................. the phase that adds the Dockerfile
@@ -32,13 +31,48 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Digest-pinned; a tag alone is not a pin. postgres:16-alpine.
+        image: postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env: {POSTGRES_PASSWORD: caos, POSTGRES_DB: caos}
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-retries 10
+        ports: ["5432:5432"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with: {python-version: "3.14"}
       - run: pip install --require-hashes -r requirements-dev.txt
       - run: pytest
+        env:
+          CAOS_TEST_POSTGRES_URL: postgresql://postgres:caos@localhost:5432/caos
+          # A store suite that skipped is not a store suite that passed.
+          CAOS_REQUIRE_POSTGRES: "1"
       - run: python scripts/io_budget.py --assert
+
+  postgres:
+    # Every governed race proven on two independent connections, in its own job
+    # so the coverage is visible rather than buried in the unit run.
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        # Digest-pinned; a tag alone is not a pin. postgres:16-alpine.
+        image: postgres@sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
+        env: {POSTGRES_PASSWORD: caos, POSTGRES_DB: caos}
+        options: >-
+          --health-cmd pg_isready --health-interval 5s --health-retries 10
+        ports: ["5432:5432"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.14"}
+      - run: pip install --require-hashes -r requirements-dev.txt
+      - run: pytest tests/test_postgres_races.py
+        env:
+          CAOS_TEST_POSTGRES_URL: postgresql://postgres:caos@localhost:5432/caos
+          # A store suite that skipped is not a store suite that passed.
+          CAOS_REQUIRE_POSTGRES: "1"
 
   security:
     # Python pinned deliberately. bandit 1.7.10 reaches for ast.Constant.s,

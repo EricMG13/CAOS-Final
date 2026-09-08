@@ -136,4 +136,30 @@ system this size means nobody looked.
   a store module has no request path and no round-trip budget to declare.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
-- **`make dev` fails.** There is no API, worker or schema until Phase 1.
+- **`make dev` fails.** There is no API or worker until the first HTTP route.
+- **CodeRabbit reviews nothing while PRs are stacked.** It is installed and
+  live, reading `.coderabbit.yaml`, but auto-review is skipped on any PR whose
+  base is not the default branch — and each phase stacks on its predecessor to
+  stay under the 800-line size gate. `docs/AI_CODE_QUALITY.md` §2 counts it as
+  the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
+  review` per stacked PR, or merge each phase to `main` before opening the
+  next so the base is the default branch.
+**Phase 1.**
+
+- **`commit_terminal` assumes it opens the outermost transaction.** Called
+  from inside a caller's transaction, `connection.transaction()` degrades to a
+  SAVEPOINT: the writes are not durable when it returns, and the run row lock
+  is held until the outer commit. Nothing asserts this. *Upgrade:* refuse a
+  non-idle connection at entry, when the API layer brings real callers.
+- **The schema holds the five tables Phase 1 writes,** not all of
+  `SYSTEM_SPEC.md` §2. "In full at startup" is read as *one file applied
+  whole, with no migrations* rather than *every future table exists now*;
+  tables nothing writes cannot have their columns checked by a test.
+  *Upgrade:* each phase adds its own tables to the same file.
+- **Append-only is enforced by trigger on `run_events` alone.**
+  `run_attempts`, `deliverable_opinions`, `model_revisions` and `audit_events`
+  are equally append-only in the spec. *Upgrade:* each carries the same
+  `refuse_rewrite` trigger in the phase that creates it.
+- **A run's terminal event is the only event kind.** `RUN_COMPLETED` is
+  written; failure and node-level transitions are not. *Upgrade:* Phase 4,
+  with the frontier loop that produces them.

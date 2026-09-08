@@ -1,9 +1,11 @@
 # Gate order matches docs/AI_CODE_QUALITY.md: lint, types, tests, security.
 PY  := .venv/bin/python
+PYTEST := .venv/bin/pytest
+PG_DIGEST := cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
 SEC := .venv-security/bin
 GH_VERSION := 2.100.0
 
-.PHONY: venv lock lint types test test-model security check merge dev
+.PHONY: venv lock lint types test test-model security check pg merge dev
 
 venv:  ## dev toolchain on 3.14, security toolchain on 3.12 (AI_CODE_QUALITY 4)
 	uv venv --python 3.14 .venv
@@ -25,13 +27,13 @@ lint:
 types:
 	$(PY) -m mypy scripts tests server
 
-test:
-	$(PY) -m pytest
+test:  # CAOS_TEST_POSTGRES_URL must be set; a skipped store suite is not a pass
+	CAOS_REQUIRE_POSTGRES=1 $(PYTEST)
 	$(PY) scripts/io_budget.py --assert
 
 test-model:  ## needs soffice on PATH; a green model suite without it is vacuous
 	soffice --version
-	$(PY) -m pytest -m model_parity
+	$(PYTEST) -m model_parity
 
 security:  # the floor is checked first: a report that parsed nothing must fail
 	$(SEC)/bandit -r scripts server -f json -o bandit.json || true
@@ -42,6 +44,11 @@ security:  # the floor is checked first: a report that parsed nothing must fail
 	gitleaks git --no-banner
 
 check: lint types test security
+
+pg:  ## the store this repo tests against, digest-pinned as in CI
+	docker run -d --name caos-final-pg -e POSTGRES_PASSWORD=caos -e POSTGRES_DB=caos \
+		-p 55432:5432 postgres@sha256:$(PG_DIGEST)
+	@echo 'export CAOS_TEST_POSTGRES_URL=postgresql://postgres:caos@localhost:55432/caos'
 
 merge:  ## refuse to merge a PR whose checks are not all green
 	@case "$${PR-}" in ''|0*|*[!0-9]*) echo "usage: make merge PR=<number>"; exit 1;; esac; \
@@ -54,4 +61,4 @@ merge:  ## refuse to merge a PR whose checks are not all green
 	"$$gh" pr merge "$$PR" --merge --match-head-commit "$$head_oid"
 
 dev:
-	@echo "no application code yet; the API and worker arrive in Phase 1" && exit 1
+	@echo "no API or worker yet; they arrive with the first HTTP route" && exit 1
