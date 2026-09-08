@@ -1,0 +1,41 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "f=\"$CLAUDE_FILE_PATHS\"; case \"$f\" in *.py) ruff format \"$f\" >/dev/null 2>&1; ruff check --fix \"$f\" >/dev/null 2>&1;; *.ts|*.tsx|*.css) npx --no-install prettier --write \"$f\" >/dev/null 2>&1;; esac; exit 0"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "c=\"$CLAUDE_TOOL_INPUT_command\"; case \"$c\" in *\"push --force\"*|*\"push -f \"*) echo 'refused: force push' >&2; exit 2;; *\"--no-verify\"*) echo 'refused: --no-verify bypasses the gates in docs/AI_CODE_QUALITY.md' >&2; exit 2;; *\"pip install\"*) case \"$c\" in *\"--require-hashes\"*) exit 0;; *) echo 'refused: install from the hashed lock only' >&2; exit 2;; esac;; esac; exit 0"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(ruff:*)",
+      "Bash(pytest:*)",
+      "Bash(git status)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./**/*.pem)",
+      "Read(./**/secrets/**)"
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv*/
+node_modules/
+frontend/out/
+frontend/.next/
+.dev-data/
+*.xlsx
+!tests/fixtures/**/*.xlsx
+.DS_Store
+.env
+bandit.json
