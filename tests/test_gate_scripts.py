@@ -13,8 +13,10 @@ import subprocess
 import sys
 from pathlib import Path
 
+import check_tested
 import io_budget
 import scan_floors
+import tracked
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -91,6 +93,32 @@ def test_declares_budget_accepts_an_annotated_declaration() -> None:
     assert io_budget.declares_budget("IO_BUDGET: int = 3\n", "m.py")
     assert io_budget.declares_budget("IO_BUDGET = 3\n", "m.py")
     assert not io_budget.declares_budget("io_budget = 3\n", "m.py")
+
+
+def test_public_definitions_skips_private_names_and_entry_points() -> None:
+    source = "def _helper(): ...\ndef main(): ...\nclass Ledger: ...\n"
+    assert check_tested.public_definitions(source, "m.py") == [(3, "Ledger")]
+
+
+def test_tracked_python_returns_what_git_tracks() -> None:
+    found = tracked.tracked_python(REPO)
+    assert REPO / "scripts" / "tracked.py" in found
+    assert all(p.suffix == ".py" for p in found)
+
+
+def test_untested_does_not_accept_a_name_buried_in_a_longer_word(
+    tmp_path: Path,
+) -> None:
+    module = tmp_path / "m.py"
+    module.write_text("def run() -> None: ...\n", encoding="utf-8")
+    assert check_tested.untested(module, "the runner runs\n")
+
+
+def test_tracked_python_keeps_a_path_containing_a_space(tmp_path: Path) -> None:
+    subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
+    (tmp_path / "my file.py").write_text("x = 1\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
+    assert tracked.tracked_python(tmp_path) == [tmp_path / "my file.py"]
 
 
 def test_io_budget_reports_without_asserting(tmp_path: Path) -> None:

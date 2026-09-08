@@ -18,6 +18,8 @@ lock:  ## recompile every lock with hashes; the answer to a red audit is a recom
 lint:
 	$(PY) -m ruff check .
 	$(PY) -m ruff format --check .
+	$(PY) scripts/check_vocabulary.py
+	$(PY) scripts/check_tested.py
 
 types:
 	$(PY) -m mypy scripts tests

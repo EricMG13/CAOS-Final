@@ -116,6 +116,21 @@ system this size means nobody looked.
   (`docs/DECISIONS.md` §11). *Upgrade:* the phase that adds the Dockerfile adds
   `trivy image` with `--exit-code 1` on fixable HIGH/CRITICAL and a scan floor
   asserting a non-empty target list.
+- **`check_tested.py` matches a name as a whole word anywhere in the suite's
+  bytes,** docstrings and comments included. It catches the definition no test
+  mentions, not the definition whose test asserts nothing. *Upgrade:* resolve
+  references through the AST once the suite is large enough for the false
+  negatives to matter.
+- **`check_tested.py` sees module-level definitions only.** A method is covered
+  through the class that holds it. *Upgrade:* descend into classes when a
+  governed path first puts logic on a method.
+- **`check_vocabulary.py` enforces 9 of the 33 synonyms `CONTEXT.md` lists.**
+  The other 24 carry an ordinary technical meaning here — `file`, `state`,
+  `version`, `response` — and each is exempt with a stated reason in
+  `NOT_ENFORCED`. The check refuses to run if `CONTEXT.md` and that list drift
+  apart. *Upgrade:* enforce an exempt synonym the day it is actually misused.
+- **The two identifier gates read Python only.** TypeScript identifiers are
+  unchecked. *Upgrade:* Phase 9, with the frontend.
 - **`io_budget.py --assert` enforces only that some `server/` module declares
   an `IO_BUDGET`.** Per-path budgets are asserted by the suite, and the first is
   Phase 2's `test_io_budget_read_evidence`. *Upgrade:* Phase 2 raises the floor
