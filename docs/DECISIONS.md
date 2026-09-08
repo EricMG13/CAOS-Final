@@ -127,3 +127,21 @@ but there is no image to scan and no runtime lock with packages in it; `trivy fs
 over this tree reports every target as *not scanned*. A gate that passes because
 it found nothing is precisely the failure §4 of `docs/AI_CODE_QUALITY.md`
 forbids, so the job waits for its subject rather than shipping vacuous.
+
+## 2026-09-08 §12 — psycopg 3, and no ORM
+
+`psycopg[binary]` is the only runtime dependency Phase 1 adds. The store is
+hand-written SQL against PostgreSQL 16; there is no ORM and no query builder.
+
+**Reason.** The invariants this phase exists to protect are all statements about
+exact SQL — `FOR UPDATE` on the run row before allocating `run_events.seq`, a
+conditional `UPDATE ... WHERE` whose zero-row result must suppress the event
+insert, and `ON CONFLICT DO NOTHING` on a content-addressed digest. An ORM would
+put a layer between the invariant and the statement that proves it, and the
+predecessor's transactional-pairing bugs are exactly what that layer hides.
+`psycopg` 3 gives server-side parameter binding and explicit transaction control
+with nothing in between.
+
+`postgres:16-alpine` is pinned by digest
+`sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685` in CI;
+a tag alone is not a pin.
