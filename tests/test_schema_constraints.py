@@ -50,7 +50,8 @@ def test_run_events_refuses_a_delete(store: Store) -> None:
 
 
 @pytest.mark.parametrize(
-    "table", ["run_events", "source_set_members", "delivered_evidence"]
+    "table",
+    ["run_events", "source_set_members", "delivered_evidence", "run_attempts"],
 )
 def test_an_append_only_table_refuses_a_truncate(store: Store, table: str) -> None:
     """Refuse truncation for every directly guarded append-only table."""
@@ -122,3 +123,23 @@ def test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate(
     # read a single trigger. Four tables carry `refuse_rewrite` today.
     assert len(guarded) >= 4
     assert [table for table, refuses_truncate in guarded if not refuses_truncate] == []
+
+
+def test_every_append_only_table_also_refuses_a_truncate(store: Store) -> None:
+    """The guard list is derived, so the next append-only table cannot slip past.
+
+    `run_attempts` did exactly that: it arrived with Phase 4's row-level trigger
+    after the TRUNCATE guards were written, and the hand-written list in the
+    parametrize above did not grow. Asking the catalogue which tables are
+    guarded, rather than remembering, is what closes that.
+    """
+    guarded = store.execute(
+        "SELECT c.relname, bool_or(t.tgtype & 32 > 0) AS has_truncate"
+        " FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid"
+        " JOIN pg_proc p ON p.oid = t.tgfoid"
+        " WHERE p.proname = 'refuse_rewrite' AND NOT t.tgisinternal"
+        " GROUP BY c.relname ORDER BY c.relname"
+    ).fetchall()
+    assert guarded, "no append-only trigger found: the query or the schema moved"
+    unguarded = [name for name, has_truncate in guarded if not has_truncate]
+    assert unguarded == [], f"append-only but truncatable: {unguarded}"
