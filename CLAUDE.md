@@ -190,6 +190,13 @@ system this size means nobody looked.
 - **`admit_source` and `start_run` both mint a `cases` row.** Tenancy is
   created as a side effect, with no authority check at the boundary.
   *Upgrade:* the ingestion slice, where intake authority is decided.
+- **Blocks are accepted as given.** Nothing checks that a block's page exists
+  in the source, that blocks cover the document, or that they respect the size
+  rule in `SYSTEM_SPEC.md` §5 (one per line while small, bounded line groups
+  once not). *Upgrade:* the extraction slice, which is what produces them.
+- **A source set can be pinned to sources from a single case only, and nothing
+  yet reads it.** `read_evidence` is what makes a pinned set mean something.
+  *Upgrade:* the next slice.
 - **A source admitted with no tokens is accepted.** Every citation against it
   is then refused, which is correct but late; a scanned document with no text
   layer should be refused at intake. *Upgrade:* the ingestion slice.
