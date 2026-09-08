@@ -140,13 +140,16 @@ system this size means nobody looked.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **CodeRabbit reviews nothing while PRs are stacked.** It is installed and
-  live, reading `.coderabbit.yaml`, but auto-review is skipped on any PR whose
-  base is not the default branch — and each phase stacks on its predecessor to
-  stay under the 800-line size gate. `docs/AI_CODE_QUALITY.md` §2 counts it as
-  the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
-  review` per stacked PR, or merge each phase to `main` before opening the
-  next so the base is the default branch.
+- **CodeRabbit never auto-reviews, on any PR.** It is installed and live,
+  reading `.coderabbit.yaml`, but it declines every PR in this repository with
+  *"does not receive automatic reviews because it has fewer than 10 stars"* —
+  its own words on PR #20, whose base was `main`. The stacked-base rule is real
+  and `base_branches` covers it, but it was never why this repository saw no
+  reviews. `docs/AI_CODE_QUALITY.md` §2 counts CodeRabbit as the third reviewer
+  beside `confidence-review` and `adversarial-reviewer`; until the star gate is
+  cleared it reviews only when asked. `.github/workflows/coderabbit.yml` asks on
+  every PR. *Upgrade:* 10 stars, or a plan whose auto-review does not gate on
+  them, at which point the workflow is redundant and goes.
 **Phase 3.**
 
 - **`pin_route` does not exist yet.** `route_digest` computes what the plan gate

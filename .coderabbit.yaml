@@ -5,8 +5,10 @@ reviews:
   profile: assertive
   auto_review:
     # Each phase stacks on its predecessor to stay under the CI size gate, so a
-    # phase PR's base is never `main`. Without this, CodeRabbit skips every one
-    # of them: it reviews only the default branch unless told otherwise.
+    # phase PR's base is never `main`, and CodeRabbit reviews only the default
+    # branch unless told otherwise. This covers that. It does not cover the
+    # other reason auto-review is off -- a public repository under 10 stars gets
+    # none at all -- which `.github/workflows/coderabbit.yml` asks around.
     base_branches:
       - "phase-.*"
   request_changes_workflow: true
