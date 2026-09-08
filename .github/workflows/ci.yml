@@ -18,6 +18,8 @@ jobs:
       - run: pip install --require-hashes -r requirements-dev.txt
       - run: ruff check .
       - run: ruff format --check .
+      - run: python scripts/check_vocabulary.py
+      - run: python scripts/check_tested.py
 
   types:
     runs-on: ubuntu-latest

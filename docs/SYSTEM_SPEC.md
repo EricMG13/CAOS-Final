@@ -83,7 +83,7 @@ host can re-locate a quote and refuse one it cannot.
 The vendored Deploy V bundle is the authority. It is read-only at runtime and
 verified on the bytes at use, not at startup only.
 
-- **Registry** (`modules/registry.py`) is the only seam. One `ModuleSpec` per
+- **Registry** (`methodology/registry.py`) is the only seam. One `ModuleSpec` per
   live module: `module_id`, execution mode, `skill_slug`, `reference_files`,
   `max_output_tokens`, `calculators`, `derived_projections`, `source_mode`,
   `plan_approval`. Plus `_ALIASES` for superseded ids and host carve-outs
@@ -93,8 +93,10 @@ verified on the bytes at use, not at startup only.
   through no-follow file handles and digest-checked; work factors are bounded
   per calculator. A module asks for a calculation; it never supplies the code.
 - **Pin.** A run records the bundle build id and digest. A run pinned to one
-  build never executes under another. Editing the bundle in-tree requires a
-  dated `DECISIONS.md` entry and regenerated manifests.
+  build never executes under another. Never edit a file that exists upstream
+  (`DECISIONS.md` §6). Host additions go in new skill folders and require a
+  dated decision entry and regenerated manifests; they are part of the pinned
+  build and are verified at use too.
 - **Provider frontmatter never survives.** Whatever a module claims about its
   own identity, period, module id or digests is an expectation the host
   re-verifies against the store.
@@ -131,7 +133,7 @@ The execution loop:
 
 ```python
 while ready := frontier(route, attempts, readiness):
-    await gather(run_node(n) for n in ready)     # one attempt row per node per try
+    await gather(*(run_node(n) for n in ready))  # one attempt row per node per try
 ```
 
 - `run_node` reserves budget, resolves the provider, executes, validates the
@@ -181,7 +183,10 @@ One model effect per pathway. Full Credit builds the complete model from the six
 canonical artifacts. Every other pathway resolves through the nearest validated
 Full Credit ancestor: its build re-verified by recomputation, the accepted run's
 calculation records re-executed, one `pathway_effects` entry on a byte-identical
-copy of the base tabs under the overlay's own input fingerprint.
+copy of the base model-table payloads under the overlay's own input fingerprint.
+This reuses validated data, not workbook sheets or a prior `.xlsx`. Every
+workbook is rendered from the resulting typed IR and recalculated and validated
+afresh, as required by `MODEL_BUILDER_SPEC.md` §§4–5.
 
 - Calculation is pure and finite. Non-finite values and zero denominators are
   refused before use.
@@ -283,9 +288,14 @@ MAX_FORECAST_FACILITIES = 40
 periods × cases × (1 + facilities) ≤ 100_000
 ```
 
-**`calculation_output_complete`**: `status == "complete"`, and every requested
-case carries at least one period with finite closing debt, finite closing cash
-and a non-empty `metrics`.
+**`calculation_output_complete`**: `status == "complete"`, the requested
+`(case, period_id)` set is non-empty, and the output contains every requested
+pair exactly once, with no extra pairs. Every requested period has finite
+closing debt, finite closing cash and a non-empty `metrics`. An explicitly
+unavailable period makes the calculation incomplete; it and its reason still
+appear in the output, with unavailability propagated forward. One successful
+period cannot stand in for the requested horizon. A ratio that is `null` with
+the zero-denominator reason allowed above is not itself a missing period.
 
 **Refusals** — typed, public-safe, no vendor or filesystem detail:
 `METHODOLOGY_INPUT_INVALID`, `FORECAST_CHAIN_BROKEN`,
@@ -324,9 +334,13 @@ period per case.
 **Route placement without editing the catalog.** Reuse the mechanism legacy
 already has for CP-DR: a host-declared model extension, mirroring
 `profile["research_extension"]`, appends CP-CF at its own stage with
-synthesised `REQUIRED` edges `CP-2G → CP-CF` and `CP-CF → CP-MODEL`. No
-pathway node list is edited, and the extension is part of the resolved route
-that gets pinned at the gate (§4), so replay is unaffected.
+synthesised `REQUIRED` edges `CP-1 → CP-CF`, `CP-2G → CP-CF`,
+`CP-4 → CP-CF` and `CP-CF → CP-MODEL`. These name every artifact owner CP-CF
+reads, including the covenant terms; CP-2G completing alone does not release
+CP-CF. An extended route missing a required owner is refused during resolution,
+before pinning, rather than dropping the edge or running with missing inputs.
+No upstream pathway node list is edited, and the extension is part of the
+resolved route that gets pinned at the gate (§4), so replay is unaffected.
 
 ---
 
