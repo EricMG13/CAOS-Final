@@ -27,7 +27,7 @@ from server.evidence.citations import (
 )
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.sources import Token, admit_source
+from server.store.sources import SourceDocument, Token, admit_pack
 
 DIGEST = "a" * 64
 
@@ -68,9 +68,17 @@ def _tokens() -> list[Token]:
     return tokens
 
 
+def _admit(store: Store, case_id: str, digest: str, tokens: list[Token]) -> None:
+    admit_pack(
+        store,
+        case_id=case_id,
+        documents=(SourceDocument(sha256=digest, tokens=tuple(tokens), blocks=()),),
+    )
+
+
 @pytest.fixture
-def source(store: Store) -> str:
-    return admit_source(store, case_id="acme", sha256=DIGEST, tokens=_tokens())
+def source(store: Store) -> None:
+    _admit(store, "acme", DIGEST, _tokens())
 
 
 def _anchor(store: Store, quote: str, page: int = 3) -> Citation:
@@ -79,26 +87,28 @@ def _anchor(store: Store, quote: str, page: int = 3) -> Citation:
     )
 
 
-def test_uncitable_quote_is_refused_before_artifact(store: Store, source: str) -> None:
+def test_uncitable_quote_is_refused_before_artifact(store: Store, source: None) -> None:
     with pytest.raises(Refusal) as caught:
         _anchor(store, "Net leverage was 3.1x")
     assert caught.value.code is RefusalCode.CITATION_NOT_LOCATABLE
 
 
-def test_a_quote_on_another_page_is_refused(store: Store, source: str) -> None:
+def test_a_quote_on_another_page_is_refused(store: Store, source: None) -> None:
     with pytest.raises(Refusal) as caught:
         _anchor(store, "Covenant")
     assert caught.value.code is RefusalCode.CITATION_NOT_LOCATABLE
 
 
 def test_a_quote_within_one_line_gets_one_tight_rectangle(
-    store: Store, source: str
+    store: Store, source: None
 ) -> None:
     citation = _anchor(store, "leverage was")
     assert citation.bboxes == ((Decimal(88), Decimal(700), Decimal(136), Decimal(712)),)
 
 
-def test_a_wrapped_quote_gets_one_rectangle_per_line(store: Store, source: str) -> None:
+def test_a_wrapped_quote_gets_one_rectangle_per_line(
+    store: Store, source: None
+) -> None:
     # The defect this replaces returned a single box enclosing both lines, and
     # therefore enclosing "Net leverage" and "year end", neither of them quoted.
     citation = _anchor(store, "was 4.2x at the")
@@ -116,11 +126,11 @@ def test_a_quote_cannot_be_assembled_across_a_column_gutter(store: Store) -> Non
     # alone would still join them. The extractor gives each column its own
     # block; "net debt" is on no line of this page and must not be citable.
     digest = "c" * 64
-    admit_source(
+    _admit(
         store,
-        case_id="acme",
-        sha256=digest,
-        tokens=[
+        "acme",
+        digest,
+        [
             _token((1, 1, 0), "Total", (72, 700), page=1),
             _token((1, 1, 1), "net", (120, 700), page=1),
             _token((2, 2, 0), "debt", (400, 700), page=1),
@@ -139,7 +149,7 @@ def test_a_quote_cannot_be_assembled_across_a_column_gutter(store: Store) -> Non
 
 
 def test_a_quote_whose_whitespace_differs_still_anchors(
-    store: Store, source: str
+    store: Store, source: None
 ) -> None:
     assert _anchor(store, "Net   leverage\nwas").bboxes == (
         (Decimal(72), Decimal(700), Decimal(136), Decimal(712)),
@@ -148,11 +158,11 @@ def test_a_quote_whose_whitespace_differs_still_anchors(
 
 def test_a_quote_appearing_twice_on_a_page_is_refused(store: Store) -> None:
     digest = "e" * 64
-    admit_source(
+    _admit(
         store,
-        case_id="acme",
-        sha256=digest,
-        tokens=[
+        "acme",
+        digest,
+        [
             _token((1, 1, 0), "total", (72, 700), page=1),
             _token((1, 1, 1), "debt", (120, 700), page=1),
             _token((1, 2, 0), "total", (72, 686), page=1),
@@ -172,20 +182,15 @@ def test_a_quote_appearing_twice_on_a_page_is_refused(store: Store) -> None:
 
 def test_a_quote_anchors_only_within_its_own_case(store: Store) -> None:
     shared = "f" * 64
-    admit_source(store, case_id="acme", sha256=shared, tokens=_tokens())
-    admit_source(
-        store,
-        case_id="rival",
-        sha256=shared,
-        tokens=[_token((1, 1, 0), "Net leverage", (500, 100))],
-    )
+    _admit(store, "acme", shared, _tokens())
+    _admit(store, "rival", shared, [_token((1, 1, 0), "Net leverage", (500, 100))])
     citation = anchor_citation(
         store, case_id="acme", document_sha256=shared, page=3, matched_text="Net"
     )
     assert citation.bboxes[0][0] == Decimal(72)
 
 
-def test_the_refusal_carries_no_document_text(store: Store, source: str) -> None:
+def test_the_refusal_carries_no_document_text(store: Store, source: None) -> None:
     with pytest.raises(Refusal) as caught:
         _anchor(store, "Net leverage was 9.9x")
     rendered = f"{caught.value!r} {caught.value!s} {caught.value.args}"

@@ -14,7 +14,7 @@ import pytest
 
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.sources import Token, admit_source
+from server.store.sources import SourceDocument, Token, admit_pack
 
 DIGEST = "d" * 64
 
@@ -33,32 +33,30 @@ def _token(ordinal: int, text: str) -> Token:
     )
 
 
+def _admit(store: Store, tokens: list[Token]) -> None:
+    admit_pack(
+        store,
+        case_id="acme",
+        documents=(SourceDocument(sha256=DIGEST, tokens=tuple(tokens), blocks=()),),
+    )
+
+
 def test_the_same_document_is_admitted_to_a_case_only_once(store: Store) -> None:
-    admit_source(store, case_id="acme", sha256=DIGEST, tokens=[_token(0, "x")])
+    _admit(store, [_token(0, "x")])
     with pytest.raises(Refusal) as caught:
-        admit_source(store, case_id="acme", sha256=DIGEST, tokens=[_token(0, "x")])
+        _admit(store, [_token(0, "x")])
     assert caught.value.code is RefusalCode.SOURCE_ALREADY_ADMITTED
 
 
 def test_a_token_index_with_a_repeated_position_is_refused(store: Store) -> None:
     with pytest.raises(Refusal) as caught:
-        admit_source(
-            store,
-            case_id="acme",
-            sha256=DIGEST,
-            tokens=[_token(0, "x"), _token(0, "y")],
-        )
+        _admit(store, [_token(0, "x"), _token(0, "y")])
     assert caught.value.code is RefusalCode.SOURCE_TOKEN_INDEX_INVALID
 
 
 def test_a_refused_admission_leaves_nothing_behind(store: Store) -> None:
     with pytest.raises(Refusal):
-        admit_source(
-            store,
-            case_id="acme",
-            sha256=DIGEST,
-            tokens=[_token(0, "x"), _token(0, "y")],
-        )
+        _admit(store, [_token(0, "x"), _token(0, "y")])
     store.rollback()
     remaining = store.execute(
         "SELECT (SELECT count(*) FROM sources), (SELECT count(*) FROM source_tokens)"
@@ -67,9 +65,9 @@ def test_a_refused_admission_leaves_nothing_behind(store: Store) -> None:
 
 
 def test_a_refusal_names_no_constraint_table_or_vendor(store: Store) -> None:
-    admit_source(store, case_id="acme", sha256=DIGEST, tokens=[_token(0, "x")])
+    _admit(store, [_token(0, "x")])
     with pytest.raises(Refusal) as caught:
-        admit_source(store, case_id="acme", sha256=DIGEST, tokens=[_token(0, "x")])
+        _admit(store, [_token(0, "x")])
     rendered = f"{caught.value!r} {caught.value!s} {caught.value.args}"
     for leak in ("sources", "psycopg", "duplicate key", "postgres", "sha256"):
         assert leak not in rendered.lower()

@@ -75,6 +75,36 @@ CREATE TABLE IF NOT EXISTS source_tokens (
     PRIMARY KEY (source_id, page, region_id, line_id, ordinal)
 );
 
+-- The unit read_evidence returns: one row per block, keyed by
+-- (source_id, block_id). Never a JSON column holding every block of a source --
+-- that shape made one read parse the whole source, the predecessor's ~8x I/O
+-- defect (docs/AI_CODE_QUALITY.md section 1).
+CREATE TABLE IF NOT EXISTS source_blocks (
+    source_id  uuid NOT NULL REFERENCES sources (source_id),
+    block_id   integer NOT NULL CHECK (block_id >= 0),
+    page       integer NOT NULL CHECK (page > 0),
+    text       text NOT NULL,
+    PRIMARY KEY (source_id, block_id)
+);
+
+-- An immutable, versioned set of sources a run is pinned to. Version allocation
+-- locks the case row before reading the current version, so two pins cannot
+-- read the same one.
+CREATE TABLE IF NOT EXISTS source_sets (
+    case_id     text NOT NULL REFERENCES cases (case_id),
+    version     integer NOT NULL CHECK (version > 0),
+    created_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (case_id, version)
+);
+
+CREATE TABLE IF NOT EXISTS source_set_members (
+    case_id    text NOT NULL,
+    version    integer NOT NULL,
+    source_id  uuid NOT NULL REFERENCES sources (source_id),
+    PRIMARY KEY (case_id, version, source_id),
+    FOREIGN KEY (case_id, version) REFERENCES source_sets (case_id, version)
+);
+
 -- Append-only means append-only. Enforced by the store, not by convention:
 -- a UPDATE or DELETE path that exists is a path that gets used.
 CREATE OR REPLACE FUNCTION refuse_rewrite() RETURNS trigger AS $$
@@ -85,4 +115,14 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE TRIGGER run_events_append_only
     BEFORE UPDATE OR DELETE ON run_events
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+-- A pinned source set is what a run's evidence means. Editing one would change
+-- what an already-executed run was pinned to.
+CREATE OR REPLACE TRIGGER source_sets_append_only
+    BEFORE UPDATE OR DELETE ON source_sets
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER source_set_members_append_only
+    BEFORE UPDATE OR DELETE ON source_set_members
     FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
