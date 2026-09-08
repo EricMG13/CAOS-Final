@@ -73,9 +73,6 @@ def _merge(
         check=False,
         env={
             # The stub shadows any real gh; make and sh come from the system.
-            # The env deliberately carries no HOME, GH_TOKEN or GITHUB_TOKEN, so
-            # a real gh reached by mistake could not authenticate, let alone
-            # merge. Do not add them.
             "PATH": f"{stub_dir}:/usr/bin:/bin",
             "STUB_GH_VERSION": gh_version,
             "STUB_GH_MATCH_FLAG": match_flag,

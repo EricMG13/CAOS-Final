@@ -201,8 +201,7 @@ reason. Line identity comes from the extractor because separating two columns
 that share a y-band is layout analysis; a threshold in the anchoring path would
 be a heuristic on the evidence boundary.
 
-## 2026-09-08 §16 — `BoundaryText` covers identifiers; document text is handled
-at extraction
+## 2026-09-08 §16 — `BoundaryText` covers identifiers, not document text
 
 Governed identifiers -- `case_id`, `node_id` -- are `BoundaryText` at the store
 boundary, and every digest is checked against `[0-9a-f]{64}` before it is used
@@ -325,3 +324,91 @@ mechanism as missing; the wording was what was wrong, and the docstring is
 fixed. `docs/REBUILD_PLAN.md` still records the original plan and is left
 alone: it is the plan of record, and this entry overrides it.
 
+## 2026-09-08 §21 — Provider-call recovery: the attempt row is the call identity
+
+Resolves C1 of `docs/ADVERSARIAL_REVIEW.md`, due before Phase 4.
+
+The failure it names: reserve budget, the provider completes and bills, the
+process dies before the accepted-attempt commit. Recovery finds no artifact and
+retries, knowing neither whether the first call completed nor what it cost.
+
+**The attempt row is written and committed before the provider is called**, and
+it carries its reservation. That row is the durable call identity; there is no
+second identifier to keep in step with it.
+
+**An attempt with a reservation and no accepted artifact is INDETERMINATE, and
+its reservation is not released.** Unknown usage keeps its reserved exposure.
+Releasing it would let a crash convert a real charge into free budget, which is
+the direction that overspends.
+
+**A retry is a new attempt with its own reservation.** No provider idempotency
+is assumed; without a verified idempotency contract a retry is a new operation
+and must be budgeted as one.
+
+**"One charge" means one `budget_ledger` entry per accepted attempt.** Provider
+billing may exceed the ledger, and the difference is exactly the indeterminate
+reservations -- which are rows, visible and countable. The ledger never claims
+to know what a vendor billed.
+
+**The API process owns run execution and startup recovery. The worker owns model
+builds and publication jobs only.** `SYSTEM_SPEC.md` §1 gives the worker those
+two jobs and §4 requires startup recovery without saying whose; this settles it.
+One instance of each, so there is no contention to arbitrate.
+
+**Phase 4 owes three tests**: a crash after remote completion and before local
+acceptance; the same with no provider idempotency; and concurrent reservations
+at the ceiling, which must refuse rather than overspend.
+
+## 2026-09-08 §22 — The forecast residual compares the model's assertion to the host's arithmetic
+
+Resolves C2 of `docs/ADVERSARIAL_REVIEW.md`, due before Phase 7.
+
+The review's point stands: reusing the closing-balance expression as its own
+expectation always produces zero, even when a component was omitted from both
+sides. The residual needs an independently derived side.
+
+**It already exists upstream.** CP-2G's payload requires
+`debt_liquidity_rollforward`, and `REF_CP-2G_STEPS.md` says "reconcile opening
+balances to the prior closing period and log any residual" and asks that cash
+and debt "roll forward without an unexplained material residual". The model
+asserts the balances; `cash_flow_forecast` recomputes them from components.
+
+    residual = model-asserted closing balance − host-computed closing balance
+
+Per case-period, once for debt and once for cash, in the statement currency.
+Positive means the model asserted more than its own components support.
+
+**The host declares what it reads from that array.** The bundle requires
+`debt_liquidity_rollforward` but types it `{"type": "array"}` with no item
+schema, so its contents are unspecified upstream. The host's input contract
+names the fields it needs -- case, period, opening and closing debt and cash --
+which is a host-side declaration and not an upstream edit (§6).
+
+**A period the array omits is unavailable, not reconciled.** Falling back to the
+computed value as its own expectation is precisely the zero-residual defect.
+
+Phase 7 owes a worked input with a known non-zero residual and the downstream
+unavailability it propagates.
+
+## 2026-09-08 §23 — The model extension places CP-MODEL as well as CP-CF
+
+`SYSTEM_SPEC.md` §6.2 says the host-declared model extension appends CP-CF with
+a synthesised `REQUIRED` edge `CP-CF → CP-MODEL`. It does not say who places
+CP-MODEL, and nothing else can: in the pinned catalog CP-MODEL is
+`route_eligible: true` but `navigable: false`, and it appears in **no** pathway's
+node list. The same is true of CP-MEMO.
+
+The extension therefore appends both -- CP-CF at stage 100, CP-MODEL at 101,
+mirroring CP-DR's stage 99 -- and the `CP-CF → CP-MODEL` edge has a node to
+point at. No pathway node list is edited (§6).
+
+**Reason.** The catalog separates *route-eligible* from *navigable*: a module
+may be placed in a route without being an analyst-selectable step. CP-MODEL is
+exactly that, so a host extension is the only mechanism that can place it, and
+§6.2 already establishes host-declared extensions as legitimate.
+
+A pathway missing any owner is refused during resolution, before pinning, rather
+than dropping the edge or running CP-CF without an input it reads. Three FULL
+pathways carry all three owners; `COVENANT_REFINANCING` carries CP-1 and CP-4
+but no CP-2G and is refused, which is what `test_model_extension_refuses_
+missing_owner` asserts.

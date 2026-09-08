@@ -157,15 +157,19 @@ system this size means nobody looked.
   token would also work and is not worth a long-lived credential for this.
 **Phase 3.**
 
-- **`pin_route` does not exist yet.** `route_digest` computes what the plan gate
-  will pin, and nothing writes it to `run_routes` or reads execution from a pin.
-  Resolution is pure and replayable; the pin that makes invariant 10 binding is
-  the gate slice. *Upgrade:* the next slice, with the run surface.
-- **The model extension is not built.** `CP-CF` rides a host-declared extension
-  with synthesised `REQUIRED` edges from CP-1, CP-2G and CP-4
-  (`SYSTEM_SPEC.md` §6.2), and `test_cp_cf_waits_for_all_required_owners` and
-  `test_model_extension_refuses_missing_owner` are unwritten. *Upgrade:* the
-  next slice.
+- **Nothing calls `pin_route` yet.** The pin exists and is binding once written,
+  but no gate writes it: `pin_route` is reached only from tests, and no execution
+  path reads `pinned_route`. Invariant 10 holds for anything that pins, and
+  nothing pins. *Upgrade:* Phase 6's plan gate, and Phase 4's loop reading the
+  pin instead of a passed-in route.
+- **CP-CF is a route node with no module behind it.** The extension places it
+  and the edges gate it, but no skill folder, calculator or registry entry
+  exists yet, so a route carrying CP-CF resolves and cannot execute.
+  *Upgrade:* Phase 5, which owns the registry and the calculator boundary, and
+  the `cash_flow_forecast` work in `docs/DECISIONS.md` §8.
+- **Nothing selects the model extension.** `resolve_route(..., model_extension=
+  True)` is reached only from tests; no gate decides when a pathway gets its
+  model effect. *Upgrade:* Phase 6's plan gate.
 
 - **No CONDITIONAL edge exists in the pinned bundle.** `CONTEXT.md` lists it as
   a blocking edge type and `resolve_route` freezes predicates for it, but the

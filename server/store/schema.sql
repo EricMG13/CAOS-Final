@@ -19,6 +19,9 @@ CREATE TABLE IF NOT EXISTS run_events (
     run_id  uuid NOT NULL REFERENCES runs (run_id),
     seq     integer NOT NULL CHECK (seq > 0),
     kind    text NOT NULL,
+    -- Set on ROUTE_PINNED. SYSTEM_SPEC 4: the digest goes in run_events, so the
+    -- stream itself says which route the run was pinned to.
+    route_digest  char(64),
     at      timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, seq)
 );
@@ -115,6 +118,19 @@ CREATE TABLE IF NOT EXISTS delivered_evidence (
     delivered_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (run_id, node_id, source_id, block_id),
     FOREIGN KEY (source_id, block_id) REFERENCES source_blocks (source_id, block_id)
+);
+
+-- The route a run is pinned to. One row per run: a run pinned to one route
+-- never executes under another (invariant 10). The resolved payload is stored
+-- whole, so execution reads the pin rather than re-resolving from a catalog
+-- that may have moved.
+CREATE TABLE IF NOT EXISTS run_routes (
+    run_id        uuid PRIMARY KEY REFERENCES runs (run_id),
+    route_digest  char(64) NOT NULL,
+    profile_id    text NOT NULL,
+    selection_id  text NOT NULL,
+    resolved      jsonb NOT NULL,
+    pinned_at     timestamptz NOT NULL DEFAULT now()
 );
 
 -- Append-only means append-only. Enforced by the store, not by convention:

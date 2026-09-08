@@ -53,6 +53,7 @@ def test_run_events_refuses_a_delete(store: Store) -> None:
     "table", ["run_events", "source_set_members", "delivered_evidence"]
 )
 def test_an_append_only_table_refuses_a_truncate(store: Store, table: str) -> None:
+    """Refuse truncation for every directly guarded append-only table."""
     # A row-level trigger never sees TRUNCATE: it empties the table without
     # producing a row to fire on. Statement-level is the only guard that catches
     # it, and TRUNCATE is the one statement that erases a whole ledger at once.
@@ -104,6 +105,7 @@ def test_a_source_digest_that_is_not_64_lowercase_hex_is_refused(
 def test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate(
     store: Store,
 ) -> None:
+    """Require every rewrite-guarded table to also refuse truncation."""
     # The truncate guards were enumerated by table name in schema.sql, and one
     # table was missed. This derives the list instead: whatever refuses UPDATE
     # and DELETE has a ledger to protect, and TRUNCATE erases that ledger in one
