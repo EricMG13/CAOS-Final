@@ -389,3 +389,26 @@ computed value as its own expectation is precisely the zero-residual defect.
 
 Phase 7 owes a worked input with a known non-zero residual and the downstream
 unavailability it propagates.
+
+## 2026-09-08 §23 — The model extension places CP-MODEL as well as CP-CF
+
+`SYSTEM_SPEC.md` §6.2 says the host-declared model extension appends CP-CF with
+a synthesised `REQUIRED` edge `CP-CF → CP-MODEL`. It does not say who places
+CP-MODEL, and nothing else can: in the pinned catalog CP-MODEL is
+`route_eligible: true` but `navigable: false`, and it appears in **no** pathway's
+node list. The same is true of CP-MEMO.
+
+The extension therefore appends both -- CP-CF at stage 100, CP-MODEL at 101,
+mirroring CP-DR's stage 99 -- and the `CP-CF → CP-MODEL` edge has a node to
+point at. No pathway node list is edited (§6).
+
+**Reason.** The catalog separates *route-eligible* from *navigable*: a module
+may be placed in a route without being an analyst-selectable step. CP-MODEL is
+exactly that, so a host extension is the only mechanism that can place it, and
+§6.2 already establishes host-declared extensions as legitimate.
+
+A pathway missing any owner is refused during resolution, before pinning, rather
+than dropping the edge or running CP-CF without an input it reads. Three FULL
+pathways carry all three owners; `COVENANT_REFINANCING` carries CP-1 and CP-4
+but no CP-2G and is refused, which is what `test_model_extension_refuses_
+missing_owner` asserts.
