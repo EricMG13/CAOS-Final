@@ -21,6 +21,8 @@ from dataclasses import dataclass
 from decimal import Decimal
 from itertools import groupby
 
+from server.boundary_text import BoundaryText
+from server.digests import checked_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.sources import Token
@@ -115,14 +117,14 @@ def locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
 
 
 def _page_tokens(
-    store: Store, *, case_id: str, document_sha256: str, page: int
+    store: Store, *, case_id: BoundaryText, document_sha256: str, page: int
 ) -> list[Token]:
     # Scoped to the case. The same document in two cases is ordinary, and each
     # case holds its own copy: an unscoped lookup would return an arbitrary one.
     with store.transaction():
         found = store.execute(
             "SELECT source_id FROM sources WHERE case_id = %s AND sha256 = %s",
-            (case_id, document_sha256),
+            (case_id.value, checked_digest(document_sha256)),
         ).fetchone()
         if found is None:
             raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
@@ -136,7 +138,12 @@ def _page_tokens(
 
 
 def anchor_citation(
-    store: Store, *, case_id: str, document_sha256: str, page: int, matched_text: str
+    store: Store,
+    *,
+    case_id: BoundaryText,
+    document_sha256: str,
+    page: int,
+    matched_text: str,
 ) -> Citation:
     """Re-locate a quote within its case and derive its rectangles, or refuse it."""
     covering = locate(

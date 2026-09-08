@@ -171,3 +171,24 @@ PDF highlight annotations use QuadPoints, a list of quads, for exactly this
 reason. Line identity comes from the extractor because separating two columns
 that share a y-band is layout analysis; a threshold in the anchoring path would
 be a heuristic on the evidence boundary.
+
+## 2026-09-08 §16 — `BoundaryText` covers identifiers; document text is handled
+at extraction
+
+Governed identifiers -- `case_id`, `node_id` -- are `BoundaryText` at the store
+boundary, and every digest is checked against `[0-9a-f]{64}` before it is used
+as a key or a path. Document-derived text (`Block.text`, `Token.text`) is not
+`BoundaryText` and will be handled by the extractor instead.
+
+**Reason.** `BoundaryText` existed, was tested thoroughly, and was called from
+nowhere: an adversarial review found `grep -rn BoundaryText server/` returned
+only its own module. An invariant with a type nothing constructs is decoration.
+
+The split is deliberate. Refusing a whole document because it contains U+202B
+would refuse legitimate Arabic and Hebrew filings, which is the wrong answer for
+a credit system that reads what issuers actually publish. The identifier path
+has no such tension: nothing legitimate names a case with a bidirectional
+override. Document text needs a narrower rule -- strip the control, keep the
+document, keep the coordinates -- and that belongs where extraction happens,
+under its own decision entry, not bolted onto a type meant for host-authored
+strings.

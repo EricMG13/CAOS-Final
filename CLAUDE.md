@@ -190,6 +190,17 @@ system this size means nobody looked.
 - **`admit_source` and `start_run` both mint a `cases` row.** Tenancy is
   created as a side effect, with no authority check at the boundary.
   *Upgrade:* the ingestion slice, where intake authority is decided.
+- **Document-derived text is not `BoundaryText`.** `Block.text` and
+  `Token.text` reach pinned state unvalidated; identifiers and digests do not
+  (`docs/DECISIONS.md` §16). A document carrying a bidirectional override is
+  stored as given. *Upgrade:* the extraction slice strips the control rather
+  than refusing the document.
+- **Nothing bounds the size of anything ingested.** Token text, block text,
+  blob payloads and tokens per page are all unbounded, and `IO_BUDGET` counts
+  round-trips rather than rows -- so one dense page is unbounded memory per
+  citation. Invariant 8 says every ceiling refuses before overspend; the
+  ingestion path has no ceilings. *Upgrade:* the extraction slice, which is the
+  first code that knows how large a real document is.
 - **Blocks are accepted as given.** Nothing checks that a block's page exists
   in the source, that blocks cover the document, or that they respect the size
   rule in `SYSTEM_SPEC.md` §5 (one per line while small, bounded line groups
