@@ -234,3 +234,33 @@ use it -- but no test can exercise it with real data, and `CLAUDE.md` says so.
 Gates do not scan `vendor/`: it is authority we never edit (§6), so a vocabulary
 or coverage finding inside it names something no PR is allowed to fix. `ruff`,
 `mypy` and both identifier gates exclude it, and the CI size gate already did.
+
+## 2026-09-08 §18 — There is no bootstrap cycle; readiness is an artifact
+
+Resolves W1 of `docs/ADVERSARIAL_REVIEW.md`.
+
+**The route resolves before any node runs.** `resolve_route` takes
+`(profile_id, selection_id)`, both chosen by the analyst at run creation. The
+bundle settles this itself: `CP0_PROFILE_ANCHOR_CONTRACT_v1.md` says "CP-0 is the
+first, zero-upstream invocation" and "the profile is immutable within a run;
+source content cannot change it". CP-0 is the first node *of* the pinned route,
+not a precondition for having one. Its `module_order` is an optional narrowing
+recorded in the pin, never a re-resolution.
+
+**`source_readiness` stops being a parameter.** `node_states(route, accepted)`
+derives readiness from the accepted CP-0 artifact in the attempt ledger it
+already reads. This is the whole of W1's second half: there is no separate state
+whose persistence was unstated, because there is no separate state. Recovery
+stays recomputation (§3) and a crash leaves nothing to restore.
+
+**Withdrawal never touches the route.** Invariant 1 checks withdrawal live at
+every use while invariant 10 pins the route once, and both hold because
+withdrawal is a predicate in `read_evidence` -- already the only path to bytes.
+A withdrawn source makes its consumer fail or carry a limitation through edges
+that already exist. The pin is never rewritten.
+
+**Checked and not a problem.** CP-0's schema appears to carry a fourth readiness
+value, `READY_FOR_MODEL_ROUTE`. It does not: that is
+`SOURCE_READY_FOR_MODEL_ROUTE`, the `status` of a separate
+`model_route_source_assessment` object scoped `SOURCE_SUFFICIENCY_ONLY`. Source
+readiness is `READY`, `READY_WITH_LIMITATIONS`, `BLOCKED`, as the spec says.
