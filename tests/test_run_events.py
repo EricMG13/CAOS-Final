@@ -5,8 +5,9 @@ commit gap yields one artifact, one charge, one terminal event.
 
 The gap is the window between the transaction committing and the caller learning
 that it did. The process dies there; recovery replays the identical call. What
-makes the replay harmless is the conditional update: the run is no longer
-RUNNING, zero rows change, and no event, artifact or charge rides along.
+makes the replay harmless is the run row lock: the replay reads the state under
+`SELECT ... FOR UPDATE`, finds COMPLETE rather than RUNNING, and returns before
+any event, artifact or charge is written.
 """
 
 from __future__ import annotations
