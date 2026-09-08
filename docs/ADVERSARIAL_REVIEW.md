@@ -10,7 +10,8 @@ runtime, vendored methodology bundle or rendered frontend exists in this
 checkout to validate. This is a specification review, not runtime qualification.
 
 **Verdict: BLOCK** on treating the specifications as a complete implementation
-contract. The open findings below need resolution before their affected phases;
+contract. *(All four open findings were closed on 2026-09-08 -- see the status
+line under each. The verdict is left as written; the record is the point.)* The open findings below need resolution before their affected phases;
 they do not prevent independent store work. Three existing specification files
 were corrected. The other task's implementation and Git state were left alone.
 
@@ -20,7 +21,7 @@ Hire (cross-document contracts and phase dependencies), Security Auditor
 the review skill requires. Severity describes the build risk, not a claim that
 a deployed vulnerability was observed.
 
-## Critical findings — open
+## Critical findings — both resolved
 
 ### C1. Provider-call uncertainty has no recovery/accounting contract
 
@@ -28,6 +29,7 @@ a deployed vulnerability was observed.
 [System §11](SYSTEM_SPEC.md#11-deployment-and-failure),
 [Phase 4](REBUILD_PLAN.md#phase-4--the-frontier-loop).
 **Personas:** Saboteur + Security Auditor; WARNING → CRITICAL.
+**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §21. The attempt row is the durable call identity, committed before the provider call; an indeterminate reservation keeps its exposure; a retry is a new operation; the API process owns run recovery.
 
 The concrete failure is: reserve budget, the provider completes and bills the
 call, then the API process dies before the accepted-attempt commit. Recovery
@@ -51,6 +53,7 @@ ambiguity is documented in [AWS's idempotent API guidance](https://aws.amazon.co
 
 **Location:** [System §6.1](SYSTEM_SPEC.md#61-cash_flow_forecast--the-deterministic-forecast-calculator).
 **Personas:** Saboteur + New Hire; WARNING → CRITICAL.
+**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §22. CP-2G's required `debt_liquidity_rollforward` is the independent side: residual = model-asserted closing balance minus host-computed closing balance.
 
 The spec defines equations that compute closing debt and cash, then requires
 an explicit non-zero residual to detect reconciliation failures. It does not
@@ -66,13 +69,14 @@ unavailability. The plan now names the required regression tests; they are
 future exit checks, not tests implemented by this review. No financial formula
 was invented to fill this gap.
 
-## Warnings — open
+## Warnings — both resolved
 
 ### W1. CP-0 bootstrap and readiness inputs are not bound to a lifecycle
 
 **Location:** [System §4](SYSTEM_SPEC.md#4-route-resolution-and-execution),
 [Decision §5](DECISIONS.md#2026-09-08-5--cp-parse-stays-a-separate-host-node).
 **Personas:** New Hire.
+**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §18. There is no bootstrap cycle -- the bundle's own anchor contract settles it -- and readiness is read from CP-0's accepted artifact rather than passed in.
 
 `resolve_route` can consume CP-0's plan, but CP-0 is itself a runnable route
 node and execution is required to read a route pinned once. The optional
@@ -92,6 +96,7 @@ is broken.
 **Location:** [System §3](SYSTEM_SPEC.md#3-methodology-boundary),
 [Model Builder introduction](MODEL_BUILDER_SPEC.md).
 **Personas:** New Hire.
+**Status:** resolved 2026-09-08, `docs/DECISIONS.md` §17. The bundle is vendored at build `a43cb903` and every claim in §2 and §5 is asserted against its bytes.
 
 The referenced Deploy V catalog, schemas, calculator source and workbook
 renderer are absent, and no acquisition location or expected bundle digest is
@@ -157,6 +162,8 @@ W1 and W2 remain open for the reasons and next steps given above.
 ## Summary
 
 Seven specification defects were corrected and their applicable exit checks
-made explicit. Resolve provider-call recovery and the independent forecast
-residual before implementing those boundaries; settle route bootstrap and
-obtain the authoritative bundle before the route compatibility work.
+made explicit. All four open findings were closed on 2026-09-08: the bundle was
+vendored and pinned (W2), route bootstrap was settled by the bundle's own anchor
+contract (W1), provider-call recovery was given a contract (C1), and the
+forecast residual was given an independently derived side (C2). Each carries a
+status line above and a dated entry in `docs/DECISIONS.md`.

@@ -325,3 +325,68 @@ mechanism as missing; the wording was what was wrong, and the docstring is
 fixed. `docs/REBUILD_PLAN.md` still records the original plan and is left
 alone: it is the plan of record, and this entry overrides it.
 
+## 2026-09-08 §21 — Provider-call recovery: the attempt row is the call identity
+
+Resolves C1 of `docs/ADVERSARIAL_REVIEW.md`, due before Phase 4.
+
+The failure it names: reserve budget, the provider completes and bills, the
+process dies before the accepted-attempt commit. Recovery finds no artifact and
+retries, knowing neither whether the first call completed nor what it cost.
+
+**The attempt row is written and committed before the provider is called**, and
+it carries its reservation. That row is the durable call identity; there is no
+second identifier to keep in step with it.
+
+**An attempt with a reservation and no accepted artifact is INDETERMINATE, and
+its reservation is not released.** Unknown usage keeps its reserved exposure.
+Releasing it would let a crash convert a real charge into free budget, which is
+the direction that overspends.
+
+**A retry is a new attempt with its own reservation.** No provider idempotency
+is assumed; without a verified idempotency contract a retry is a new operation
+and must be budgeted as one.
+
+**"One charge" means one `budget_ledger` entry per accepted attempt.** Provider
+billing may exceed the ledger, and the difference is exactly the indeterminate
+reservations -- which are rows, visible and countable. The ledger never claims
+to know what a vendor billed.
+
+**The API process owns run execution and startup recovery. The worker owns model
+builds and publication jobs only.** `SYSTEM_SPEC.md` §1 gives the worker those
+two jobs and §4 requires startup recovery without saying whose; this settles it.
+One instance of each, so there is no contention to arbitrate.
+
+**Phase 4 owes three tests**: a crash after remote completion and before local
+acceptance; the same with no provider idempotency; and concurrent reservations
+at the ceiling, which must refuse rather than overspend.
+
+## 2026-09-08 §22 — The forecast residual compares the model's assertion to the host's arithmetic
+
+Resolves C2 of `docs/ADVERSARIAL_REVIEW.md`, due before Phase 7.
+
+The review's point stands: reusing the closing-balance expression as its own
+expectation always produces zero, even when a component was omitted from both
+sides. The residual needs an independently derived side.
+
+**It already exists upstream.** CP-2G's payload requires
+`debt_liquidity_rollforward`, and `REF_CP-2G_STEPS.md` says "reconcile opening
+balances to the prior closing period and log any residual" and asks that cash
+and debt "roll forward without an unexplained material residual". The model
+asserts the balances; `cash_flow_forecast` recomputes them from components.
+
+    residual = model-asserted closing balance − host-computed closing balance
+
+Per case-period, once for debt and once for cash, in the statement currency.
+Positive means the model asserted more than its own components support.
+
+**The host declares what it reads from that array.** The bundle requires
+`debt_liquidity_rollforward` but types it `{"type": "array"}` with no item
+schema, so its contents are unspecified upstream. The host's input contract
+names the fields it needs -- case, period, opening and closing debt and cash --
+which is a host-side declaration and not an upstream edit (§6).
+
+**A period the array omits is unavailable, not reconciled.** Falling back to the
+computed value as its own expectation is precisely the zero-residual defect.
+
+Phase 7 owes a worked input with a known non-zero residual and the downstream
+unavailability it propagates.
