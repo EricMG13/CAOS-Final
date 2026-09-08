@@ -55,8 +55,10 @@ Rules that do not bend:
 
 - **Transactional pairing.** A governed write commits state and its audit event
   in one transaction. A run-state transition commits state and its run event in
-  one transaction, and every event insert rides a conditional update — zero rows
-  updated means no event. That is what makes terminal events exactly-once.
+  one transaction, and no event is inserted without the transition it records —
+  proven either by the row lock the transition is taken under or by a
+  conditional update whose zero rows mean no event. That is what makes terminal
+  events exactly-once.
 - **`run_events.seq`** is per-run monotonic, allocated under the run row lock.
 - **Append-only** means append-only: `run_events`, `run_attempts`,
   `deliverable_opinions`, `model_revisions`, `audit_events` have no UPDATE path.

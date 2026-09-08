@@ -32,10 +32,14 @@ class BlobStore:
             # Write then rename: a reader never sees a half-written blob. The
             # temporary name is unique, so two writers of the same bytes cannot
             # interleave into one file and publish it under a digest it no
-            # longer matches.
+            # longer matches. Unique also means a failed write leaks a file
+            # rather than reusing one, so the failure path removes it.
             partial = blob.with_name(f"{digest}.{uuid.uuid4().hex}.partial")
-            partial.write_bytes(payload)
-            partial.replace(blob)
+            try:
+                partial.write_bytes(payload)
+                partial.replace(blob)
+            finally:
+                partial.unlink(missing_ok=True)
         return digest
 
     def get(self, digest: str) -> bytes:
