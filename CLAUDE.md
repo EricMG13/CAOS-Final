@@ -131,8 +131,9 @@ system this size means nobody looked.
   apart. *Upgrade:* enforce an exempt synonym the day it is actually misused.
 - **The two identifier gates read Python only.** TypeScript identifiers are
   unchecked. *Upgrade:* Phase 9, with the frontend.
-- **`io_budget.py --assert` enforces only that some `server/` module declares
-  an `IO_BUDGET`.** Per-path budgets are asserted by the suite, and the first is
-  Phase 2's `test_io_budget_read_evidence`. *Upgrade:* Phase 2 raises the floor
-  to one budget per request path.
+- **`io_budget.py --assert` enforces only that some `server/api/` module
+  declares an `IO_BUDGET`.** It keys on the route directory, not on `server/`:
+  a store module has no request path and no round-trip budget to declare.
+  *Upgrade:* Phase 2 raises the floor to one budget per request path, with
+  `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API, worker or schema until Phase 1.
