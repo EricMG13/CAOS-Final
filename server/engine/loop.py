@@ -21,6 +21,7 @@ from decimal import Decimal
 
 from server.boundary_text import BoundaryText
 from server.engine.route import Accepted, ResolvedRoute, frontier
+from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.attempts import accept, reserve
 from server.store.routes import pinned_route
@@ -65,9 +66,20 @@ def run_route(store: Store, *, run_id: str, execute: Executor) -> ResolvedRoute:
 def _run_node(
     store: Store, *, run_id: str, route_node_id: str, execute: Executor
 ) -> None:
+    reserved = _price()
     outcome = _attempt(
-        store, run_id=run_id, route_node_id=route_node_id, execute=execute
+        store,
+        run_id=run_id,
+        route_node_id=route_node_id,
+        reserved=reserved,
+        execute=execute,
     )
+    if outcome.charge > reserved:
+        # Invariant 8: every ceiling refuses before overspend. The reservation
+        # is that ceiling for one call, so a charge above it is an overspend
+        # that has already happened. Refusing keeps it out of the ledger, and
+        # the attempt row keeps its reserved exposure like any other crash.
+        raise Refusal(RefusalCode.CHARGE_EXCEEDS_RESERVATION)
     accept(
         store,
         run_id=run_id,
@@ -78,15 +90,24 @@ def _run_node(
 
 
 def _attempt(
-    store: Store, *, run_id: str, route_node_id: str, execute: Executor
+    store: Store,
+    *,
+    run_id: str,
+    route_node_id: str,
+    reserved: Decimal,
+    execute: Executor,
 ) -> NodeOutcome:
     """Reserve, commit the reservation, then call. In that order, always."""
-    reserve(store, run_id=run_id, route_node_id=route_node_id, amount=_price())
+    reserve(store, run_id=run_id, route_node_id=route_node_id, amount=reserved)
     store.commit()
     return execute(route_node_id)
 
 
 def _price() -> Decimal:
-    # ponytail: one flat price per node until a provider quotes a real one.
-    # The ceiling arithmetic is what matters here, not the number.
+    """What one node may cost. Reserved before the call, and its ceiling.
+
+    ponytail: one flat price until a provider quotes a real one. The number is
+    not the point -- that the reservation and the charge are the same quantity
+    is, so a provider cannot bill past what the budget agreed to.
+    """
     return Decimal("1.00")
