@@ -99,6 +99,9 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # The scan result is the gate; the uploaded artifact is not. Uploading
+          # needs `actions: write`, which this job has no other use for.
+          GITLEAKS_ENABLE_UPLOAD_ARTIFACT: "false"
 
   size:
     # AI PRs carry ~1.7x the issues of human PRs, and density rises with size.
