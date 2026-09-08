@@ -182,10 +182,14 @@ system this size means nobody looked.
   whole, with no migrations* rather than *every future table exists now*;
   tables nothing writes cannot have their columns checked by a test.
   *Upgrade:* each phase adds its own tables to the same file.
-- **Append-only is enforced by trigger on `run_events` alone.**
-  `run_attempts`, `deliverable_opinions`, `model_revisions` and `audit_events`
-  are equally append-only in the spec. *Upgrade:* each carries the same
-  `refuse_rewrite` trigger in the phase that creates it.
+- **Append-only is enforced on the four tables that exist.** `run_events`,
+  `source_sets`, `source_set_members` and `delivered_evidence` each refuse
+  UPDATE, DELETE and TRUNCATE. `run_attempts`, `deliverable_opinions`,
+  `model_revisions` and `audit_events` are equally append-only in the spec and
+  are not yet created. *Upgrade:* each carries both `refuse_rewrite` triggers in
+  the phase that creates it, and
+  `test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` fails until
+  it does.
 - **The identifier gates see only what git tracks.** A file added but not yet
   staged is invisible to `check_vocabulary.py` and `check_tested.py`, so
   `make check` can pass over code neither has read. *Upgrade:* stage before

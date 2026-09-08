@@ -157,3 +157,7 @@ CREATE OR REPLACE TRIGGER source_sets_no_truncate
 CREATE OR REPLACE TRIGGER source_set_members_no_truncate
     BEFORE TRUNCATE ON source_set_members
     FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER delivered_evidence_no_truncate
+    BEFORE TRUNCATE ON delivered_evidence
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
