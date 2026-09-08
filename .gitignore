@@ -7,6 +7,9 @@ frontend/.next/
 .dev-data/
 *.xlsx
 !tests/fixtures/**/*.xlsx
+# The bundle is vendored verbatim. A workbook it ships is authority,
+# and its own manifest hashes it -- an ignore rule must not filter it.
+!vendor/**
 .DS_Store
 .env
 bandit.json
