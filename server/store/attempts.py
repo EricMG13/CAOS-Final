@@ -16,6 +16,7 @@ import uuid
 from decimal import Decimal
 
 from server.boundary_text import BoundaryText
+from server.digests import checked_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 
@@ -65,8 +66,6 @@ def accept(
     charge: Decimal,
 ) -> None:
     """Record the artifact and its charge. This is what makes an attempt accepted."""
-    from server.digests import checked_digest
-
     with store.transaction():
         store.execute(
             "INSERT INTO artifacts (run_id, node_id, sha256) VALUES (%s, %s, %s)",

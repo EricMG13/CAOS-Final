@@ -176,7 +176,9 @@ system this size means nobody looked.
   defect `CONTEXT.md` exists to prevent. Nothing yet forces either.
   *Upgrade:* Phase 6, when the terminal path and the loop meet.
 - **One flat price per node.** `_price()` returns `Decimal("1.00")` until a
-  provider quotes a real one; the ceiling arithmetic is what is under test.
+  provider quotes a real one. It is both the reservation and the ceiling for
+  that call: a charge above it is refused, so a provider cannot bill past what
+  the budget agreed to.
 **Phase 3.**
 
 - **Nothing calls `pin_route` yet.** The pin exists and is binding once written,

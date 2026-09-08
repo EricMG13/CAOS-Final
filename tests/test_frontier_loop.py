@@ -160,3 +160,43 @@ def test_accepted_attempts_is_the_whole_of_execution_state(
     accepted = accepted_attempts(store, run_id=pinned)
     assert len(accepted) == 2
     assert all(len(a.artifact_sha256) == 64 for a in accepted.values())
+
+
+def test_a_charge_above_its_reservation_is_refused(store: Store, pinned: str) -> None:
+    # Invariant 8: every ceiling refuses the next operation before overspend.
+    # The reservation is that ceiling for one call, so a charge exceeding it is
+    # an overspend that already happened -- the ledger must not record it as if
+    # the budget had allowed it.
+    def expensive(route_node_id: str) -> NodeOutcome:
+        return NodeOutcome(artifact_sha256="e" * 64, charge=PRICE * 10)
+
+    with pytest.raises(Refusal) as caught:
+        run_route(store, run_id=pinned, execute=expensive)
+    assert caught.value.code is RefusalCode.CHARGE_EXCEEDS_RESERVATION
+
+    store.rollback()
+    assert store.execute(
+        "SELECT count(*) FROM budget_ledger WHERE run_id = %s", (pinned,)
+    ).fetchone() == (0,)
+    assert store.execute(
+        "SELECT count(*) FROM artifacts WHERE run_id = %s", (pinned,)
+    ).fetchone() == (0,)
+
+
+def test_a_charge_within_its_reservation_is_recorded_as_charged(
+    store: Store, pinned: str
+) -> None:
+    # The ledger records what it cost, not what was set aside for it.
+    cheap = Decimal("0.25")
+
+    def under(route_node_id: str) -> NodeOutcome:
+        return NodeOutcome(
+            artifact_sha256=f"{abs(hash(route_node_id)):064x}"[:64], charge=cheap
+        )
+
+    run_route(store, run_id=pinned, execute=under)
+    charged = store.execute(
+        "SELECT sum(amount) FROM budget_ledger WHERE run_id = %s", (pinned,)
+    ).fetchone()
+    assert charged is not None
+    assert charged[0] == cheap * 2
