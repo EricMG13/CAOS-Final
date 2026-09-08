@@ -11,6 +11,9 @@ CREATE TABLE IF NOT EXISTS runs (
     run_id      uuid PRIMARY KEY,
     case_id     text NOT NULL REFERENCES cases (case_id),
     state       text NOT NULL CHECK (state IN ('RUNNING', 'COMPLETE', 'FAILED')),
+    -- Every reservation counts against this, including the ones a crash left
+    -- indeterminate (docs/DECISIONS.md section 21).
+    ceiling     numeric(18, 6) NOT NULL DEFAULT 0 CHECK (ceiling >= 0),
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 
@@ -133,6 +136,20 @@ CREATE TABLE IF NOT EXISTS run_routes (
     pinned_at     timestamptz NOT NULL DEFAULT now()
 );
 
+-- One row per try, written and committed before the provider is called, so it
+-- survives the crash it exists to account for. Append-only: an attempt is never
+-- updated, so acceptance is the artifact row and an attempt without one is
+-- indeterminate by construction (docs/DECISIONS.md section 21).
+CREATE TABLE IF NOT EXISTS run_attempts (
+    attempt_id     uuid PRIMARY KEY,
+    run_id         uuid NOT NULL REFERENCES runs (run_id),
+    route_node_id  text NOT NULL,
+    reserved       numeric(18, 6) NOT NULL CHECK (reserved >= 0),
+    started_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS run_attempts_by_run ON run_attempts (run_id);
+
 -- Append-only means append-only. Enforced by the store, not by convention:
 -- a UPDATE or DELETE path that exists is a path that gets used.
 CREATE OR REPLACE FUNCTION refuse_rewrite() RETURNS trigger AS $$
@@ -149,6 +166,10 @@ CREATE OR REPLACE TRIGGER run_events_append_only
 -- what an already-executed run was pinned to.
 CREATE OR REPLACE TRIGGER source_sets_append_only
     BEFORE UPDATE OR DELETE ON source_sets
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER run_attempts_append_only
+    BEFORE UPDATE OR DELETE ON run_attempts
     FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
 
 CREATE OR REPLACE TRIGGER delivered_evidence_append_only

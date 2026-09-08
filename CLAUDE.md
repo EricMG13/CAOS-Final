@@ -147,6 +147,28 @@ system this size means nobody looked.
   the third reviewer; on a stacked PR it is absent. *Upgrade:* `@coderabbitai
   review` per stacked PR, or merge each phase to `main` before opening the
   next so the base is the default branch.
+**Phase 4.**
+
+- **Nodes run one at a time.** `SYSTEM_SPEC.md` §4 gathers the frontier
+  concurrently; that waits for a provider call worth overlapping and for a store
+  that can be awaited -- psycopg here is synchronous. Correctness does not
+  depend on it: the frontier is recomputed each pass either way.
+- **A node failure aborts the run rather than being retried.** `SYSTEM_SPEC.md`
+  §11 says a crash mid-node loses the attempt and the next pass retries the
+  node. Today the executor's exception propagates out of `run_route`. Retrying
+  instead makes a stalled loop possible -- a node that fails forever leaves the
+  frontier unchanged -- so the retry and the no-progress guard land together.
+  *Upgrade:* with the provider boundary in Phase 5.
+- **The loop never ends the run.** No node marks `runs.state` COMPLETE and no
+  terminal event is emitted; `commit_terminal` exists and the loop does not call
+  it. *Upgrade:* Phase 6, with the run surface.
+- **`artifacts.node_id` carries a route node id from the loop and a module id
+  from `commit_terminal`'s tests.** One column, two spellings, which is the
+  defect `CONTEXT.md` exists to prevent. Nothing yet forces either.
+  *Upgrade:* Phase 6, when the terminal path and the loop meet.
+- **One flat price per node.** `_price()` returns `Decimal("1.00")` until a
+  provider quotes a real one; the ceiling arithmetic is what is under test.
+
 **Phase 3.**
 
 - **Nothing calls `pin_route` yet.** The pin exists and is binding once written,
