@@ -70,18 +70,32 @@ Standing rules that back them:
 
 ## Where things live
 
-- `engine/route.py` — `resolve_route`, `dependency_order`, `node_states`,
-  `frontier`. Typed edges from `profile["edges"]`, never from
-  `navigation.dependencies`.
-- `engine/runtime.py` — the frontier loop. No checkpointer: recovery is
+Paths that exist today, then the ones each phase adds. A map that names a
+directory the repository does not have costs more than no map.
+
+- `server/engine/route.py` — `resolve_route`, `dependency_order`, `node_states`,
+  `frontier`, `route_digest`, and the host-declared model extension. Typed edges
+  from `profile["edges"]`, never from `navigation.dependencies`. Pure: no I/O.
+- `server/engine/loop.py` — the frontier loop. No checkpointer: recovery is
   recomputation from the accepted-attempt ledger.
-- `storage/` — Postgres owns everything transactional; bytes are content-
-  addressed in the blob store.
-- `methodology/` — bundle verification, the registry (the only seam for adding
-  or upgrading a module), and the calculator execution boundary.
-- `models/` — the build, and the workbook renderer that must match
-  `docs/MODEL_BUILDER_SPEC.md`.
-- `frontend/` — one workspace, nine sections, static export.
+- `server/store/` — Postgres owns everything transactional.
+  `server/store/schema.sql` is applied whole at startup, with no migrations.
+  The write paths are `server/store/runs.py`, `server/store/attempts.py`,
+  `server/store/routes.py` and `server/store/sources.py`;
+  `server/store/blobs.py` is the content-addressed blob store.
+- `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
+  way a module sees a document; `server/evidence/citations.py` re-locates a
+  quote and derives its rectangles.
+- `server/boundary_text.py`, `server/digests.py`, `server/refusals.py` — the
+  types every boundary uses.
+- `vendor/deploy-v/` — the methodology bundle, read-only and never edited
+  (`docs/DECISIONS.md` §6). The gates do not scan it.
+- `scripts/` — the five gates `make check` runs.
+
+Arriving with their phase, and not yet present: `methodology/` — bundle
+verification at use, the registry, the calculator boundary (Phase 5);
+`models/` — the build and the workbook renderer (Phase 7); `frontend/` — one
+workspace, nine sections, static export (Phase 9).
 
 ## Rules of work
 
