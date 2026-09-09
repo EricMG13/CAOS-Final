@@ -583,3 +583,58 @@ what a node was handed; `_anchor` refuses a citation naming anything else, which
 closes the half of invariant 9 that anchoring alone never could — the other
 document is in the same case, in the same pinned set, and carries the same
 sentence, so only the ledger can tell the two apart.
+
+## 2026-09-09 §30 — A gate is two tables: a re-openable ask and a once-only release
+
+Invariant 5 wants an approval bound to the exact reviewed content, and
+`docs/REBUILD_PLAN.md` Phase 6 wants the release to be a CAS transaction. One
+table with a nullable `decision`, released by a conditional UPDATE, would satisfy
+both readings of `SYSTEM_SPEC.md` §2 and is what the shape suggests. It is not
+what was built.
+
+**Decided.** `run_gates` holds what a person is being asked to approve and is
+re-openable while undecided. `run_gate_approvals` holds the release, is
+append-only, and its primary key `(run_id, kind)` *is* the compare-and-set. The
+approval row is copied from the gate row by the insert's own `SELECT`, so what
+it records is what the store held rather than what a caller claimed.
+
+**Reason.** The two halves have opposite requirements. The ask must move: a
+source is withdrawn, a plan is re-derived, and saying so is the point of
+re-opening a gate. The decision must not move at all. Splitting them lets the
+release carry `refuse_rewrite` and its TRUNCATE guard -- so
+`test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` covers it with
+no new machinery -- while the ask keeps the UPDATE path it needs. A single table
+could carry neither guard, and an approval a raw statement can rewrite is not an
+approval. The cost is that `run_gates` itself is unguarded at the store; that is
+in the known-gaps ledger with its upgrade.
+
+**Two digests, not one.** `preview_sha256` is the bytes a person read.
+`input_fingerprint` is what those bytes were rendered from. Content that renders
+identically over different inputs -- a withdrawn source contributing no visible
+line, an ordering the renderer normalises away -- is different content, and the
+fingerprint is what refuses it.
+
+**Consequence.** Every run event is now allocated by one emitter,
+`server/store/events.py`, which takes the run row lock itself. `run_events.seq`
+was safe only by accident before: `commit_terminal` held that lock for its own
+reasons and `pin_route` was serialised by `run_routes_pkey`. Gate events are the
+first path with neither, and two concurrent inserts collided on
+`run_events_pkey` -- verified by removing the lock and watching
+`test_concurrent_emitters_allocate_distinct_sequences` fail with exactly that
+constraint name. `SYSTEM_SPEC.md` §10 already asked for one emitter; this is it,
+and `test_only_the_emitter_inserts_a_run_event` is what keeps it the only one.
+
+**Lock ordering, checked rather than assumed.** `emit` takes the run row
+`FOR UPDATE`, and `pin_route` calls it *after* inserting into `run_routes` --
+which has already taken KEY SHARE on that same run row through its foreign key.
+That is a lock upgrade, and a lock upgrade behind a queued waiter is the classic
+deadlock. It was measured on this PostgreSQL rather than reasoned about: a
+holder of KEY SHARE upgrades to FOR UPDATE with another transaction already
+queued for FOR UPDATE, and neither aborts. The shape that would deadlock is two
+transactions *both* upgrading, and nothing reaches it: a second concurrent
+`pin_route` collides on `run_routes_pkey` during the index insert, before its
+foreign key trigger fires, so it never holds KEY SHARE at all; `accept` takes
+KEY SHARE and never upgrades; and both gate paths take the run row lock first
+and so never hold KEY SHARE before it. `pin_route` is therefore left as it is.
+A new path that writes a child row of `runs` and then emits should take the run
+row lock first, which is what both gate paths do.

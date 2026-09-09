@@ -52,14 +52,20 @@ def test_run_events_refuses_a_delete(store: Store) -> None:
 
 @pytest.mark.parametrize(
     "table",
-    ["run_events", "source_set_members", "delivered_evidence", "run_attempts"],
+    [
+        "run_events",
+        "source_set_members",
+        "delivered_evidence",
+        "run_attempts",
+        "run_gate_approvals",
+    ],
 )
 def test_an_append_only_table_refuses_a_truncate(store: Store, table: str) -> None:
     """Refuse truncation for every directly guarded append-only table."""
     # A row-level trigger never sees TRUNCATE: it empties the table without
     # producing a row to fire on. Statement-level is the only guard that catches
     # it, and TRUNCATE is the one statement that erases a whole ledger at once.
-    # Nothing references these four, so each table's own trigger is what refuses.
+    # Nothing references these five, so each table's own trigger is what refuses.
     with pytest.raises(psycopg.errors.RaiseException) as caught:
         store.execute(f"TRUNCATE {table}")
     assert caught.value.diag.message_primary == "APPEND_ONLY_TABLE"
@@ -135,8 +141,8 @@ def test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate(
         " GROUP BY c.relname ORDER BY c.relname"
     ).fetchall()
     # A query that matched nothing would pass the assertions below without
-    # having read a single trigger. Five tables carry `refuse_rewrite` today.
-    assert len(guarded) >= 5, f"the query or the schema moved: {guarded}"
+    # having read a single trigger. Six tables carry `refuse_rewrite` today.
+    assert len(guarded) >= 6, f"the query or the schema moved: {guarded}"
     rewritable = [table for table, rewrite, _ in guarded if not rewrite]
     truncatable = [table for table, _, truncate in guarded if not truncate]
     assert rewritable == [], f"append-only but rewritable: {rewritable}"

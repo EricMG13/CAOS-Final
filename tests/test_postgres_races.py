@@ -20,6 +20,8 @@ from server.boundary_text import BoundaryText
 from server.engine.route import ResolvedRoute, resolve_route, route_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
+from server.store.events import EventKind, emit
+from server.store.gates import Gate, GateKind, approve_gate, open_gate
 from server.store.routes import pin_route
 from server.store.runs import TerminalCommit, commit_terminal, start_run
 
@@ -157,3 +159,56 @@ def test_a_concurrent_pin_of_a_different_route_refuses_by_code(
         outcomes = sorted(pool.map(pin, [ASSESSMENT, PORTFOLIO]))
 
     assert outcomes == [RefusalCode.ROUTE_ALREADY_PINNED.value, "pinned"]
+
+
+def test_two_connections_release_one_gate_once(
+    store: Store, store_schema: str, postgres_dsn: str
+) -> None:
+    # Invariant 5: a single-actor release is a store CAS transaction. Two people
+    # reading the same preview and pressing approve together must produce one
+    # approval and one event, and the loser must learn it was a replay rather
+    # than see a primary key.
+    run_id = start_run(store, case_id=CASE)
+    gate = Gate(run_id, GateKind.SOURCE_SET, "a" * 64, "b" * 64)
+    open_gate(store, gate)
+    store.commit()
+
+    def release(approver: str) -> bool:
+        with _connect(postgres_dsn, store_schema) as connection:
+            return approve_gate(connection, gate, approver=BoundaryText.of(approver))
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = sorted(pool.map(release, ["ana", "bo"]))
+
+    assert outcomes == [False, True]
+    counted = store.execute(
+        "SELECT (SELECT count(*) FROM run_gate_approvals),"
+        " (SELECT count(*) FROM run_events WHERE kind = 'GATE_APPROVED')"
+    ).fetchone()
+    assert counted == (1, 1), "one release, one GATE_APPROVED event"
+
+
+def test_concurrent_emitters_allocate_distinct_sequences(
+    store: Store, store_schema: str, postgres_dsn: str
+) -> None:
+    """`max(seq) + 1` is safe only while one allocator reads it at a time.
+
+    Two guards used to supply that by accident: `commit_terminal` holds the run
+    row lock for its own reasons, and `pin_route` is serialised by
+    `run_routes_pkey`. Any third path had neither, and two concurrent inserts of
+    the same kind collided on `run_events_pkey` -- a vendor constraint name
+    escaping a governed write. Gate events are that third path, so the emitter
+    takes the lock itself and this is what says so.
+    """
+    run_id = start_run(store, case_id=CASE)
+    store.commit()
+
+    def append(_: int) -> int:
+        with _connect(postgres_dsn, store_schema) as connection:
+            with connection.transaction():
+                return emit(connection, run_id=run_id, kind=EventKind.GATE_OPENED)
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        seqs = sorted(pool.map(append, range(6)))
+
+    assert seqs == [1, 2, 3, 4, 5, 6]

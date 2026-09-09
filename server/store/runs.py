@@ -16,6 +16,7 @@ from server.boundary_text import BoundaryText
 from server.digests import checked_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
+from server.store.events import EventKind, emit
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,8 +52,8 @@ def commit_terminal(connection: Store, commit: TerminalCommit) -> bool:
 
     The run row lock is taken before anything is read or written, so exactly one
     caller can see RUNNING: a replay finds COMPLETE and writes no artifact, no
-    charge and no event. The lock is also what makes `max(seq) + 1` safe, since
-    two callers cannot read the same sequence.
+    charge and no event. The event itself goes through `emit`, which takes the
+    same lock -- free here, and the reason no other path has to remember to.
 
     False means "this delivery already happened", so only a COMPLETE run may
     answer it. A run that does not exist, and one that failed, are refused --
@@ -88,10 +89,5 @@ def commit_terminal(connection: Store, commit: TerminalCommit) -> bool:
             "INSERT INTO budget_ledger (run_id, node_id, amount) VALUES (%s, %s, %s)",
             (commit.run_id, commit.node_id.value, commit.charge),
         )
-        connection.execute(
-            "INSERT INTO run_events (run_id, seq, kind)"
-            " SELECT %s, coalesce(max(seq), 0) + 1, 'RUN_COMPLETED'"
-            " FROM run_events WHERE run_id = %s",
-            (commit.run_id, commit.run_id),
-        )
+        emit(connection, run_id=commit.run_id, kind=EventKind.RUN_COMPLETED)
     return True
