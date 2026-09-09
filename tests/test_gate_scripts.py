@@ -267,3 +267,78 @@ def test_tracked_python_ignores_vendored_upstream_code(tmp_path: Path) -> None:
     subprocess.run(["git", "-C", str(tmp_path), "add", "-A"], check=True)
 
     assert tracked.tracked_python(tmp_path) == [tmp_path / "ours.py"]
+
+
+def _tracked_under(*directories: str) -> list[str]:
+    """What a bandit run over `directories` is expected to have measured."""
+    return sorted(
+        name
+        for directory in directories
+        for name in scan_floors.expected_files(REPO, directory)
+    )
+
+
+def test_scan_floor_refuses_a_report_that_skipped_a_file_it_should_have_covered(
+    tmp_path: Path,
+) -> None:
+    # --min-files 1 is the floor `make security` used, and it passes on a report
+    # that measured one file out of twenty-nine. The failure scan_floors exists
+    # to catch -- bandit silently skipping files on a new interpreter -- is
+    # partial, not total, so the floor has to name the file that went unscanned.
+    expected = _tracked_under("scripts")
+    skipped = expected[0]
+    report = _report(tmp_path, files=expected[1:], errors=[])
+
+    result = _run("scan_floors.py", report, "--cover", "scripts")
+
+    assert result.returncode != 0
+    assert skipped in result.stdout + result.stderr
+
+
+def test_scan_floor_accepts_a_report_that_covered_every_file_it_should_have(
+    tmp_path: Path,
+) -> None:
+    covered = ["scripts", "server", "methodology"]
+    report = _report(tmp_path, files=_tracked_under(*covered), errors=[])
+    result = _run("scan_floors.py", report, "--cover", *covered, "--unscanned", "tests")
+    assert result.returncode == 0, result.stdout + result.stderr
+
+
+def test_scan_floor_refuses_a_tracked_file_that_no_target_accounts_for(
+    tmp_path: Path,
+) -> None:
+    # The floor bandit actually needs. Its 3.14 failure puts every file in
+    # `metrics` and lists them under `errors`, so --no-parse-errors is what
+    # catches that one. What nothing catches is a source directory nobody
+    # pointed the scanner at -- `models/` in Phase 7, and Python either way.
+    report = _report(tmp_path, files=_tracked_under("scripts"), errors=[])
+
+    result = _run("scan_floors.py", report, "--cover", "scripts")
+
+    assert result.returncode != 0
+    output = result.stdout + result.stderr
+    assert "server/refusals.py" in output
+    assert "methodology/bundle.py" in output
+
+
+def test_unaccounted_files_is_empty_once_every_directory_is_named() -> None:
+    every = ["scripts", "server", "methodology", "tests"]
+    assert scan_floors.unaccounted_files(REPO, every) == []
+    assert "tests/conftest.py" in scan_floors.unaccounted_files(REPO, ["scripts"])
+
+
+def test_expected_files_names_what_git_tracks_under_the_scanned_directories() -> None:
+    expected = scan_floors.expected_files(REPO, "scripts")
+    assert "scripts/scan_floors.py" in expected
+    assert all(name.startswith("scripts/") for name in expected)
+
+
+def test_scan_floor_refuses_a_target_directory_that_holds_no_tracked_file(
+    tmp_path: Path,
+) -> None:
+    # A mistyped --cover would expect nothing, and expecting nothing is the
+    # vacuous floor this flag replaced. It has to fail closed on its own typo.
+    report = _report(tmp_path, files=_tracked_under("scripts"), errors=[])
+    result = _run("scan_floors.py", report, "--cover", "srcipts")
+    assert result.returncode != 0
+    assert "srcipts" in result.stdout + result.stderr
