@@ -44,7 +44,7 @@ blob store keyed by `sha256`; the database holds the digest, never the bytes.
 | Group | Tables |
 |---|---|
 | Tenancy | `cases`, `case_members`, `users` |
-| Evidence | `sources`, `source_sets`, `source_set_members`, `source_blocks`, `source_tokens` |
+| Evidence | `sources` (read through the `live_sources` view, `docs/DECISIONS.md` §45), `source_sets`, `source_set_members`, `source_blocks`, `source_tokens` |
 | Runs | `runs`, `run_routes`, `run_nodes`, `run_attempts`, `run_events`, `budget_ledger` |
 | Artifacts | `artifacts`, `snapshots`, `snapshot_members` |
 | Model | `model_builds`, `model_revisions`, `assumptions`, `calculations` |
@@ -435,8 +435,9 @@ job failures, intake dispositions.
 **Never log source text, evidence block text, module output, prompts, or
 anything a document produced.** Log the typed code, never the exception string.
 Every string, including nested mapping keys, is redacted and truncated. The ban
-is enforced by a test that drives a sentinel document through real ingestion and
-a real agent node.
+is to be enforced by a test that drives a sentinel document through real
+ingestion and a real agent node; nothing in the tree logs yet, and the test
+arrives with the first logger (`docs/DECISIONS.md` §45).
 
 ---
 

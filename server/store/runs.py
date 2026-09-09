@@ -14,9 +14,8 @@ from decimal import Decimal
 
 from server.boundary_text import BoundaryText
 from server.digests import checked_digest
-from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.events import EventKind, emit
+from server.store.events import EventKind, emit, lock_run, require_running
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,16 +62,10 @@ def commit_terminal(connection: Store, commit: TerminalCommit) -> bool:
         # Held for the rest of the transaction, so this state is authoritative:
         # a concurrent deliverer has already committed COMPLETE by the time the
         # lock is granted, and this read sees that version, not a stale one.
-        locked = connection.execute(
-            "SELECT state FROM runs WHERE run_id = %s FOR UPDATE", (commit.run_id,)
-        ).fetchone()
-        if locked is None:
-            raise Refusal(RefusalCode.RUN_NOT_FOUND)
-        state = locked[0]
-        if state == "COMPLETE":
+        run = lock_run(connection, run_id=commit.run_id, running=False)
+        if run.state == "COMPLETE":
             return False
-        if state != "RUNNING":
-            raise Refusal(RefusalCode.RUN_NOT_RUNNING)
+        require_running(run)
 
         connection.execute(
             "UPDATE runs SET state = 'COMPLETE' WHERE run_id = %s", (commit.run_id,)

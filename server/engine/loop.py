@@ -127,11 +127,11 @@ def run_route(
 def _run_node(
     store: Store, *, run_id: str, route_node_id: str, execute: Executor
 ) -> None:
+    # One boundary crossing for the node id, which reaches two ledgers.
+    node = BoundaryText.of(route_node_id)
     try:
         prepared = execute(route_node_id)
-        reserve(
-            store, run_id=run_id, route_node_id=route_node_id, amount=prepared.ceiling
-        )
+        reserve(store, run_id=run_id, route_node_id=node, amount=prepared.ceiling)
     except Refusal:
         # Assembly records what a node was handed before the reservation can
         # refuse. A node that never ran was handed nothing; the rows are
@@ -151,7 +151,7 @@ def _run_node(
     accept(
         store,
         run_id=run_id,
-        node_id=BoundaryText.of(route_node_id),
+        node_id=node,
         artifact_sha256=outcome.artifact_sha256,
         charge=outcome.charge,
     )

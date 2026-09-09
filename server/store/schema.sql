@@ -88,6 +88,16 @@ CREATE TABLE IF NOT EXISTS sources (
 CREATE UNIQUE INDEX IF NOT EXISTS sources_admitted_once
     ON sources (case_id, sha256) WHERE withdrawn_at IS NULL;
 
+-- The sources a run may use. Every read of a source goes through this view, so
+-- the withdrawal predicate lives in one place rather than in every SELECT that
+-- has to remember it -- four did, and the fifth forgot (docs/DECISIONS.md 45).
+-- The owner writes `sources` directly, and the pin reads it once to count the
+-- withdrawn and say so.
+CREATE OR REPLACE VIEW live_sources AS
+    SELECT source_id, case_id, sha256, created_at
+      FROM sources
+     WHERE withdrawn_at IS NULL;
+
 -- The coordinate index behind invariant 11: one row per extracted text run with
 -- its page and rectangle. Tokens are never returned to a module; they exist so
 -- the host can re-locate a quote and refuse one it cannot. Keyed so that one
@@ -294,4 +304,15 @@ CREATE OR REPLACE TRIGGER run_attempts_no_truncate
 
 CREATE OR REPLACE TRIGGER run_gate_approvals_no_truncate
     BEFORE TRUNCATE ON run_gate_approvals
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
+
+-- A run pinned to one route never executes under another (invariant 10). A
+-- pin a raw statement could move or drop is not a pin, and a replay reads the
+-- row back to say whether it stands -- which needs the row to be there.
+CREATE OR REPLACE TRIGGER run_routes_append_only
+    BEFORE UPDATE OR DELETE ON run_routes
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER run_routes_no_truncate
+    BEFORE TRUNCATE ON run_routes
     FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();

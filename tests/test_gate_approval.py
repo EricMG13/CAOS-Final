@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import replace
+from decimal import Decimal
 from pathlib import Path
 
 import psycopg
@@ -24,7 +25,7 @@ import pytest
 from server.boundary_text import BoundaryText
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.events import EventKind, emit, lock_run
+from server.store.events import EventKind, LockedRun, emit, lock_run, require_running
 from server.store.gates import (
     Gate,
     GateKind,
@@ -239,6 +240,32 @@ def test_the_emitter_refuses_an_unknown_run(store: Store) -> None:
         with store.transaction():
             emit(store, run_id=str(uuid.uuid4()), kind=EventKind.GATE_OPENED)
     assert caught.value.code is RefusalCode.RUN_NOT_FOUND
+
+
+def test_lock_run_reports_the_run_it_holds_and_refuses_one_that_left_running(
+    store: Store,
+) -> None:
+    # The one seam every governed write goes through: what it hands back is
+    # read under the lock, and a run that has left RUNNING is refused there
+    # unless the caller says it will read the state itself.
+    run_id = start_run(store, case_id=CASE, ceiling=Decimal("3"))
+    with store.transaction():
+        held = lock_run(store, run_id=run_id)
+    assert held == LockedRun(run_id, CASE.value, "RUNNING", Decimal("3"))
+
+    store.execute("UPDATE runs SET state = 'FAILED' WHERE run_id = %s", (run_id,))
+    with pytest.raises(Refusal) as caught, store.transaction():
+        lock_run(store, run_id=run_id)
+    assert caught.value.code is RefusalCode.RUN_NOT_RUNNING
+    # A caller that answers a replay first reads the state itself, then asks
+    # the same question through the same one function before writing.
+    with store.transaction():
+        failed = lock_run(store, run_id=run_id, running=False)
+    assert failed.state == "FAILED"
+    with pytest.raises(Refusal) as caught:
+        require_running(failed)
+    assert caught.value.code is RefusalCode.RUN_NOT_RUNNING
+    assert require_running(held) is held
 
 
 def test_lock_run_refuses_an_unknown_run(store: Store) -> None:

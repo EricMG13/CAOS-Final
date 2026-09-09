@@ -88,8 +88,10 @@ directory the repository does not have costs more than no map.
   `server/store/members.py` (case standing, read where a gate is released),
   `server/store/sources.py` (admission) and `server/store/source_sets.py`
   (pinning); `server/store/events.py` is the one emitter every run event is
-  allocated through, and `server/store/blobs.py` is the content-addressed blob
-  store.
+  allocated through and holds `lock_run`, the one seam every governed write
+  takes the run row through; the `live_sources` view in `schema.sql` is the
+  one every read of a source goes through; and `server/store/blobs.py` is the
+  content-addressed blob store.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
   quote and derives its rectangles.
@@ -388,6 +390,14 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   `member_id` is the same text an approval records in `approved_by`, and
   nothing yet joins it to a person. *Upgrade:* identity derivation, which is
   the first thing with a person to record.
+- **Two structural tests are lexical.** `test_only_lock_run_takes_the_run_row_lock`
+  and `test_only_the_owner_reads_the_sources_table` read `server/` as text for
+  `FOR UPDATE` beside `FROM runs`, and for `FROM` or `JOIN sources`, in any
+  case; a statement assembled at runtime, or one that reaches the table by
+  another spelling, passes them. The same shape as `check_tested.py`'s
+  haystack, and the same honesty: they catch the write that forgot, not the
+  write that hid. *Upgrade:* a parser over the statements the store actually
+  issues, the day a query is built rather than written.
 - **Granting and revoking standing check nothing about who is doing it.**
   `grant_membership` and `revoke_membership` take no actor: any caller holding
   a connection can make anyone `ADMIN` on any case, or strip a case's last
@@ -547,6 +557,18 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   from `checked_digest`, rather than a citation-shaped code. Public-safe
   either way; it names the wrong layer. *Upgrade:* when the refusal codes
   reach a surface a person reads.
+- **Four costs measured and not yet paid down** (`docs/DECISIONS.md` §45). A
+  node reads its evidence one block at a time through `read_evidence` -- one
+  transaction and two statements per block, so a 500-block set is a thousand
+  round trips -- and `anchor_citation` re-fetches a page's tokens for every
+  citation on that page. `parse_envelope` re-checks the bundle's schema
+  against the meta-schema on every call, 2 ms of a 2.5 ms parse, where a
+  validator compiled once per schema digest would do. `run_calculator` opens
+  the bundle three times per call. Each is real, none is on a path a person
+  waits on yet, and each is its own concern. *Upgrade:* a batched read that
+  still records delivery exactly once per block; a call-scoped page cache in
+  `_anchor`; a validator cached by digest; the open bundle threaded through
+  `calculator_spec` -- the slice that first times a node.
 - **`max_output_tokens` is one constant for every module.** `SYSTEM_SPEC.md`
   §3 puts it on `ModuleSpec`; no module has needed a different ceiling yet.
   *Upgrade:* the first module that does.
@@ -785,6 +807,9 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 - **A source admitted with no tokens is accepted.** Every citation against it
   is then refused, which is correct but late; a scanned document with no text
   layer should be refused at intake. *Upgrade:* the ingestion slice.
-- **A run's terminal event is the only event kind.** `RUN_COMPLETED` is
-  written; failure and node-level transitions are not. *Upgrade:* Phase 4,
-  with the frontier loop that produces them.
+- **A run's terminal event is the only run-level event kind.** `RUN_COMPLETED`
+  is written; failure is not, and no node-level transition is: `accept` writes
+  the artifact and the charge and emits nothing, though `SYSTEM_SPEC.md` §10
+  puts every node transition through the one emitter. Phase 4 built the loop
+  without them and this entry once said Phase 4 would bring them. *Upgrade:*
+  the SSE slice, which is the first reader of a stream that would carry them.

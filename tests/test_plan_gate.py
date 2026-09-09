@@ -282,6 +282,25 @@ def test_approving_the_same_plan_twice_is_the_pin_it_already_has(
     ]
 
 
+def test_a_pinned_plan_replays_as_pinned_after_the_run_ends(store: Store) -> None:
+    # Recovery replays the approval on runs in every state, and the run may
+    # have ended between the commit and the replay. The gate already answers a
+    # replay before the run's state; the pin has to as well, or a replay that
+    # changes nothing refuses RUN_NOT_RUNNING -- the first draft of the run
+    # lock did exactly that, and the adversarial pass reproduced it live.
+    version = _evidence(store, "a" * 64)
+    run_id = _run(store)
+    plan = _plan(version)
+    open_plan_gate(store, run_id=run_id, plan=plan)
+    pinned = approve_plan(store, run_id=run_id, plan=plan, approver=APPROVER)
+
+    store.execute("UPDATE runs SET state = 'COMPLETE' WHERE run_id = %s", (run_id,))
+    assert approve_plan(store, run_id=run_id, plan=plan, approver=APPROVER) == pinned
+    assert open_plan_gate(store, run_id=run_id, plan=plan) == plan_gate(
+        run_id, plan, ("a" * 64,)
+    )
+
+
 def test_a_plan_cannot_be_approved_before_it_is_opened(store: Store) -> None:
     version = _evidence(store, "a" * 64)
     run_id = _run(store)

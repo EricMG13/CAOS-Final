@@ -30,7 +30,7 @@ from server.boundary_text import BoundaryText
 from server.digests import checked_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.events import EventKind, emit, lock_run
+from server.store.events import EventKind, emit, lock_run, require_running
 from server.store.members import Standing, require_standing
 
 # The standings that may clear an interrupt. A reader or a writer is shown the
@@ -71,7 +71,7 @@ def open_gate(store: Store, gate: Gate) -> bool:
     """
     content = _content(gate)
     with store.transaction():
-        _, state = lock_run(store, run_id=gate.run_id)
+        run = lock_run(store, run_id=gate.run_id, running=False)
         released = _released_content(store, gate)
         if released is not None:
             if released == content:
@@ -79,7 +79,7 @@ def open_gate(store: Store, gate: Gate) -> bool:
             raise Refusal(RefusalCode.GATE_ALREADY_DECIDED)
         if _asked_content(store, gate) == content:
             return False
-        _require_running(state)
+        require_running(run)
         store.execute(
             "INSERT INTO run_gates (run_id, kind, preview_sha256, input_fingerprint)"
             " VALUES (%s, %s, %s, %s)"
@@ -119,16 +119,16 @@ def approve_gate(store: Store, gate: Gate, *, approver: BoundaryText) -> bool:
     """
     content = _content(gate)
     with store.transaction():
-        case_id, state = lock_run(store, run_id=gate.run_id)
+        run = lock_run(store, run_id=gate.run_id, running=False)
         released = _released_content(store, gate)
         if released == content:
             return False
         require_standing(
-            store, case_id=case_id, member_id=approver, allowed=_MAY_RELEASE
+            store, case_id=run.case_id, member_id=approver, allowed=_MAY_RELEASE
         )
         if released is not None:
             raise Refusal(RefusalCode.APPROVAL_CONTENT_CHANGED)
-        _require_running(state)
+        require_running(run)
         written = store.execute(
             "INSERT INTO run_gate_approvals"
             " (run_id, kind, preview_sha256, input_fingerprint, approved_by)"
@@ -155,12 +155,6 @@ def gate_released(store: Store, *, run_id: str, kind: GateKind) -> bool:
         (run_id, kind.value),
     ).fetchone()
     return found is not None
-
-
-def _require_running(state: str) -> None:
-    """A run that has left RUNNING has no decision left to take."""
-    if state != "RUNNING":
-        raise Refusal(RefusalCode.RUN_NOT_RUNNING)
 
 
 def _content(gate: Gate) -> tuple[str, str]:

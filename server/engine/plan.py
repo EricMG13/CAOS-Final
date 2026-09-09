@@ -156,8 +156,8 @@ def _members(store: Store, plan: Plan) -> tuple[str, ...]:
     """
     rows = store.execute(
         "SELECT s.sha256 FROM source_set_members m"
-        " JOIN sources s ON s.source_id = m.source_id"
-        " WHERE m.case_id = %s AND m.version = %s AND s.withdrawn_at IS NULL",
+        " JOIN live_sources s ON s.source_id = m.source_id"
+        " WHERE m.case_id = %s AND m.version = %s",
         (plan.case_id.value, plan.source_set_version),
     ).fetchall()
     if not rows:

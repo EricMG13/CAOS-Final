@@ -65,21 +65,21 @@ def read_evidence(store: Store, request: EvidenceRequest) -> Block:
     membership, case ownership, run ownership and existence are one question
     with one answer. Splitting them would answer four, and the differences
     between those answers are what a module would read the case with.
-    Withdrawal is a fifth predicate of the same statement, checked live at this
-    use as invariant 1 asks, and a withdrawn block is refused as any block the
-    module was not given.
+    Withdrawal is checked live at this use as invariant 1 asks, by reading the
+    source through `live_sources` -- the one view every use of a source goes
+    through -- so a withdrawn block is refused as any block the module was not
+    given.
     """
     run_id, digest = _checked(request)
     with store.transaction():
         found = store.execute(
             "SELECT b.source_id, b.block_id, b.page, b.text"
             " FROM source_blocks b"
-            " JOIN sources s ON s.source_id = b.source_id"
+            " JOIN live_sources s ON s.source_id = b.source_id"
             " JOIN source_set_members m ON m.source_id = b.source_id"
             " JOIN runs r ON r.run_id = %s AND r.case_id = m.case_id"
             " WHERE m.case_id = %s AND m.version = %s"
-            " AND s.case_id = %s AND s.sha256 = %s AND s.withdrawn_at IS NULL"
-            " AND b.block_id = %s",
+            " AND s.case_id = %s AND s.sha256 = %s AND b.block_id = %s",
             (
                 run_id,
                 request.case_id.value,

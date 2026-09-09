@@ -12,6 +12,7 @@ refused as the stale content it is.
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from dataclasses import replace
 from decimal import Decimal
@@ -31,7 +32,7 @@ from server.store.events import EventKind
 from server.store.gates import GateKind, approve_gate, gate_released, released_gate
 from server.store.members import Standing, grant_membership
 from server.store.runs import start_run
-from server.store.source_sets import pin_source_set
+from server.store.source_sets import pin_source_set, pinned_evidence
 from server.store.sources import (
     Block,
     SourceDocument,
@@ -292,6 +293,39 @@ def test_a_plan_over_only_withdrawn_sources_has_nothing_to_approve(
     with pytest.raises(Refusal) as caught:
         open_plan_gate(store, run_id=run_id, plan=_plan(version))
     assert caught.value.code is RefusalCode.SOURCE_SET_EMPTY
+
+
+def test_pinned_evidence_lists_only_live_sources(store: Store) -> None:
+    # The fifth use, missed by the first draft: what a node is handed. A
+    # withdrawn source's blocks in that list are reads the node will make and
+    # the host will refuse, one by one -- a failed node instead of a narrower
+    # evidence set. Every reader now joins `live_sources`, so a use cannot
+    # forget the predicate by being written after the rule.
+    a, b = _admit(store, A, B)
+    version = pin_source_set(store, case_id=CASE, source_ids=(a, b))
+    _writer(store)
+    _withdraw(store, b)
+    assert pinned_evidence(store, case_id=CASE, source_set_version=version) == ((A, 0),)
+
+
+def test_only_the_owner_reads_the_sources_table() -> None:
+    """One seam owns "sources a run may use": the `live_sources` view.
+
+    The withdrawal predicate was retyped by hand at four reads and forgotten at
+    the fifth. A `FROM sources` or `JOIN sources` anywhere but the owner (which
+    withdraws) and the pin (which counts the withdrawn to say so) is a read
+    that may have forgotten it again. Lexical, and the ledger says so: it
+    reads the source for the phrase, in any case, and cannot see a statement
+    assembled at runtime.
+    """
+    repo = Path(__file__).resolve().parents[1]
+    table = re.compile(r"\b(?:FROM|JOIN)\s+sources\b", re.IGNORECASE)
+    reading = sorted(
+        str(path.relative_to(repo))
+        for path in (repo / "server").rglob("*.py")
+        if table.search(path.read_text(encoding="utf-8"))
+    )
+    assert reading == ["server/store/source_sets.py", "server/store/sources.py"]
 
 
 def test_a_citation_does_not_anchor_in_a_withdrawn_source(store: Store) -> None:
