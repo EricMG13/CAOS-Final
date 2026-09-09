@@ -159,6 +159,15 @@ system this size means nobody looked.
   the suite means a skip list that would also mask those checks in `server/`.
   *Upgrade:* scan `tests/` with B101 and B613 skipped, the day a test helper
   does something a scanner should have an opinion about.
+- **The vendored bundle carries no licence, and the repository is public.**
+  `vendor/deploy-v/` is 349 files and 5.3 MB with no licence file, no copyright
+  notice and no provenance statement -- searched for, not assumed. `LICENSE`
+  carves it out and says so (`docs/DECISIONS.md` §30), which states this
+  repository's position and does not obtain terms for redistributing somebody
+  else's bytes from a public repository. Invariant 4 makes the bundle
+  authority; it does not make it ours. *Upgrade:* terms from whoever authored
+  Deploy V, or a private repository -- the copyright holder's call, and the
+  only known gap in this ledger that code cannot close.
 - **No `image` CI job.** There is no Dockerfile and no runtime lock with
   packages in it, so Trivy would report every target as *not scanned*
   (`docs/DECISIONS.md` §11). *Upgrade:* the phase that adds the Dockerfile adds
