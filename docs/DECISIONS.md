@@ -484,8 +484,41 @@ process group, so a calculator's own children die with it.
 **Reason.** The boundary's premise is that a module never supplies code. A
 calculator that can reach the host's installed packages makes that premise
 false, and only a flag stands between the two.
+## 2026-09-09 §27 — "No migrations" is enforced at startup, not assumed
 
-## 2026-09-09 §27 — The Anthropic SDK, not raw HTTP
+`server/store/schema.sql` opened by claiming that a file applied in full at
+startup makes drift impossible. It does not. Verified against PostgreSQL 16:
+
+    CREATE TABLE IF NOT EXISTS t (a int);
+    CREATE TABLE IF NOT EXISTS t (a int, b text);
+
+leaves `t` with column `a` only — no error, no warning. Adding a *new* table to
+the file works exactly as the file intends; changing an *existing* one silently
+does nothing, and a long-running instance keeps the old shape while the file
+says otherwise. CLAUDE.md's ledger recorded the case that works and not the case
+that does not.
+
+**`apply_schema` now compares and refuses.** It applies the file a second time
+into an empty schema created for the comparison, describes both schemas from
+`pg_catalog` — columns with type, nullability, identity and default;
+constraints; indexes; triggers — and raises `SchemaDrifted` naming what differs
+if the two sets are not equal. This is the §11 posture: refuse before acting.
+
+**Postgres parses the file, not us.** The alternative was a SQL parser in
+Python deciding what `schema.sql` declares, which is a second implementation of
+DDL semantics that can disagree with the first. Applying the file to an empty
+schema is the same authority answering the question about itself.
+
+**A schema that was empty before the file was applied is not compared.** There
+is nothing for it to have drifted from, and the comparison costs a second full
+apply — which every test would otherwise pay for a state it cannot reach. A
+first boot skips it; every restart after it pays for one.
+
+**Refusing, not repairing.** A mismatch is reconciled by hand. Generating the
+`ALTER TABLE` would be a migration engine, which is the thing §12's no-ORM
+decision and this file's shape exist to avoid.
+
+## 2026-09-09 §28 — The Anthropic SDK, not raw HTTP
 
 `anthropic==1.4.0` enters `requirements.in`, bringing 14 transitive packages
 (`httpx2`, `pydantic`, `anyio`, `truststore` and their dependencies) into a

@@ -1,6 +1,10 @@
 -- Applied in full at startup. There are no migrations: the schema is one file
--- and the store is created from it, so what a fresh instance has and what a
--- running one has cannot drift.
+-- and the store is created from it. That does not make drift impossible on its
+-- own -- `CREATE TABLE IF NOT EXISTS` is a no-op on a table that already
+-- exists, including one whose columns this file has since changed, so editing
+-- a table here leaves a running store on the old shape with no error and no
+-- warning. `apply_schema` compares the store against this file on every
+-- restart and refuses to serve a mismatch (docs/DECISIONS.md 27).
 
 CREATE TABLE IF NOT EXISTS cases (
     case_id     text PRIMARY KEY,

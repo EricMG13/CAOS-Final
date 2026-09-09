@@ -244,7 +244,7 @@ system this size means nobody looked.
   environment that wrote it. *Upgrade:* run it once with a key.
 - **A credential means an environment variable, not an `ant` profile.** The SDK
   would resolve a profile from disk; honouring it would let a developer's
-  machine spend money in a suite meant to be free (`docs/DECISIONS.md` §27).
+  machine spend money in a suite meant to be free (`docs/DECISIONS.md` §28).
   A machine with a profile and no environment variable gets no live provider.
   *Upgrade:* an explicit opt-in variable, if anyone wants profiles.
 - **The loop still prices every node at 1.00.** `price_of` computes the real
@@ -351,6 +351,38 @@ system this size means nobody looked.
   whole, with no migrations* rather than *every future table exists now*;
   tables nothing writes cannot have their columns checked by a test.
   *Upgrade:* each phase adds its own tables to the same file.
+- **A drifted store is refused at startup, not repaired.** `CREATE TABLE IF NOT
+  EXISTS` is a no-op on a table that already exists, so *adding* a table to
+  `schema.sql` works and *widening* one silently does not. `apply_schema`
+  applies the file a second time into an empty schema and refuses a store whose
+  columns, constraints, indexes or triggers differ (`docs/DECISIONS.md` §27).
+  What it does not do: a schema that was **empty** before the file was applied
+  is not compared at all -- there is nothing to have drifted from, and the
+  comparison costs a second full apply; a mismatch is reconciled by a
+  hand-written `ALTER TABLE`, because generating one is a migration engine; it
+  reads the whole schema `search_path` resolves to, so an object some other
+  thing owns there -- an extension's table in `public` -- reads as drift rather
+  than as unrelated; and it needs CREATE on the database to make the schema it
+  compares against, which a least-privilege role would have to be granted.
+  *Upgrade:* the phase that first deploys the store somewhere real, which is
+  where an extension, a second owner or that role could appear.
+
+- **`apply_schema` needs a transaction, and nothing asserts it.** The file is
+  applied before the comparison can be made, so the caller's rollback is what
+  un-applies a store the check then refuses. On an autocommit connection the
+  refusal arrives *after* the store was changed -- the opposite of
+  `SYSTEM_SPEC.md` §11 -- and a failure part-way leaves the comparison schema
+  and a moved `search_path` behind. Same shape as `commit_terminal`'s
+  assumption above, and it gets the same answer for the same reason: no caller
+  outside the suite exists yet. *Upgrade:* refuse a connection in autocommit at
+  entry, when the API layer brings real callers.
+
+- **Two processes applying the schema at once can refuse each other.** The
+  comparison reads the live schema while another instance may be half way
+  through applying the same file, and a partial read is drift. `SYSTEM_SPEC.md`
+  §11 runs one `api` and one `worker`, which is two processes. *Upgrade:* a
+  `pg_advisory_xact_lock` around the apply, in the phase that first starts both.
+
 - **Append-only is enforced on the four tables that exist.** `run_events`,
   `source_sets`, `source_set_members` and `delivered_evidence` each refuse
   UPDATE, DELETE and TRUNCATE. `run_attempts`, `deliverable_opinions`,
