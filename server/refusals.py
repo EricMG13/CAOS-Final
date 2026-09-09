@@ -22,6 +22,7 @@ class RefusalCode(StrEnum):
     BUDGET_CEILING_EXCEEDED = "BUDGET_CEILING_EXCEEDED"
     CHARGE_EXCEEDS_RESERVATION = "CHARGE_EXCEEDS_RESERVATION"
     BLOB_NOT_FOUND = "BLOB_NOT_FOUND"
+    CASE_NOT_FOUND = "CASE_NOT_FOUND"
     CITATION_AMBIGUOUS = "CITATION_AMBIGUOUS"
     CITATION_NOT_DELIVERED = "CITATION_NOT_DELIVERED"
     CITATION_NOT_LOCATABLE = "CITATION_NOT_LOCATABLE"
@@ -51,6 +52,9 @@ class RefusalCode(StrEnum):
     SOURCE_NOT_ADMISSIBLE = "SOURCE_NOT_ADMISSIBLE"
     SOURCE_NOT_IN_CASE = "SOURCE_NOT_IN_CASE"
     SOURCE_SET_EMPTY = "SOURCE_SET_EMPTY"
+    # Absent standing and insufficient standing on purpose share this one:
+    # telling an outsider they are "only a reader" tells them they are a member.
+    STANDING_INSUFFICIENT = "STANDING_INSUFFICIENT"
     # A token here is an extracted text run, not a credential.
     SOURCE_TOKEN_INDEX_INVALID = "SOURCE_TOKEN_INDEX_INVALID"  # nosec B105
 

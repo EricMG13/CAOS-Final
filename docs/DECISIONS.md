@@ -878,3 +878,68 @@ phase.
 agent must read that names something the repository does not have. The plan is
 the one document that decides what gets built next, so it is where drift costs
 most. Overrides §20's "left alone".
+
+## 2026-09-09 §39 — Standing is checked where the release commits
+
+`approve_gate` reads `case_members` inside the transaction that writes the
+release, under the run row lock, and refuses a release by anyone who is not
+`APPROVER` or `ADMIN` on the run's case. `approve_plan` gets the check by
+calling it, so the plan gate -- the one human decision this repository commits
+today -- is authorised at the commit and not only at the request
+(`docs/SYSTEM_SPEC.md` §8; the standing rule in `docs/REBUILD_PLAN.md`).
+
+**Held, not only read.** The membership row is taken `FOR SHARE`. Reading it
+inside the transaction is not enough: read the standing, let a revocation
+commit, commit the release, and the approval was made by someone who had just
+lost the standing to make it -- inside the transaction, and wrong. `FOR SHARE`
+conflicts with the `DELETE` a revocation is and with the `UPDATE` a change of
+standing is (which takes `FOR NO KEY UPDATE`, so `FOR KEY SHARE` would have let
+it through), so either lands before the release read the row or after the
+release committed, never between. Measured with a lock timeout on the revoking
+connection rather than assumed:
+`test_a_revocation_waits_for_a_release_in_flight`. The lock order is the run
+row, then the membership row; a revocation takes only the second, so there is
+no cycle to deadlock on.
+
+**Current membership, not history.** `case_members` is one row per member,
+rewritten in place by a grant and deleted by a revocation. The record of who
+changed it is the audit chain's, which Phase 6 owes, and a second copy here
+would be the two-sources-of-truth shape §25 refused. It carries no rewrite
+guard for the reason `run_gates` does not: it needs its UPDATE and DELETE paths.
+
+**One refusal for absent and for insufficient.** `STANDING_INSUFFICIENT` is
+returned to a reader and to an outsider alike. Telling an outsider they are
+"only a reader" tells them they are a member, and §8 wants unknown and
+unauthorised to be indistinguishable. Every other refusal follows the standing
+check, so what a caller without standing learns from any call but the exact
+replay is that one thing. The store still says `RUN_NOT_FOUND` first, because
+it cannot know the case before it finds the run; the ledger carries that.
+
+**`ADMIN` releases too.** §8 lists four standings and says nowhere else which
+may decide. An `APPROVER` is the person the standing is named for; an `ADMIN`
+administers the case and is not barred from deciding on it, because nothing
+has ruled that they should be -- the separation §7 wants is between an
+opinion's signer and its filer, at a gate this repository does not have yet.
+`READER` and `WRITER` are shown the plan and do not decide it.
+
+**A replay stands whatever has happened since.** A release that already exists
+is reported (`False`) before standing or run state is checked. Recovery
+replays the identical call, and what a revocation takes away is the next
+decision, not the one that committed. The run-state check lands in the same
+entry because the ledger said both belong at one boundary: `open_gate` and
+`approve_gate` now refuse a run that has left RUNNING for a *new* ask or
+decision, as `reserve` already did. The same order holds for the ask: an
+identical `open_gate` is the ask the run already has, answered before its
+state is read, because a run that has since failed still holds that ask and
+recovery replays every gate.
+
+**What this does not guard.** Granting and revoking standing take no actor and
+check nothing, so the standing this call reads can be conferred by any caller.
+The ledger carries it, with why it waits for intake authority rather than
+being half-closed here.
+
+**Global role is not checked, and cannot be yet.** §8 names two things to
+recheck at commit time. The store call is handed an approver's name and can
+check what the store holds about it; a global role is derived from an OIDC
+group or a development header by an edge this repository does not have. It
+arrives with identity derivation, and the ledger carries it.

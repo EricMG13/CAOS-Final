@@ -22,6 +22,7 @@ from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.events import EventKind, emit
 from server.store.gates import Gate, GateKind, approve_gate, open_gate
+from server.store.members import Standing, grant_membership
 from server.store.routes import pin_route
 from server.store.runs import TerminalCommit, commit_terminal, start_run
 
@@ -169,6 +170,13 @@ def test_two_connections_release_one_gate_once(
     # approval and one event, and the loser must learn it was a replay rather
     # than see a primary key.
     run_id = start_run(store, case_id=CASE)
+    for approver in ("ana", "bo"):
+        grant_membership(
+            store,
+            case_id=CASE,
+            member_id=BoundaryText.of(approver),
+            standing=Standing.APPROVER,
+        )
     gate = Gate(run_id, GateKind.SOURCE_SET, "a" * 64, "b" * 64)
     open_gate(store, gate)
     store.commit()

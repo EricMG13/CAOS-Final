@@ -11,6 +11,21 @@ CREATE TABLE IF NOT EXISTS cases (
     created_at  timestamptz NOT NULL DEFAULT now()
 );
 
+-- Who may act on a case, and with what standing (SYSTEM_SPEC 8). This is the
+-- current membership, not its history: a grant is inserted or moved in place
+-- and a revocation deletes the row. Who changed it, and when, is the audit
+-- chain's to record (docs/REBUILD_PLAN.md Phase 6). Read under FOR SHARE by
+-- the store call that releases a gate, so a revocation waits for a release in
+-- flight instead of landing between its read and its commit.
+CREATE TABLE IF NOT EXISTS case_members (
+    case_id     text NOT NULL REFERENCES cases (case_id),
+    member_id   text NOT NULL,
+    standing    text NOT NULL
+                CHECK (standing IN ('READER', 'WRITER', 'APPROVER', 'ADMIN')),
+    granted_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (case_id, member_id)
+);
+
 CREATE TABLE IF NOT EXISTS runs (
     run_id      uuid PRIMARY KEY,
     case_id     text NOT NULL REFERENCES cases (case_id),
