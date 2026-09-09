@@ -59,21 +59,16 @@ REQUIRED_JOBS = frozenset({"lint", "types", "test", "postgres", "security", "siz
 SCAN_ACTION = "sonarsource/sonarqube-scan-action"
 
 
-def _properties(path: Path) -> dict[str, str]:
-    """A java-properties file as a mapping, comments and blanks dropped."""
+def analysis_properties() -> dict[str, str]:
+    """`sonar-project.properties` as a mapping, comments and blanks dropped."""
     values: dict[str, str] = {}
-    for line in path.read_text(encoding="utf-8").splitlines():
+    for line in PROPERTIES.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
         key, _, value = stripped.partition("=")
         values[key.strip()] = value.strip()
     return values
-
-
-def analysis_properties() -> dict[str, str]:
-    """`sonar-project.properties`, which is what the scanner reads."""
-    return _properties(PROPERTIES)
 
 
 def declared(key: str) -> set[str]:
@@ -130,33 +125,20 @@ def test_the_analysis_runs_when_a_draft_is_marked_ready() -> None:
     )
 
 
-def test_both_analysis_configurations_declare_the_same_scope() -> None:
-    """Two files describe one analysis until the switch-over is done.
+def test_one_analysis_configuration_exists_and_the_scanner_reads_it() -> None:
+    """The switch-over is done, so the file automatic analysis read is gone.
 
-    `.sonarcloud.properties` is read by automatic analysis and
-    `sonar-project.properties` by the scanner, and which of them is authoritative
-    is a setting in SonarQube Cloud rather than anything this tree can see. So
-    for as long as both exist they have to agree: a `vendor/` exclusion in one
-    and not the other is an analysis that judges the bundle, which is what
-    deleting the first one in the same commit as adding the second one caused.
-
-    The coverage path is deliberately not compared -- automatic analysis imports
-    no coverage report, which is the whole reason for §41.
+    It was kept for one transition, because a file automatic analysis reads is
+    not dead until automatic analysis is switched off -- a setting, not a
+    commit. That is done and the `sonarqube` job is confirmed posting the check,
+    so what is left would configure nothing and drift against the file that
+    does. Its drift test went with it rather than staying as a check whose only
+    branch is an early return.
     """
-    automatic = REPO / ".sonarcloud.properties"
-    if not automatic.exists():
-        return  # the switch-over is done and this file has been removed
-    inherited = _properties(automatic)
-    for key in (
-        "sonar.sources",
-        "sonar.tests",
-        "sonar.python.version",
-        "sonar.exclusions",
-    ):
-        assert inherited.get(key) == analysis_properties().get(key), (
-            f"{key} differs between the two analysis configurations; whichever "
-            "one SonarQube Cloud is reading, the other is a lie about the scope"
-        )
+    assert not (REPO / ".sonarcloud.properties").exists(), (
+        "automatic analysis is off (docs/DECISIONS.md §41), so this file is read "
+        "by nothing while still claiming a scope the scanner's file also claims"
+    )
 
 
 def test_the_analysis_imports_the_coverage_report_the_suite_writes() -> None:
