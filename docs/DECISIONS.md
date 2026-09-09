@@ -943,3 +943,51 @@ recheck at commit time. The store call is handed an approver's name and can
 check what the store holds about it; a global role is derived from an OIDC
 group or a development header by an edge this repository does not have. It
 arrives with identity derivation, and the ledger carries it.
+
+## 2026-09-09 §40 — Two SonarQube findings are accepted; three were defects
+
+The third reviewer (§31) reported five open issues. Three are fixed in the
+commit carrying this entry. Two are accepted here, because an accepted finding
+is reported again on every analysis and its reason has to outlive the browser
+tab it was read in.
+
+**Accepted — `scripts/scan_floors.py` reads the report path it is given.**
+High, "escape file system restrictions". The rule names its adversary as an LLM
+running the code with faulty arguments, and dismissing that as hypothetical
+would be dishonest in a repository written and gated by an agent: the agent
+*is* the caller. It is accepted on what the traversal would buy, not on who
+holds the keyboard. The path is a positional CLI argument the `Makefile`
+supplies as `bandit.json`, and the agent that runs `make check` already reads
+the filesystem with its own tools, so reaching a file through this script
+confers nothing it lacks. Nor does the script disclose what it reads --
+verified both ways: a non-JSON file raises `JSONDecodeError`, whose message
+carries a position and no content, and a JSON file of the wrong shape is
+refused as `scanned 0 files, floor is 1`. Read-only, non-disclosing, and no
+privilege gained. *Revisit* the day `scan_floors.py` reads a path from anything
+but the command line that invoked it, or reports any part of the file back.
+
+**Accepted — `tests/test_ingestion.py` carries a bidirectional character.**
+Medium, a former hotspot. The `\u202e` is the argument
+`test_a_case_id_carrying_a_bidi_override_never_reaches_the_store` hands
+`BoundaryText.of`, and that test is what proves invariant 2 refuses it. bandit
+reports the same line as B613, already named in `CLAUDE.md`'s Phase 0 ledger as
+one of the two reasons the SAST gate does not scan `tests/`. A finding that
+fires on the test written to prove the finding is refused is the control
+working, and removing the character would make the test vacuous.
+
+**Fixed — a vacuous assertion, and a weak one.**
+`test_putting_the_same_bytes_twice_writes_one_blob` asserted
+`len(list(tmp_path.rglob("*"))) == len(list(tmp_path.rglob("*")))`, an
+expression compared to itself, which cannot fail; and
+`store.put(PAYLOAD) == store.put(PAYLOAD)`, which holds for a `put` returning
+any constant. Both now compare against `DIGEST`, and the blob count is what
+carries the test's name. This is the failure `CLAUDE.md` names first: a test
+that passes vacuously is worse than no test, because the suite reports it
+green.
+
+**Fixed — `_finite` spelled out `math.isfinite`.** `number != number or number
+in (float("inf"), float("-inf"))` is that function, written by hand. Behaviour
+is unchanged and `test_a_non_finite_number_never_reaches_the_artifact` still
+covers all four literals. Worth noting because the reviewer was right for the
+wrong reason: it flagged `number != number` as a suspicious self-comparison
+when it is the NaN idiom, and the correct answer was still to delete it.
