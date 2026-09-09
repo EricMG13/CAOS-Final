@@ -78,6 +78,9 @@ directory the repository does not have costs more than no map.
   from `profile["edges"]`, never from `navigation.dependencies`. Pure: no I/O.
 - `server/engine/loop.py` — the frontier loop. No checkpointer: recovery is
   recomputation from the accepted-attempt ledger.
+- `server/engine/plan.py` — the plan gate. `Plan`, `plan_preview`, `plan_gate`,
+  `open_plan_gate` and `approve_plan`: the one place a route is pinned, and only
+  against content a person approved (`docs/DECISIONS.md` §31).
 - `server/store/` — Postgres owns everything transactional.
   `server/store/schema.sql` is applied whole at startup, with no migrations.
   The write paths are `server/store/runs.py`, `server/store/attempts.py`,
@@ -225,12 +228,39 @@ system this size means nobody looked.
 
 **Phase 6.**
 
-- **Nothing opens a gate.** `open_gate`, `approve_gate` and `gate_released` are
-  reached only from tests: no plan gate parks a run on an interrupt and no node
-  reads the predicate, so `SYSTEM_SPEC.md` §4's "BLOCKED on a host predicate" is
-  a shape nothing takes yet. Invariant 5 holds for anything that gates, and
-  nothing gates. *Upgrade:* the plan-gate slice, which is the first caller with
-  a source set to pin and a route to resolve behind the same interrupt.
+- **No node is BLOCKED on a gate.** The plan gate opens one and releases one,
+  so `open_gate` and `approve_gate` now have a real caller -- but `node_states`
+  never consults `gate_released`, so `SYSTEM_SPEC.md` §4's "BLOCKED on a host
+  predicate" is still a shape nothing takes. A run whose gate is open is
+  RUNNABLE at its first node exactly as if it were not. *Upgrade:* the slice
+  that runs the loop against a pinned route, which is the first code with a
+  frontier to hold back.
+- **Nothing constructs a `Plan`.** `open_plan_gate` and `approve_plan` are
+  reached only from tests. Nothing chooses a pathway, decides whether the model
+  extension applies, or renders the preview to a person -- the plan gate binds
+  those choices and does not make them, and `plan_preview` returns text rather
+  than anything a person would read on a screen. *Upgrade:* the run surface,
+  which is the first caller with an analyst in front of it.
+- **The plan gate binds a source set nothing checks for withdrawal.** Invariant
+  1 says withdrawal is checked live at every use, and the plan preview is a use:
+  it shows a person the documents a run will read. Nothing implements withdrawal
+  anywhere -- there is no column, no check in `read_evidence`, and no path that
+  sets one -- so this is inherited rather than created here, and it is named
+  here because this is the first surface that puts a document list in front of
+  someone. *Upgrade:* the slice that adds withdrawal, which has to reach the
+  plan gate and `read_evidence` together.
+- **The `RESEARCH_PLAN` gate has no caller.** `GateKind` declares it and
+  `docs/REBUILD_PLAN.md` Phase 6 names research-plan approval beside source-set
+  pinning; CP-DR's brief has no gate, so only `SOURCE_SET` is ever opened.
+  *Upgrade:* the slice that resolves a route with a research brief, which is
+  the first one with a plan to approve.
+- **`approve_plan` assumes it opens the outermost transaction.** It opens one
+  so the release and the pin commit together, and inside a caller's transaction
+  `connection.transaction()` degrades to a SAVEPOINT: the pair stays atomic
+  relative to that caller, and is not durable when `approve_plan` returns.
+  Identical in shape to `commit_terminal`'s and `apply_schema`'s assumptions
+  below, and it gets the same answer for the same reason. *Upgrade:* refuse a
+  non-idle connection at entry, with the slice that fixes all three.
 - **An approval binds content, not authority, and not run state.**
   `approve_gate` records who approved and checks nothing about them.
   `SYSTEM_SPEC.md` §8 wants case standing and global role rechecked at commit
@@ -412,19 +442,23 @@ system this size means nobody looked.
   the budget agreed to.
 **Phase 3.**
 
-- **Nothing calls `pin_route` yet.** The pin exists and is binding once written,
-  but no gate writes it: `pin_route` is reached only from tests, and no execution
-  path reads `pinned_route`. Invariant 10 holds for anything that pins, and
-  nothing pins. *Upgrade:* Phase 6's plan gate, and Phase 4's loop reading the
-  pin instead of a passed-in route.
+- **`pin_route` has a gate, and `pinned_route` still has no reader.**
+  `approve_plan` is what writes the pin, so invariant 10's "digested at the plan
+  gate" is now a thing that happens. What still does not happen is execution
+  reading it: `run_route` calls `pinned_route`, and nothing calls `run_route`
+  outside its own tests. *Upgrade:* the slice that runs the loop against a
+  pinned route.
 - **CP-CF is a route node with no module behind it.** The extension places it
   and the edges gate it, but no skill folder, calculator or registry entry
   exists yet, so a route carrying CP-CF resolves and cannot execute.
   *Upgrade:* Phase 5, which owns the registry and the calculator boundary, and
   the `cash_flow_forecast` work in `docs/DECISIONS.md` §8.
-- **Nothing selects the model extension.** `resolve_route(..., model_extension=
-  True)` is reached only from tests; no gate decides when a pathway gets its
-  model effect. *Upgrade:* Phase 6's plan gate.
+- **The model extension is bound but still not chosen.** `Plan.route` carries
+  whatever `resolve_route(..., model_extension=...)` produced, and the plan gate
+  digests it, so approving a plan without the model effect cannot release a run
+  that builds one -- `test_the_model_extension_is_part_of_what_is_approved`.
+  What is still missing is anything that *decides* the flag: every caller is a
+  test. *Upgrade:* the run surface, with the rest of plan construction.
 
 - **No CONDITIONAL edge exists in the pinned bundle.** `CONTEXT.md` lists it as
   a blocking edge type and `resolve_route` freezes predicates for it, but the

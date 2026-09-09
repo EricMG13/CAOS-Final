@@ -638,3 +638,39 @@ KEY SHARE and never upgrades; and both gate paths take the run row lock first
 and so never hold KEY SHARE before it. `pin_route` is therefore left as it is.
 A new path that writes a child row of `runs` and then emits should take the run
 row lock first, which is what both gate paths do.
+
+## 2026-09-09 §31 — The release and the pin are one call, not two
+
+`approve_plan` releases the plan gate and pins the route in a single
+transaction it opens itself. The obvious alternative -- `approve_gate`, then a
+separate `pin_route` when the caller is ready -- was written first and thrown
+away.
+
+**Reason.** Two calls can disagree. Release the plan a person read, then pin a
+different route, and the store afterwards holds an approval row for one thing
+and a pin for another, with nothing saying which was on screen. That is exactly
+the failure invariant 5 exists to prevent, reintroduced one layer above the
+mechanism that prevents it. Making them one call means the route that gets
+pinned is the route the digests were computed over, by construction rather than
+by the caller remembering. `test_approving_a_plan_that_is_not_the_one_on_screen_pins_nothing`
+is what holds it, and `test_a_pin_that_fails_takes_the_release_down_with_it`
+holds the other direction: the release is written first, so a pin that refuses
+has to take it back.
+
+**Consequence.** `approve_plan` is the only caller of `pin_route`, which closes
+the Phase 3 ledger entry that had nothing pinning. It also means the plan gate
+is where the model extension stops being a test-only argument: `Plan.route`
+carries whatever `resolve_route` produced and the fingerprint digests it, so an
+approval of a plan without the model effect cannot release a run that builds
+one.
+
+**The two digests, and why neither is enough.** `preview_sha256` is over the
+text a person reads -- case, pathway, document digests, module ids in the order
+they will run. `input_fingerprint` is over what that text was rendered from,
+and it carries the two things a reader cannot see: the source-set version and
+the route digest. Re-pinning the same documents allocates a new version whose
+preview is byte-identical, so the preview digest alone would let an approval of
+version 3 release a run bound to version 4. The route digest is in the
+fingerprint rather than the preview for the same reason in reverse: the preview
+names modules, because a route node id is an internal spelling and a person
+approving a plan should not be asked to read one.
