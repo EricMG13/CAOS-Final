@@ -58,6 +58,7 @@ def test_run_events_refuses_a_delete(store: Store) -> None:
         "delivered_evidence",
         "run_attempts",
         "run_gate_approvals",
+        "run_routes",
     ],
 )
 def test_an_append_only_table_refuses_a_truncate(store: Store, table: str) -> None:

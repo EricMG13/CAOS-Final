@@ -227,9 +227,11 @@ def _check_identity(request: ModuleRequest, payload: dict[str, object]) -> None:
 
 
 def _delivered_digests(store: Store, request: ModuleRequest) -> set[str]:
+    # Through `live_sources`, like every read of a source: a document withdrawn
+    # during the provider round-trip is no longer evidence a module may cite.
     rows = store.execute(
         "SELECT s.sha256 FROM delivered_evidence d"
-        " JOIN sources s ON s.source_id = d.source_id"
+        " JOIN live_sources s ON s.source_id = d.source_id"
         " WHERE d.run_id = %s AND d.node_id = %s",
         # The same BoundaryText the delivery was written under: `of` normalises
         # to NFC, so querying the raw string would miss every row it wrote.

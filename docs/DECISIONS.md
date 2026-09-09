@@ -1360,3 +1360,60 @@ the ledger and not answered here. The ceiling is rounded up to the ledger's six
 places (`test_the_ceiling_is_rounded_up_to_the_ledgers_scale`), because the
 pinned prices happened to land on six exactly and a ceiling the column rounds
 down is not a ceiling.
+## 2026-09-09 §45 — The first codebase audit: two seams
+
+An eight-angle review of `server/`, `methodology/` and `scripts/` -- line by
+line, an invariant audit, a cross-file trace, cleanup, altitude, conventions
+and a deep-module design audit -- with every candidate verified separately:
+20 confirmed, 3 plausible, 6 refuted (three already ledgered, two provably
+inert, one style). What changed, and why it changed the way it did.
+
+**Every governed write takes the run row lock through `lock_run`, which
+refuses a run that has left RUNNING.** `reserve`, `commit_terminal`,
+`open_gate` and `approve_gate` each re-derived "lock the row, refuse unless
+RUNNING" inline; `accept` and `pin_route` never did, so a node whose provider
+call outlived the run's terminal event could still write an artifact and a
+charge against it, and a route could be pinned onto a completed run
+(invariants 6, 8 and 10). The check is `lock_run`'s now, on by default: a new
+write that forgets it gets the strict behaviour, and
+`test_only_lock_run_takes_the_run_row_lock` refuses a `FOR UPDATE` on `runs`
+anywhere else. The two callers that answer a replay before refusing -- a
+terminal delivery reporting COMPLETE, a gate reporting a decision that stands
+-- pass `running=False`, read `LockedRun.state` themselves and call
+`require_running`, the one spelling of the check, before writing anything
+new. `pin_route` is one of them: the first draft gave it the strict default,
+and the adversarial pass reproduced a replayed `approve_plan` on a completed
+run refusing `RUN_NOT_RUNNING` where it had returned the pin. It now takes the
+lock before anything -- the order §32 recommended for new paths and declined
+to impose on this one -- reads the pin that stands, and only a new pin needs
+a RUNNING run; under the lock nothing else can write one, so the insert is a
+plain insert, and `run_routes` carries the rewrite guards every ledger a
+decision rests on carries. Overrides §32's "`pin_route` is therefore left as
+it is". The structural test is lexical, like `check_tested.py`, and the ledger
+says so.
+
+**Every read of a source goes through `live_sources`.** §42 named four uses
+and the withdrawal predicate was retyped by hand at each; `pinned_evidence`
+(§43), written after the rule, forgot it, and so had `_delivered_digests`.
+The predicate lives in one view now, `test_only_the_owner_reads_the_sources_table`
+refuses a `FROM sources` anywhere but the owner and the pin, and the two reads
+that had forgotten it read through the view like the rest. `CREATE OR REPLACE
+VIEW` is idempotent, so the no-migrations posture of §27 holds; the drift
+comparison does not describe views, and a view has no shape to drift -- the
+file is what it is on every restart.
+
+**The eight refusals the audit found** -- a blob error carrying its root, a
+`RecursionError` no handler caught, a `from None` that left its context, an
+exact integer refused as infinity, three bidi marks admitted, permanent
+provider failures mapped as retryable, a truncated completion priced as a
+success, an empty token making a valid quote unlocatable -- and the gate that
+refused correct code are a separate concern and land as the next entry.
+
+**Recorded, not fixed.** A node reads its evidence one block at a time (two
+round trips per block) and re-fetches a page's tokens per citation; the
+envelope validator re-checks the bundle's schema against the meta-schema on
+every call (2 ms of a 2.5 ms parse); `run_calculator` opens the bundle three
+times. Each is real and each is its own concern; the ledger carries them. The
+design audit also found the loop's `Executor` seam hypothetical -- one adapter,
+a fake -- and §44 gave it its second, `module_executor`, while this audit was
+open; it is a real seam now, and the finding is recorded as it stood.

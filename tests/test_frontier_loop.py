@@ -13,6 +13,7 @@ usage keeps its reserved exposure -- needs no state machine to enforce.
 from __future__ import annotations
 
 import json
+import re
 import uuid
 from decimal import Decimal
 from pathlib import Path
@@ -177,7 +178,12 @@ def test_concurrent_reservations_at_the_ceiling_refuse(
         with psycopg.connect(postgres_dsn, autocommit=False) as connection:
             connection.execute(f'SET search_path TO "{store_schema}"')
             try:
-                reserve(connection, run_id=run_id, route_node_id=node, amount=PRICE)
+                reserve(
+                    connection,
+                    run_id=run_id,
+                    route_node_id=BoundaryText.of(node),
+                    amount=PRICE,
+                )
             except Refusal as refusal:
                 return refusal.code.value
             return "reserved"
@@ -273,6 +279,53 @@ def test_accepting_one_node_twice_records_one_artifact_and_one_charge(
     assert counted == (1, 1)
 
 
+@pytest.mark.parametrize("state", ["COMPLETE", "FAILED"])
+def test_a_terminated_run_refuses_an_acceptance(
+    store: Store, pinned: str, state: str
+) -> None:
+    """Invariants 6 and 8: a run that has left RUNNING accepts nothing more.
+
+    `reserve` refused this from the start; `accept` did not, so a node whose
+    provider call outlived the run's terminal event could still write an
+    artifact and a charge against it. Every governed write now takes the run
+    row lock through `lock_run`, which is where the state is refused.
+    """
+    store.execute("UPDATE runs SET state = %s WHERE run_id = %s", (state, pinned))
+    with pytest.raises(Refusal) as caught:
+        accept(
+            store,
+            run_id=pinned,
+            node_id=BoundaryText.of("CP-8"),
+            artifact_sha256="a" * 64,
+            charge=PRICE,
+        )
+    assert caught.value.code is RefusalCode.RUN_NOT_RUNNING
+    counted = store.execute(
+        "SELECT (SELECT count(*) FROM artifacts), (SELECT count(*) FROM budget_ledger)"
+    ).fetchone()
+    assert counted == (0, 0), "nothing written against a finished run"
+
+
+def test_only_lock_run_takes_the_run_row_lock() -> None:
+    """One primitive owns "lock the run row and refuse a run that has left RUNNING".
+
+    Four governed writes re-derived it -- two inline, two through a shared
+    helper -- and two more forgot it (`accept`, `pin_route`). A `FOR UPDATE`
+    on `runs` anywhere but `lock_run` is a write that may have forgotten the
+    state check again. Lexical, and the ledger says so: it reads the source
+    for the two phrases, in any case, and cannot see a statement assembled at
+    runtime.
+    """
+    repo = Path(__file__).resolve().parents[1]
+    locking = sorted(
+        str(path.relative_to(repo))
+        for path in (repo / "server").rglob("*.py")
+        if re.search(r"FOR\s+UPDATE", source := path.read_text(encoding="utf-8"), re.I)
+        and re.search(r"FROM\s+runs\b", source, re.I)
+    )
+    assert locking == ["server/store/events.py"]
+
+
 def test_a_terminated_run_refuses_a_reservation(store: Store, pinned: str) -> None:
     """Invariant 8: a terminated run's ceiling is zero, whatever `runs.ceiling` says.
 
@@ -294,13 +347,17 @@ def test_a_terminated_run_refuses_a_reservation(store: Store, pinned: str) -> No
     store.commit()
 
     with pytest.raises(Refusal) as caught:
-        reserve(store, run_id=pinned, route_node_id="CP-8", amount=PRICE)
+        reserve(
+            store, run_id=pinned, route_node_id=BoundaryText.of("CP-8"), amount=PRICE
+        )
     assert caught.value.code is RefusalCode.RUN_NOT_RUNNING
 
     store.rollback()
     store.execute("UPDATE runs SET state = 'FAILED' WHERE run_id = %s", (pinned,))
     with pytest.raises(Refusal) as failed:
-        reserve(store, run_id=pinned, route_node_id="CP-8", amount=PRICE)
+        reserve(
+            store, run_id=pinned, route_node_id=BoundaryText.of("CP-8"), amount=PRICE
+        )
     assert failed.value.code is RefusalCode.RUN_NOT_RUNNING
 
     store.rollback()

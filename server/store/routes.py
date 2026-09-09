@@ -15,7 +15,7 @@ from psycopg.types.json import Jsonb
 from server.engine.route import Edge, Node, ResolvedRoute, route_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.events import EventKind, emit
+from server.store.events import EventKind, emit, lock_run, require_running
 
 
 def _payload(resolved: ResolvedRoute) -> dict[str, object]:
@@ -64,20 +64,17 @@ def pin_route(
     """Pin the plan at the gate -- route and evidence version -- and return the digest.
 
     Pinning the same plan again is the pin it already has -- recovery replays
-    the gate, and that must not be an error. Pinning a *different* route, or the
-    same route over a different source-set version, is refused: either would
-    mean a run executing something other than what was approved.
+    the gate, and that must not be an error, whatever the run has since
+    become. Pinning a *different* route, or the same route over a different
+    source-set version, is refused: either would mean a run executing
+    something other than what was approved.
 
-    The insert is what serialises this, not a prior `SELECT ... FOR UPDATE`:
-    there is no row to lock before the first pin, so two concurrent gate
-    replays both found nothing and one collided on `run_routes_pkey` -- a
-    vendor constraint name escaping a governed write path, and an identical
-    replay turned into an error. `ON CONFLICT DO NOTHING` blocks on the
-    conflicting insert instead, so a skipped row means the pin is durably
-    there. Selecting the run rather than naming it does the same for the
-    foreign key: an unknown run writes nothing instead of raising
-    `run_routes_run_id_fkey`. The re-read then says which of the three
-    answers a skipped write earned, and only a refused write pays for it.
+    The run row lock serialises this, taken before anything is read, like
+    every governed write. What is read first is the pin that stands: a replay
+    is answered before the run's state, as a gate's release is, so a run that
+    ended between the commit and the replay does not turn a no-op into a
+    refusal. Only a new pin needs a RUNNING run, and under the lock nothing
+    else can be writing one, so the insert is a plain insert.
     """
     if source_set_version <= 0:
         # Refused here rather than by the column's CHECK, which would escape
@@ -85,12 +82,21 @@ def pin_route(
         raise Refusal(RefusalCode.SOURCE_SET_EMPTY)
     digest = route_digest(resolved)
     with store.transaction():
-        pinned = store.execute(
+        run = lock_run(store, run_id=run_id, running=False)
+        existing = store.execute(
+            "SELECT route_digest, source_set_version FROM run_routes WHERE run_id = %s",
+            (run_id,),
+        ).fetchone()
+        if existing is not None:
+            if (str(existing[0]), int(existing[1])) != (digest, source_set_version):
+                raise Refusal(RefusalCode.ROUTE_ALREADY_PINNED)
+            return digest
+        require_running(run)
+        store.execute(
             "INSERT INTO run_routes"
             " (run_id, route_digest, profile_id, selection_id, resolved,"
             "  source_set_version)"
-            " SELECT %s, %s, %s, %s, %s, %s FROM runs WHERE run_id = %s"
-            " ON CONFLICT (run_id) DO NOTHING",
+            " VALUES (%s, %s, %s, %s, %s, %s)",
             (
                 run_id,
                 digest,
@@ -98,20 +104,8 @@ def pin_route(
                 resolved.selection_id,
                 Jsonb(_payload(resolved)),
                 source_set_version,
-                run_id,
             ),
         )
-        if pinned.rowcount == 0:
-            existing = store.execute(
-                "SELECT route_digest, source_set_version FROM run_routes"
-                " WHERE run_id = %s",
-                (run_id,),
-            ).fetchone()
-            if existing is None:
-                raise Refusal(RefusalCode.RUN_NOT_FOUND)
-            if (str(existing[0]), int(existing[1])) != (digest, source_set_version):
-                raise Refusal(RefusalCode.ROUTE_ALREADY_PINNED)
-            return digest
         # State and its event in one transaction (SYSTEM_SPEC 2).
         emit(store, run_id=run_id, kind=EventKind.ROUTE_PINNED, route_digest=digest)
     return digest

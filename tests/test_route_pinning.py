@@ -12,6 +12,7 @@ import json
 import uuid
 from pathlib import Path
 
+import psycopg
 import pytest
 
 from server.boundary_text import BoundaryText
@@ -165,6 +166,63 @@ def test_an_unpinned_run_has_no_route_to_execute(store: Store, run_id: str) -> N
     with pytest.raises(Refusal) as unversioned:
         pinned_source_set_version(store, run_id=run_id)
     assert unversioned.value.code is RefusalCode.ROUTE_NOT_PINNED
+
+
+@pytest.mark.parametrize("state", ["COMPLETE", "FAILED"])
+def test_a_terminated_run_refuses_a_new_pin(
+    store: Store, run_id: str, state: str
+) -> None:
+    # Invariant 10 pins a route for a run to execute; a run that has left
+    # RUNNING executes nothing, and a ROUTE_PINNED event after RUN_COMPLETED is
+    # a stream that reads backwards. Refused under the run row lock, like every
+    # other governed write.
+    store.execute("UPDATE runs SET state = %s WHERE run_id = %s", (state, run_id))
+    resolved = resolve_route(CATALOG, FULL, ASSESSMENT)
+    with pytest.raises(Refusal) as caught:
+        pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
+    assert caught.value.code is RefusalCode.RUN_NOT_RUNNING
+    counted = store.execute(
+        "SELECT (SELECT count(*) FROM run_routes), (SELECT count(*) FROM run_events)"
+    ).fetchone()
+    assert counted == (0, 0)
+
+
+def test_a_pin_that_stands_replays_whatever_the_run_state(
+    store: Store, run_id: str
+) -> None:
+    # A decision that stands is reported before the run's state is refused,
+    # as a gate's release is: recovery replays the pin, and the run may have
+    # ended since. A *different* route is still refused -- as the pin that
+    # stands, not as a run that ended.
+    resolved = resolve_route(CATALOG, FULL, ASSESSMENT)
+    digest = pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
+    store.execute("UPDATE runs SET state = 'COMPLETE' WHERE run_id = %s", (run_id,))
+
+    assert pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1) == (
+        digest
+    )
+    other = resolve_route(CATALOG, FULL, "PORTFOLIO_DECISION")
+    with pytest.raises(Refusal) as caught:
+        pin_route(store, run_id=run_id, resolved=other, source_set_version=1)
+    assert caught.value.code is RefusalCode.ROUTE_ALREADY_PINNED
+    events = store.execute("SELECT count(*) FROM run_events").fetchone()
+    assert events == (1,), "one ROUTE_PINNED; a replay emits nothing"
+
+
+def test_the_pin_has_no_rewrite_path(store: Store, run_id: str) -> None:
+    # A run pinned to one route never executes under another (invariant 10),
+    # and a pin a raw statement can move or drop is not a pin. Enforced by the
+    # store, like every other ledger a decision rests on.
+    resolved = resolve_route(CATALOG, FULL, ASSESSMENT)
+    pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
+    for statement in (
+        "UPDATE run_routes SET source_set_version = 9",
+        "DELETE FROM run_routes",
+    ):
+        with pytest.raises(psycopg.errors.RaiseException) as caught:
+            store.execute(statement)
+        assert caught.value.diag.message_primary == "APPEND_ONLY_TABLE"
+        store.rollback()
 
 
 def test_pinning_a_route_to_an_unknown_run_refuses_by_code(store: Store) -> None:

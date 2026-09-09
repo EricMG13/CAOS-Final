@@ -92,11 +92,12 @@ def pinned_evidence(
     Ordered, so two machines assemble the same prompt from the same set: the
     order a join returns rows in is not something a reservation or a digest may
     depend on. Coordinates only -- the text is `read_evidence`'s to deliver,
-    and to refuse.
+    and to refuse. Read through `live_sources`: a withdrawn source's blocks are
+    reads the node would make and the host would refuse, one by one.
     """
     rows = store.execute(
         "SELECT s.sha256, b.block_id FROM source_set_members m"
-        " JOIN sources s ON s.source_id = m.source_id AND s.case_id = m.case_id"
+        " JOIN live_sources s ON s.source_id = m.source_id AND s.case_id = m.case_id"
         " JOIN source_blocks b ON b.source_id = m.source_id"
         " WHERE m.case_id = %s AND m.version = %s"
         " ORDER BY s.sha256, b.block_id",
