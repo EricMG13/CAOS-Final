@@ -122,8 +122,9 @@ export (Phase 9).
 - **A scanner that scanned nothing is a failure**, not a pass.
 - **Adversarial pass before every PR.** `confidence-review`, then
   `adversarial-reviewer`, before the PR is opened. Each finding is fixed in the
-  PR or entered in the ledger below with its reason. This is the third
-  reviewer; CodeRabbit is not available on demand
+  PR or entered in the ledger below with its reason. SonarQube is the third
+  reviewer and analyses without being asked, but it arrives after the PR is open
+  and it reads rules rather than intent — it is not a substitute for either pass
   (`docs/AI_CODE_QUALITY.md` §2).
 - **Regenerate, don't hand-maintain.** Inventories and ledgers are emitted from
   the suite. The previous tree carried ~500 KB of hand-written governance
@@ -205,25 +206,55 @@ system this size means nobody looked.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **CodeRabbit never auto-reviews, and the ask cannot be automated.** It is
-  installed and live, reading `.coderabbit.yaml`, but it declines every PR here
-  with *"does not receive automatic reviews because it has fewer than 10
-  stars"* — its own words on PR #20, whose base was `main`. The stacked-base
-  rule is real and `base_branches` covers it, but it was never why this
-  repository saw no reviews. `@coderabbitai review` does start one, in under a
-  minute, when a person posts it (PR #20). The same comment posted by
-  `github-actions[bot]` from a workflow was ignored for nine minutes and never
-  answered (PR #22), so CodeRabbit does not honour a bot author and no workflow
-  in this repository can make the request. `docs/AI_CODE_QUALITY.md` §2 counts
-  it as the third reviewer beside `confidence-review` and
-  `adversarial-reviewer`; **on every PR to date it is absent unless a human
-  types `@coderabbitai review`.** `adversarial-reviewer` is the gate in its
-  place, which costs the independence CodeRabbit had: two of the two remaining
-  reviewers are the same model in different postures, and no tool with genuinely
-  different weights reads this repository unless somebody asks for one.
-  *Upgrade:* 10 stars, or a plan whose auto-review does not gate on them. A
-  workflow driven by a personal access token would also work and is not worth a
-  long-lived credential for this.
+- **The third reviewer's configuration is not in this tree, and that is half
+  deliberate.** SonarQube Cloud analyses this repository automatically and posts
+  `SonarCloud Code Analysis` (`docs/DECISIONS.md` §31), which is the property
+  CodeRabbit never had: it runs without anyone asking. What follows the
+  repository is one line — `.sonarcloud.properties` excluding `vendor/`. The
+  quality gate's conditions, the rule set, and whether automatic analysis stays
+  enabled are settings in SonarQube Cloud that no test here can read. The first
+  draft of this entry recorded that as a flat cost, which was half the picture:
+  **the agent that writes this repository cannot weaken the reviewer that reads
+  it.** A CI scanner would hand that back — its `sonar.sources`, its exclusions
+  and its gate would sit in the same diff as the code under review, editable by
+  the author. §14 made the same move for the other gates, off `make merge` and
+  onto a platform ruleset, for the same reason.
+  What stays genuinely uncovered is a gate *loosened* rather than turned off: a
+  relaxed condition still reports green and nothing here would notice. Turned
+  off is the loud case once the check is required — it stops reporting, and a
+  required check that never reports blocks every merge.
+  `test_nothing_here_starts_a_scanner_of_its_own` covers the one failure a
+  commit can cause: a CI scanner job, which would fail against a project under
+  automatic analysis and take the build with it.
+  *Upgrade:* add `SonarCloud Code Analysis` to the `main` ruleset's required
+  checks — that is what converts a disabled analysis from silent into blocking,
+  and it is the only part of this a person still has to do. Nothing closes the
+  loosened-gate case while the gate lives in a UI, and reverting to a CI scanner
+  trades it for a configuration the author of the code can edit, which is the
+  worse end for a repository written by an agent.
+- **`.sonarcloud.properties` is unverified from here.** It is the file automatic
+  analysis reads — `sonar-project.properties` is the scanner CLI's and is
+  ignored — but nothing in this repository can prove the exclusion took effect,
+  and a pull-request analysis only reports on the diff, so `vendor/` being
+  judged or not judged does not show up on a PR. Its authoritative equivalent is
+  the project's Analysis Scope settings in SonarQube Cloud.
+  *Upgrade:* read the project's measures once, and set the exclusion in the UI
+  instead if the file did nothing.
+- **Nothing replaces `.coderabbit.yaml`'s `path_instructions`.** They asked a
+  reviewer to flag a float on a money path, a `str(exc)` on a wire response, a
+  model without `extra="forbid"`, a synonym for a `CONTEXT.md` term. SonarQube
+  runs its own rules and takes no such prompt, so those four now rest on `ruff`
+  (BLE, TRY), `check_vocabulary.py`, the named tests and `adversarial-reviewer`
+  — where they already rested, since no CodeRabbit review ever ran unasked.
+  Invariant-level review is still one model reading its own work.
+  *Upgrade:* a custom rule set, or a lint rule per invariant, the day one of
+  these is missed in review rather than caught by a test.
+- **No coverage reaches the analysis.** Nothing emits a coverage report and
+  automatic analysis imports none, so the quality gate's coverage condition has
+  no metric to evaluate; the `SonarCloud Code Analysis` check on PR #41 passed
+  reading 0.0% on new code. Adding coverage is a new dependency and therefore a
+  decision entry and a lock recompile, which is a different concern from this
+  one. *Upgrade:* the slice that first wants a coverage floor.
 
 **Phase 5.**
 
