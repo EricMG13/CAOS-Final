@@ -18,7 +18,7 @@ from server.boundary_text import BoundaryText
 from server.engine.route import resolve_route, route_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.routes import pin_route, pinned_route
+from server.store.routes import pin_route, pinned_route, pinned_source_set_version
 from server.store.runs import start_run
 
 CATALOG = json.loads(
@@ -42,7 +42,7 @@ def test_a_route_is_pinned_once_and_read_back_identically(
     store: Store, run_id: str
 ) -> None:
     resolved = resolve_route(CATALOG, FULL, ASSESSMENT)
-    digest = pin_route(store, run_id=run_id, resolved=resolved)
+    digest = pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
     assert digest == route_digest(resolved)
 
     read_back = pinned_route(store, run_id=run_id)
@@ -53,7 +53,12 @@ def test_a_route_is_pinned_once_and_read_back_identically(
 def test_execution_reads_the_pin_and_not_the_catalog(store: Store, run_id: str) -> None:
     # The catalog is authority until the gate and irrelevant after it. A bundle
     # that changes must not change what an already-pinned run executes.
-    pin_route(store, run_id=run_id, resolved=resolve_route(CATALOG, FULL, ASSESSMENT))
+    pin_route(
+        store,
+        run_id=run_id,
+        resolved=resolve_route(CATALOG, FULL, ASSESSMENT),
+        source_set_version=1,
+    )
 
     changed = json.loads(json.dumps(CATALOG))
     changed["profiles"][FULL]["pathways"][ASSESSMENT]["nodes"].pop()
@@ -69,14 +74,56 @@ def test_execution_reads_the_pin_and_not_the_catalog(store: Store, run_id: str) 
 def test_pinning_a_second_route_to_the_same_run_is_refused(
     store: Store, run_id: str
 ) -> None:
-    pin_route(store, run_id=run_id, resolved=resolve_route(CATALOG, FULL, ASSESSMENT))
+    pin_route(
+        store,
+        run_id=run_id,
+        resolved=resolve_route(CATALOG, FULL, ASSESSMENT),
+        source_set_version=1,
+    )
     with pytest.raises(Refusal) as caught:
         pin_route(
             store,
             run_id=run_id,
             resolved=resolve_route(CATALOG, FULL, "PORTFOLIO_DECISION"),
+            source_set_version=1,
         )
     assert caught.value.code is RefusalCode.ROUTE_ALREADY_PINNED
+
+
+def test_the_pin_carries_the_evidence_version_and_refuses_another(
+    store: Store, run_id: str
+) -> None:
+    """The gate pins a plan: the route and the evidence it runs over.
+
+    The version survived only inside the gate's `input_fingerprint`, a digest
+    nothing can read a version back out of -- so execution had no way to know
+    which pinned set to hand a node. It is pinned beside the route, and a pin
+    naming a different version is refused for the reason a different route is:
+    the run would execute something other than what was approved.
+    """
+    resolved = resolve_route(CATALOG, FULL, ASSESSMENT)
+    pin_route(store, run_id=run_id, resolved=resolved, source_set_version=3)
+    assert pinned_source_set_version(store, run_id=run_id) == 3
+
+    with pytest.raises(Refusal) as caught:
+        pin_route(store, run_id=run_id, resolved=resolved, source_set_version=4)
+    assert caught.value.code is RefusalCode.ROUTE_ALREADY_PINNED
+    assert pinned_source_set_version(store, run_id=run_id) == 3
+
+
+def test_a_version_that_is_not_a_version_is_refused_before_the_store(
+    store: Store, run_id: str
+) -> None:
+    # The column's CHECK would refuse it too, naming the table and the
+    # constraint on the way out. The host answers first, in its own word.
+    with pytest.raises(Refusal) as caught:
+        pin_route(
+            store,
+            run_id=run_id,
+            resolved=resolve_route(CATALOG, FULL, ASSESSMENT),
+            source_set_version=0,
+        )
+    assert caught.value.code is RefusalCode.SOURCE_SET_EMPTY
 
 
 def test_pinning_the_same_route_again_is_the_same_pin(
@@ -84,8 +131,9 @@ def test_pinning_the_same_route_again_is_the_same_pin(
 ) -> None:
     # Recovery replays the gate. An identical pin is the pin it already has.
     resolved = resolve_route(CATALOG, FULL, ASSESSMENT)
-    first = pin_route(store, run_id=run_id, resolved=resolved)
-    assert pin_route(store, run_id=run_id, resolved=resolved) == first
+    first = pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
+    again = pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
+    assert again == first
     pinned = store.execute(
         "SELECT count(*) FROM run_routes WHERE run_id = %s", (run_id,)
     ).fetchone()
@@ -98,8 +146,8 @@ def test_pinning_emits_one_run_event_carrying_the_digest(
     # State and event commit together (SYSTEM_SPEC 2), and a replayed pin adds
     # no second event.
     resolved = resolve_route(CATALOG, FULL, ASSESSMENT)
-    digest = pin_route(store, run_id=run_id, resolved=resolved)
-    pin_route(store, run_id=run_id, resolved=resolved)
+    digest = pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
+    pin_route(store, run_id=run_id, resolved=resolved, source_set_version=1)
 
     events = store.execute(
         "SELECT seq, kind, route_digest FROM run_events"
@@ -114,6 +162,9 @@ def test_an_unpinned_run_has_no_route_to_execute(store: Store, run_id: str) -> N
     with pytest.raises(Refusal) as caught:
         pinned_route(store, run_id=run_id)
     assert caught.value.code is RefusalCode.ROUTE_NOT_PINNED
+    with pytest.raises(Refusal) as unversioned:
+        pinned_source_set_version(store, run_id=run_id)
+    assert unversioned.value.code is RefusalCode.ROUTE_NOT_PINNED
 
 
 def test_pinning_a_route_to_an_unknown_run_refuses_by_code(store: Store) -> None:
@@ -125,5 +176,6 @@ def test_pinning_a_route_to_an_unknown_run_refuses_by_code(store: Store) -> None
             store,
             run_id=str(uuid.uuid4()),
             resolved=resolve_route(CATALOG, FULL, ASSESSMENT),
+            source_set_version=1,
         )
     assert caught.value.code is RefusalCode.RUN_NOT_FOUND

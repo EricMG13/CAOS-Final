@@ -1215,3 +1215,29 @@ recheck at commit time. The store call is handed an approver's name and can
 check what the store holds about it; a global role is derived from an OIDC
 group or a development header by an edge this repository does not have. It
 arrives with identity derivation, and the ledger carries it.
+
+## 2026-09-09 §43 — The pin carries the evidence version, and refuses another
+
+**Decided.** `run_routes` gains `source_set_version`, written by `pin_route`
+and read by `pinned_source_set_version`. The version had survived only inside
+the gate's `input_fingerprint` -- a digest nothing can read a version back out
+of -- so nothing downstream of a pinned route could learn which source set it
+runs over. `approve_plan` passes `plan.source_set_version` through unchanged.
+A pin naming the same route over a *different* version is refused
+`ROUTE_ALREADY_PINNED`, for the reason a different route is: the gate pins a
+plan, and a plan is both the route and the evidence.
+
+**What a node will read.** `pinned_evidence(store, case_id, source_set_version)`
+lists `(document_sha256, block_id)` for every member of a pinned set, ordered
+by digest then block so two machines assembling from the same version
+assemble the same list. It is the primitive the loop needs before it can hand
+a node anything; nothing calls it outside its own test yet, and nothing here
+reads it in a production path.
+
+**The column has no foreign key, and nothing here checks emptiness.**
+`run_routes` carries no `case_id` to key `(case_id, version)` on, and
+`pin_route` refuses only `source_set_version <= 0` before the store is
+touched -- a version that is merely absent, or pinned with no members, is not
+refused by anything added here. The plan gate already refuses an empty set
+before it ever asks for approval, so the ordinary path is guarded; a caller
+reaching `pin_route` directly is not. The ledger carries it.

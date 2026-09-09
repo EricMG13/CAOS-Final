@@ -58,13 +58,15 @@ def _route(payload: object) -> ResolvedRoute:
     )
 
 
-def pin_route(store: Store, *, run_id: str, resolved: ResolvedRoute) -> str:
-    """Pin the route at the gate and return its digest.
+def pin_route(
+    store: Store, *, run_id: str, resolved: ResolvedRoute, source_set_version: int
+) -> str:
+    """Pin the plan at the gate -- route and evidence version -- and return the digest.
 
-    Pinning the same route again is the pin it already has -- recovery replays
-    the gate, and that must not be an error. Pinning a *different* route is
-    refused: it would mean a run executing something other than what was
-    approved.
+    Pinning the same plan again is the pin it already has -- recovery replays
+    the gate, and that must not be an error. Pinning a *different* route, or the
+    same route over a different source-set version, is refused: either would
+    mean a run executing something other than what was approved.
 
     The insert is what serialises this, not a prior `SELECT ... FOR UPDATE`:
     there is no row to lock before the first pin, so two concurrent gate
@@ -77,12 +79,17 @@ def pin_route(store: Store, *, run_id: str, resolved: ResolvedRoute) -> str:
     `run_routes_run_id_fkey`. The re-read then says which of the three
     answers a skipped write earned, and only a refused write pays for it.
     """
+    if source_set_version <= 0:
+        # Refused here rather than by the column's CHECK, which would escape
+        # naming the table and the constraint.
+        raise Refusal(RefusalCode.SOURCE_SET_EMPTY)
     digest = route_digest(resolved)
     with store.transaction():
         pinned = store.execute(
             "INSERT INTO run_routes"
-            " (run_id, route_digest, profile_id, selection_id, resolved)"
-            " SELECT %s, %s, %s, %s, %s FROM runs WHERE run_id = %s"
+            " (run_id, route_digest, profile_id, selection_id, resolved,"
+            "  source_set_version)"
+            " SELECT %s, %s, %s, %s, %s, %s FROM runs WHERE run_id = %s"
             " ON CONFLICT (run_id) DO NOTHING",
             (
                 run_id,
@@ -90,16 +97,19 @@ def pin_route(store: Store, *, run_id: str, resolved: ResolvedRoute) -> str:
                 resolved.profile_id,
                 resolved.selection_id,
                 Jsonb(_payload(resolved)),
+                source_set_version,
                 run_id,
             ),
         )
         if pinned.rowcount == 0:
             existing = store.execute(
-                "SELECT route_digest FROM run_routes WHERE run_id = %s", (run_id,)
+                "SELECT route_digest, source_set_version FROM run_routes"
+                " WHERE run_id = %s",
+                (run_id,),
             ).fetchone()
             if existing is None:
                 raise Refusal(RefusalCode.RUN_NOT_FOUND)
-            if existing[0] != digest:
+            if (str(existing[0]), int(existing[1])) != (digest, source_set_version):
                 raise Refusal(RefusalCode.ROUTE_ALREADY_PINNED)
             return digest
         # State and its event in one transaction (SYSTEM_SPEC 2).
@@ -116,3 +126,13 @@ def pinned_route(store: Store, *, run_id: str) -> ResolvedRoute:
         raise Refusal(RefusalCode.ROUTE_NOT_PINNED)
     stored = found[0]
     return _route(stored if isinstance(stored, dict) else json.loads(str(stored)))
+
+
+def pinned_source_set_version(store: Store, *, run_id: str) -> int:
+    """The evidence version this run executes over. Refuses an unpinned run."""
+    found = store.execute(
+        "SELECT source_set_version FROM run_routes WHERE run_id = %s", (run_id,)
+    ).fetchone()
+    if found is None:
+        raise Refusal(RefusalCode.ROUTE_NOT_PINNED)
+    return int(found[0])

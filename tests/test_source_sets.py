@@ -17,7 +17,7 @@ import pytest
 from server.boundary_text import BoundaryText
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.source_sets import pin_source_set
+from server.store.source_sets import pin_source_set, pinned_evidence
 from server.store.sources import Block, SourceDocument, Token, admit_pack
 
 CASE = BoundaryText.of("acme")
@@ -128,3 +128,37 @@ def test_pinning_into_an_unknown_case_is_refused(store: Store) -> None:
     with pytest.raises(Refusal) as caught:
         pin_source_set(store, case_id=NOBODY, source_ids=(admitted,))
     assert caught.value.code is RefusalCode.SOURCE_NOT_IN_CASE
+
+
+def test_pinned_evidence_lists_every_block_of_every_member_in_a_fixed_order(
+    store: Store,
+) -> None:
+    """What a node is handed, and in what order.
+
+    Every block of every member, because `source_mode` is a registry field
+    nothing reads yet. A fixed order, because two machines assembling a prompt
+    from the same set must assemble the same bytes -- those bytes are what the
+    reservation is taken from. The blocks are admitted out of order and the
+    members handed over reversed, so an `ORDER BY` that went missing would show.
+    """
+    two_blocks = SourceDocument(
+        sha256="b" * 64,
+        tokens=(_token("x"),),
+        blocks=(
+            Block(block_id=1, page=1, text="second"),
+            Block(block_id=0, page=1, text="first"),
+        ),
+    )
+    admitted = admit_pack(
+        store, case_id=CASE, documents=(two_blocks, _document("a" * 64))
+    )
+    version = pin_source_set(store, case_id=CASE, source_ids=admitted[::-1])
+
+    assert pinned_evidence(store, case_id=CASE, source_set_version=version) == (
+        ("a" * 64, 0),
+        ("b" * 64, 0),
+        ("b" * 64, 1),
+    )
+    # A version never pinned hands a node nothing. The plan gate refuses it
+    # before a run exists; this is coordinates, not a boundary.
+    assert pinned_evidence(store, case_id=CASE, source_set_version=99) == ()

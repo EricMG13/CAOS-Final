@@ -51,7 +51,12 @@ PRICE = Decimal("1.00")
 @pytest.fixture
 def pinned(store: Store) -> str:
     run_id = start_run(store, case_id=CASE, ceiling=Decimal("100"))
-    pin_route(store, run_id=run_id, resolved=resolve_route(CATALOG, FULL, LEDGER))
+    pin_route(
+        store,
+        run_id=run_id,
+        resolved=resolve_route(CATALOG, FULL, LEDGER),
+        source_set_version=1,
+    )
     store.commit()
     return run_id
 
@@ -351,7 +356,7 @@ def test_readiness_is_read_from_the_accepted_cp0_artifact(
     # derived from the accepted CP-0 artifact, not carried anywhere else.
     route = resolve_route(CATALOG, FULL, "EARNINGS_UPDATE")
     run_id = start_run(store, case_id=CASE, ceiling=Decimal("100"))
-    pin_route(store, run_id=run_id, resolved=route)
+    pin_route(store, run_id=run_id, resolved=route, source_set_version=1)
     ids = [n.route_node_id for n in route.nodes]
     cp0, cp5 = _node(ids, "CP-0"), _node(ids, "CP-5")
     accept(
@@ -378,7 +383,7 @@ def test_a_cp0_artifact_that_states_no_readiness_is_refused(
 ) -> None:
     route = resolve_route(CATALOG, FULL, LEDGER)
     run_id = start_run(store, case_id=CASE, ceiling=Decimal("100"))
-    pin_route(store, run_id=run_id, resolved=route)
+    pin_route(store, run_id=run_id, resolved=route, source_set_version=1)
     cp0 = _node([n.route_node_id for n in route.nodes], "CP-0")
     accept(
         store,

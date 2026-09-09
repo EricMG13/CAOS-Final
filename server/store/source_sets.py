@@ -80,3 +80,26 @@ def _pin(store: Store, *, case_id: BoundaryText, members: tuple[str, ...]) -> in
                 [(case_id.value, version, source_id) for source_id in members],
             )
     return version
+
+
+def pinned_evidence(
+    store: Store, *, case_id: BoundaryText, source_set_version: int
+) -> tuple[tuple[str, int], ...]:
+    """Every block of every source in a pinned set, as `(document_sha256, block_id)`.
+
+    What a node is handed. Every block, because `source_mode` -- the registry
+    field that would narrow it -- is one nothing reads yet (CLAUDE.md, Phase 5).
+    Ordered, so two machines assemble the same prompt from the same set: the
+    order a join returns rows in is not something a reservation or a digest may
+    depend on. Coordinates only -- the text is `read_evidence`'s to deliver,
+    and to refuse.
+    """
+    rows = store.execute(
+        "SELECT s.sha256, b.block_id FROM source_set_members m"
+        " JOIN sources s ON s.source_id = m.source_id AND s.case_id = m.case_id"
+        " JOIN source_blocks b ON b.source_id = m.source_id"
+        " WHERE m.case_id = %s AND m.version = %s"
+        " ORDER BY s.sha256, b.block_id",
+        (case_id.value, source_set_version),
+    ).fetchall()
+    return tuple((str(digest), int(block_id)) for digest, block_id in rows)

@@ -163,6 +163,10 @@ CREATE TABLE IF NOT EXISTS run_routes (
     profile_id    text NOT NULL,
     selection_id  text NOT NULL,
     resolved      jsonb NOT NULL,
+    -- The evidence the route runs over. The gate pins a plan -- a route and a
+    -- source-set version together -- and the version otherwise survived only
+    -- inside the gate's fingerprint, a digest nothing can read it back out of.
+    source_set_version  integer NOT NULL CHECK (source_set_version > 0),
     pinned_at     timestamptz NOT NULL DEFAULT now()
 );
 
