@@ -201,6 +201,21 @@ def test_untested_does_not_accept_a_name_buried_in_a_longer_word(
     assert check_tested.untested(module, "the runner runs\n")
 
 
+def test_untested_does_not_accept_a_name_that_only_prose_mentions(
+    tmp_path: Path,
+) -> None:
+    """A comment or a docstring is not a test. Both named a real definition."""
+    module = tmp_path / "m.py"
+    module.write_text("def accept() -> None: ...\n", encoding="utf-8")
+    tests_dir = tmp_path / "tests"
+    tests_dir.mkdir()
+    (tests_dir / "test_x.py").write_text(
+        '"""the gate must accept it."""\n# accept is named here too.\n',
+        encoding="utf-8",
+    )
+    assert check_tested.main([str(module), "--tests", str(tests_dir)]) == 1
+
+
 def test_tracked_python_keeps_a_path_containing_a_space(tmp_path: Path) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
     (tmp_path / "my file.py").write_text("x = 1\n", encoding="utf-8")
