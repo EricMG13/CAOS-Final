@@ -15,6 +15,7 @@ from psycopg.types.json import Jsonb
 from server.engine.route import Edge, Node, ResolvedRoute, route_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
+from server.store.events import EventKind, emit
 
 
 def _payload(resolved: ResolvedRoute) -> dict[str, object]:
@@ -102,12 +103,7 @@ def pin_route(store: Store, *, run_id: str, resolved: ResolvedRoute) -> str:
                 raise Refusal(RefusalCode.ROUTE_ALREADY_PINNED)
             return digest
         # State and its event in one transaction (SYSTEM_SPEC 2).
-        store.execute(
-            "INSERT INTO run_events (run_id, seq, kind, route_digest)"
-            " SELECT %s, coalesce(max(seq), 0) + 1, 'ROUTE_PINNED', %s"
-            " FROM run_events WHERE run_id = %s",
-            (run_id, digest, run_id),
-        )
+        emit(store, run_id=run_id, kind=EventKind.ROUTE_PINNED, route_digest=digest)
     return digest
 
 

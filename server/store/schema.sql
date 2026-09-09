@@ -154,6 +154,37 @@ CREATE TABLE IF NOT EXISTS run_attempts (
 
 CREATE INDEX IF NOT EXISTS run_attempts_by_run ON run_attempts (run_id);
 
+-- A digest-bound interrupt: what a person is being asked to approve, named by
+-- the bytes they are shown and by the inputs those bytes were rendered from.
+-- Deliberately not append-only. While a gate is undecided the content under it
+-- moves -- a source is withdrawn, a plan is re-derived -- and re-opening it on
+-- the new content is the point. What must never move is a decision, and a
+-- decision does not live here.
+CREATE TABLE IF NOT EXISTS run_gates (
+    run_id             uuid NOT NULL REFERENCES runs (run_id),
+    kind               text NOT NULL
+                       CHECK (kind IN ('SOURCE_SET', 'RESEARCH_PLAN')),
+    preview_sha256     text NOT NULL CHECK (preview_sha256 ~ '^[0-9a-f]{64}$'),
+    input_fingerprint  text NOT NULL CHECK (input_fingerprint ~ '^[0-9a-f]{64}$'),
+    opened_at          timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (run_id, kind)
+);
+
+-- The release, and the whole of invariant 5's evidence. The row is copied from
+-- the gate rather than supplied, so what it records is what the store held --
+-- never what a caller claimed. The primary key is the compare-and-set: one
+-- release per gate, and a second one writes nothing rather than colliding.
+CREATE TABLE IF NOT EXISTS run_gate_approvals (
+    run_id             uuid NOT NULL,
+    kind               text NOT NULL,
+    preview_sha256     text NOT NULL,
+    input_fingerprint  text NOT NULL,
+    approved_by        text NOT NULL,
+    approved_at        timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (run_id, kind),
+    FOREIGN KEY (run_id, kind) REFERENCES run_gates (run_id, kind)
+);
+
 -- Append-only means append-only. Enforced by the store, not by convention:
 -- a UPDATE or DELETE path that exists is a path that gets used.
 CREATE OR REPLACE FUNCTION refuse_rewrite() RETURNS trigger AS $$
@@ -184,6 +215,13 @@ CREATE OR REPLACE TRIGGER source_set_members_append_only
     BEFORE UPDATE OR DELETE ON source_set_members
     FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
 
+-- An approval that can be rewritten is not an approval. `run_gates` carries no
+-- such trigger on purpose: it needs the UPDATE path the re-open uses, and what
+-- refuses truncating it is this table's foreign key and this table's own guard.
+CREATE OR REPLACE TRIGGER run_gate_approvals_append_only
+    BEFORE UPDATE OR DELETE ON run_gate_approvals
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
 -- TRUNCATE empties a table without producing a row, so a row-level trigger
 -- never fires on it. Statement-level is the only guard that sees the one
 -- statement that erases a whole ledger at once.
@@ -205,4 +243,8 @@ CREATE OR REPLACE TRIGGER delivered_evidence_no_truncate
 
 CREATE OR REPLACE TRIGGER run_attempts_no_truncate
     BEFORE TRUNCATE ON run_attempts
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER run_gate_approvals_no_truncate
+    BEFORE TRUNCATE ON run_gate_approvals
     FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();

@@ -81,9 +81,11 @@ directory the repository does not have costs more than no map.
 - `server/store/` — Postgres owns everything transactional.
   `server/store/schema.sql` is applied whole at startup, with no migrations.
   The write paths are `server/store/runs.py`, `server/store/attempts.py`,
-  `server/store/routes.py`, `server/store/sources.py` (admission) and
-  `server/store/source_sets.py` (pinning);
-  `server/store/blobs.py` is the content-addressed blob store.
+  `server/store/routes.py`, `server/store/gates.py` (digest-bound interrupts),
+  `server/store/sources.py` (admission) and `server/store/source_sets.py`
+  (pinning); `server/store/events.py` is the one emitter every run event is
+  allocated through, and `server/store/blobs.py` is the content-addressed blob
+  store.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
   quote and derives its rectangles.
@@ -255,6 +257,62 @@ system this size means nobody looked.
   reading 0.0% on new code. Adding coverage is a new dependency and therefore a
   decision entry and a lock recompile, which is a different concern from this
   one. *Upgrade:* the slice that first wants a coverage floor.
+
+**Phase 6.**
+
+- **Nothing opens a gate.** `open_gate`, `approve_gate` and `gate_released` are
+  reached only from tests: no plan gate parks a run on an interrupt and no node
+  reads the predicate, so `SYSTEM_SPEC.md` §4's "BLOCKED on a host predicate" is
+  a shape nothing takes yet. Invariant 5 holds for anything that gates, and
+  nothing gates. *Upgrade:* the plan-gate slice, which is the first caller with
+  a source set to pin and a route to resolve behind the same interrupt.
+- **An approval binds content, not authority, and not run state.**
+  `approve_gate` records who approved and checks nothing about them.
+  `SYSTEM_SPEC.md` §8 wants case standing and global role rechecked at commit
+  time; there is no `case_members` table, no served identity and no commit-time
+  check, so today any caller holding a connection can release any gate. Neither
+  `open_gate` nor `approve_gate` reads `runs.state` either, so a gate can be
+  opened on a run that has already completed or failed -- `reserve` refuses a
+  non-RUNNING run and these do not. Both checks belong at the same boundary and
+  are deliberately not split across two slices: guarding one and not the other
+  is an asymmetry the next slice would have to undo. The digest binding is real
+  and it is one of the three things a human gate is. *Upgrade:* the run-surface
+  slice, which brings the actor matrix and
+  `test_membership_revocation_refuses_commit`.
+- **A `run_id` that is not a UUID escapes as a psycopg error, not a refusal.**
+  Every store signature takes `run_id: str` and every `runs` lookup compares it
+  to a `uuid` column, so a malformed id raises `InvalidTextRepresentation`
+  carrying the offending string rather than `RUN_NOT_FOUND`. Caller input, not
+  document text, so nothing governed leaks -- but `SYSTEM_SPEC.md` §8 wants an
+  unknown run and an unauthorized one to be indistinguishable, and an
+  unparseable one is neither. `lock_run` inherits the shape rather than
+  introducing it. *Upgrade:* the run surface, where a path parameter is parsed
+  once and a bad one is the same private 404 as any other unknown run.
+- **`run_gates` carries no rewrite guard.** It needs the UPDATE path the
+  re-open uses, so `refuse_rewrite` would refuse the one thing the table exists
+  to allow. A raw `UPDATE` therefore moves the asked content under a person who
+  is mid-review, and a raw `DELETE` removes an undecided gate -- a released one
+  is held by the approval ledger's foreign key. `open_gate` refuses both under
+  the run row lock; the store does not, and
+  `test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` cannot see
+  it, because that query polices tables already wired to `refuse_rewrite`.
+  *Upgrade:* a second guard function permitting only the undecided re-open,
+  with the catalogue test taught to police it as it polices the first.
+- **A gate event does not say which gate.** `GATE_OPENED` and `GATE_APPROVED`
+  carry no kind. That follows `SYSTEM_SPEC.md` §9 -- the client never reads
+  event payloads, an event name triggers a refetch -- and it means the event
+  ledger records when a gate moved but not which of the two it was. The
+  approval ledger says that for a release; nothing says it for an opening.
+  *Upgrade:* the SSE slice, if the run view cannot answer it from `run_gates`.
+- **`emit` assumes it is inside a transaction, and nothing asserts it.** On an
+  autocommit connection `lock_run` takes a row lock that is released before the
+  insert runs, so the sequence it allocated is not the sequence it keeps --
+  which is the collision the lock exists to prevent, reintroduced by the
+  caller. Every caller today opens one. Same shape as `commit_terminal`'s and
+  `apply_schema`'s assumptions below, and it gets the same answer for the same
+  reason. *Upgrade:* refuse a connection in autocommit at entry, with the slice
+  that fixes all three -- the API layer, which is what brings callers this file
+  did not write.
 
 **Phase 5.**
 
@@ -545,14 +603,3 @@ system this size means nobody looked.
 - **A run's terminal event is the only event kind.** `RUN_COMPLETED` is
   written; failure and node-level transitions are not. *Upgrade:* Phase 4,
   with the frontier loop that produces them.
-- **`run_events.seq` is allocated by `coalesce(max(seq), 0) + 1` with nothing
-  serialising two allocators.** Today no two can run at once, but by accident
-  rather than by design: `commit_terminal` holds the run row `FOR UPDATE`, and
-  every `run_events` insert takes a KEY SHARE lock on that same row through the
-  foreign key, so any other writer blocks behind it -- while `pin_route` is
-  serialised against itself by the `run_routes` primary key. Two KEY SHARE
-  holders are compatible with *each other*, so the first event kind emitted from
-  a path holding neither guard gives two writers the same `seq` and a raw
-  `run_events_pkey` violation -- verified: two concurrent inserts of an
-  invented kind collide exactly so. *Upgrade:* the phase that emits node-level
-  events allocates `seq` under the run row lock, with a two-connection test.
