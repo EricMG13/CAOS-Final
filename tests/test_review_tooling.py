@@ -21,7 +21,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+from tracked import tracked_python
+
 REPO = Path(__file__).resolve().parents[1]
+PROPERTIES = REPO / ".sonarcloud.properties"
+MAKEFILE = (REPO / "Makefile").read_text(encoding="utf-8")
+PYPROJECT = (REPO / "pyproject.toml").read_text(encoding="utf-8")
 DEFINITIONS = sorted((REPO / ".github" / "workflows").glob("*.yml"))
 CI = "\n".join(path.read_text(encoding="utf-8") for path in DEFINITIONS)
 QUALITY = (REPO / "docs" / "AI_CODE_QUALITY.md").read_text(encoding="utf-8")
@@ -40,6 +45,30 @@ SCANNER = (
     "sonarsource/sonarqube-quality-gate-action",
     "SONAR_TOKEN",
 )
+
+
+def analysis_properties() -> dict[str, str]:
+    """`.sonarcloud.properties` as a mapping, comments and blanks dropped."""
+    values: dict[str, str] = {}
+    for line in PROPERTIES.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        key, _, value = stripped.partition("=")
+        values[key.strip()] = value.strip()
+    return values
+
+
+def declared(key: str) -> set[str]:
+    """One comma-separated analysis property, as a set of entries."""
+    return {entry.strip() for entry in analysis_properties()[key].split(",") if entry}
+
+
+def make_variable(name: str) -> set[str]:
+    """A `NAME := a b c` assignment from the Makefile, as a set of words."""
+    found = re.search(rf"^{name} := (.+)$", MAKEFILE, re.M)
+    assert found is not None, f"the Makefile no longer declares {name}"
+    return set(found.group(1).split())
 
 
 def test_the_repository_carries_no_coderabbit_configuration() -> None:
@@ -91,3 +120,57 @@ def test_the_review_control_names_the_tool_that_reads_the_repository() -> None:
         "the document must name the check the analysis actually posts, since "
         "that check is the only place this control is visible"
     )
+
+
+def test_the_analysis_is_told_which_files_are_tests() -> None:
+    """Otherwise production rules are skipped on anything that looks like one.
+
+    SonarPython detects test-shaped files on its own and, with `sonar.tests`
+    unset, declines to run production rules on them rather than guessing -- so
+    29 files were analysed under neither rule set. It said so in the project's
+    analysis warnings, which is the only place it could.
+    """
+    assert declared("sonar.tests") == {"tests"}
+
+
+def test_the_analysis_is_told_which_python_it_is_reading() -> None:
+    """Unset, every rule is evaluated against all of Python 3 at once.
+
+    The repository is 3.14 only (`docs/DECISIONS.md` §10), so an analysis
+    hedging across 3.0 upward is weaker on both ends: it misses what is now an
+    error and reports what is now fine.
+    """
+    version = analysis_properties()["sonar.python.version"]
+    found = re.search(r'^python_version = "([^"]+)"$', PYPROJECT, re.M)
+    assert found is not None, "pyproject.toml no longer pins a mypy python_version"
+    assert version == found.group(1), (
+        f"the analysis reads Python {version}; the type gate reads {found.group(1)}"
+    )
+
+
+def test_the_analysis_claims_every_tracked_python_file() -> None:
+    """Between sources and tests, nothing this repository wrote goes unclaimed.
+
+    The floor `docs/AI_CODE_QUALITY.md` §4 holds bandit to, stated for this
+    analysis too: a package a later phase adds cannot go unread without
+    somebody saying so.
+    """
+    claimed = declared("sonar.sources") | declared("sonar.tests")
+    tracked = (path.relative_to(REPO) for path in tracked_python(REPO))
+    unclaimed = sorted(
+        str(path)
+        for path in tracked
+        if not any(path.is_relative_to(claim) for claim in claimed)
+    )
+    assert unclaimed == [], f"files no analysis property claims: {unclaimed}"
+
+
+def test_the_analysis_covers_everything_the_sast_gate_covers() -> None:
+    """Containment, not equality: what bandit is pointed at, this reads too.
+
+    Equality would refuse a `frontend` in `sonar.sources`, which bandit has no
+    business scanning -- so the property is that nothing bandit reads can slip
+    out of this analysis, not that the two lists stay identical forever.
+    """
+    assert make_variable("SEC_TARGETS") <= declared("sonar.sources")
+    assert make_variable("SEC_UNSCANNED") <= declared("sonar.tests")
