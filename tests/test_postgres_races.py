@@ -7,19 +7,33 @@ them: the interleaving that breaks `max(seq) + 1` needs two real sessions.
 
 from __future__ import annotations
 
+import json
 import uuid
 from concurrent.futures import ThreadPoolExecutor
 from decimal import Decimal
+from pathlib import Path
 
 import psycopg
 import pytest
 
 from server.boundary_text import BoundaryText
+from server.engine.route import ResolvedRoute, resolve_route, route_digest
+from server.refusals import Refusal, RefusalCode
 from server.store import Store
+from server.store.routes import pin_route
 from server.store.runs import TerminalCommit, commit_terminal, start_run
 
+CATALOG = json.loads(
+    (
+        Path(__file__).resolve().parents[1]
+        / "vendor/deploy-v/skills/cp-os-credit-os/references"
+        / "CREDIT_OS_V_MODULE_CATALOG_v2.json"
+    ).read_text(encoding="utf-8")
+)
 CASE = BoundaryText.of("acme")
 NODE = BoundaryText.of("CP-1")
+ASSESSMENT = resolve_route(CATALOG, "FULL_CREDIT_32", "FULL_CREDIT_ASSESSMENT")
+PORTFOLIO = resolve_route(CATALOG, "FULL_CREDIT_32", "PORTFOLIO_DECISION")
 
 
 def _connect(url: str, schema: str) -> Store:
@@ -92,3 +106,54 @@ def test_the_race_suite_refuses_to_pass_without_postgres(postgres_dsn: str) -> N
     with pytest.raises(psycopg.errors.UndefinedTable):
         with psycopg.connect(postgres_dsn, autocommit=True) as probe:
             probe.execute("SELECT 1 FROM no_such_table_here")
+
+
+def test_concurrent_first_pins_refuse_with_a_typed_code(
+    store: Store, store_schema: str, postgres_dsn: str
+) -> None:
+    """`pin_route`'s `FOR UPDATE` locks nothing when there is no row to lock.
+
+    Four callers all find no pin, all insert, and three collide on
+    `run_routes_pkey` -- a vendor constraint name escaping a governed write
+    path. Pinning the *same* route is meant to be the pin it already has, since
+    recovery replays the gate, so the concurrent replay must return the digest.
+    """
+    run_id = start_run(store, case_id=CASE)
+    store.commit()
+
+    def pin(_: int) -> str:
+        with _connect(postgres_dsn, store_schema) as connection:
+            return pin_route(connection, run_id=run_id, resolved=ASSESSMENT)
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        digests = list(pool.map(pin, range(4)))
+
+    assert set(digests) == {route_digest(ASSESSMENT)}
+    counted = store.execute(
+        "SELECT (SELECT count(*) FROM run_routes WHERE run_id = %s),"
+        " (SELECT count(*) FROM run_events WHERE run_id = %s)",
+        (run_id, run_id),
+    ).fetchone()
+    assert counted == (1, 1), "one pin, one ROUTE_PINNED event"
+
+
+def test_a_concurrent_pin_of_a_different_route_refuses_by_code(
+    store: Store, store_schema: str, postgres_dsn: str
+) -> None:
+    # The loser is refused because the route differs, not because an index said
+    # so: invariant 10 is what is being enforced, and the code has to say it.
+    run_id = start_run(store, case_id=CASE)
+    store.commit()
+
+    def pin(resolved: ResolvedRoute) -> str:
+        with _connect(postgres_dsn, store_schema) as connection:
+            try:
+                pin_route(connection, run_id=run_id, resolved=resolved)
+            except Refusal as refusal:
+                return refusal.code.value
+            return "pinned"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = sorted(pool.map(pin, [ASSESSMENT, PORTFOLIO]))
+
+    assert outcomes == [RefusalCode.ROUTE_ALREADY_PINNED.value, "pinned"]

@@ -9,6 +9,7 @@ a year later. The pin, not the catalog, is the authority after the gate.
 from __future__ import annotations
 
 import json
+import uuid
 from pathlib import Path
 
 import pytest
@@ -113,3 +114,16 @@ def test_an_unpinned_run_has_no_route_to_execute(store: Store, run_id: str) -> N
     with pytest.raises(Refusal) as caught:
         pinned_route(store, run_id=run_id)
     assert caught.value.code is RefusalCode.ROUTE_NOT_PINNED
+
+
+def test_pinning_a_route_to_an_unknown_run_refuses_by_code(store: Store) -> None:
+    # The same leak as the concurrent pin: an unknown run put
+    # `run_routes_run_id_fkey` and the run id into the escaping exception.
+    # `reserve` already answers RUN_NOT_FOUND here; the gate must too.
+    with pytest.raises(Refusal) as caught:
+        pin_route(
+            store,
+            run_id=str(uuid.uuid4()),
+            resolved=resolve_route(CATALOG, FULL, ASSESSMENT),
+        )
+    assert caught.value.code is RefusalCode.RUN_NOT_FOUND

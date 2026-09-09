@@ -337,3 +337,14 @@ system this size means nobody looked.
 - **A run's terminal event is the only event kind.** `RUN_COMPLETED` is
   written; failure and node-level transitions are not. *Upgrade:* Phase 4,
   with the frontier loop that produces them.
+- **`run_events.seq` is allocated by `coalesce(max(seq), 0) + 1` with nothing
+  serialising two allocators.** Today no two can run at once, but by accident
+  rather than by design: `commit_terminal` holds the run row `FOR UPDATE`, and
+  every `run_events` insert takes a KEY SHARE lock on that same row through the
+  foreign key, so any other writer blocks behind it -- while `pin_route` is
+  serialised against itself by the `run_routes` primary key. Two KEY SHARE
+  holders are compatible with *each other*, so the first event kind emitted from
+  a path holding neither guard gives two writers the same `seq` and a raw
+  `run_events_pkey` violation -- verified: two concurrent inserts of an
+  invented kind collide exactly so. *Upgrade:* the phase that emits node-level
+  events allocates `seq` under the run row lock, with a two-connection test.

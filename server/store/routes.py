@@ -64,29 +64,43 @@ def pin_route(store: Store, *, run_id: str, resolved: ResolvedRoute) -> str:
     the gate, and that must not be an error. Pinning a *different* route is
     refused: it would mean a run executing something other than what was
     approved.
+
+    The insert is what serialises this, not a prior `SELECT ... FOR UPDATE`:
+    there is no row to lock before the first pin, so two concurrent gate
+    replays both found nothing and one collided on `run_routes_pkey` -- a
+    vendor constraint name escaping a governed write path, and an identical
+    replay turned into an error. `ON CONFLICT DO NOTHING` blocks on the
+    conflicting insert instead, so a skipped row means the pin is durably
+    there. Selecting the run rather than naming it does the same for the
+    foreign key: an unknown run writes nothing instead of raising
+    `run_routes_run_id_fkey`. The re-read then says which of the three
+    answers a skipped write earned, and only a refused write pays for it.
     """
     digest = route_digest(resolved)
     with store.transaction():
-        existing = store.execute(
-            "SELECT route_digest FROM run_routes WHERE run_id = %s FOR UPDATE",
-            (run_id,),
-        ).fetchone()
-        if existing is not None:
-            if existing[0] != digest:
-                raise Refusal(RefusalCode.ROUTE_ALREADY_PINNED)
-            return digest
-        store.execute(
+        pinned = store.execute(
             "INSERT INTO run_routes"
             " (run_id, route_digest, profile_id, selection_id, resolved)"
-            " VALUES (%s, %s, %s, %s, %s)",
+            " SELECT %s, %s, %s, %s, %s FROM runs WHERE run_id = %s"
+            " ON CONFLICT (run_id) DO NOTHING",
             (
                 run_id,
                 digest,
                 resolved.profile_id,
                 resolved.selection_id,
                 Jsonb(_payload(resolved)),
+                run_id,
             ),
         )
+        if pinned.rowcount == 0:
+            existing = store.execute(
+                "SELECT route_digest FROM run_routes WHERE run_id = %s", (run_id,)
+            ).fetchone()
+            if existing is None:
+                raise Refusal(RefusalCode.RUN_NOT_FOUND)
+            if existing[0] != digest:
+                raise Refusal(RefusalCode.ROUTE_ALREADY_PINNED)
+            return digest
         # State and its event in one transaction (SYSTEM_SPEC 2).
         store.execute(
             "INSERT INTO run_events (run_id, seq, kind, route_digest)"
