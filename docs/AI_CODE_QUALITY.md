@@ -2,8 +2,9 @@
 
 Most of this repository will be written by an AI agent. CodeRabbit's *State of
 AI vs Human Code Generation* (470 PRs: 320 AI-co-authored, 150 human-only)
-measured what that does to a codebase: **10.83 issues per AI PR against 6.45
-for human-only**, ~1.7× overall.
+measured what that does to a codebase: **10.83 issues per AI PR against 6.45 for
+human-only**, ~1.7× overall. The study stands whatever tool ends up reading the
+diffs here; §2 records why it is no longer CodeRabbit.
 
 This document maps each measured failure mode to a control that is enforced by
 a tool, not by intention. A control nobody runs is not a control.
@@ -22,7 +23,7 @@ a tool, not by intention. A control nobody runs is not a control.
 | **Naming inconsistency** | ~2× | One glossary. Every domain term in `CONTEXT.md`; a check that new identifiers do not introduce a synonym for an existing term | `CONTEXT.md` + `scripts/check_vocabulary.py` |
 | **Concurrency & dependencies** | ~2× | No new dependency without a dated decision entry. Fully pinned, hashed locks. Every governed race proven on two independent Postgres connections | `test_dependency_pins.py`, `--require-hashes`, `test_postgres_races.py` |
 | **Performance — excessive I/O** | **~8×** | A declared I/O budget per request path, asserted in tests. N+1 detection on every list endpoint | `scripts/io_budget.py` + `test_io_budget.py` |
-| **Critical/major severity** | 1.4–1.7× | Two independent review passes before merge: self-doubt enumeration, then hostile review. The hostile pass is the gate — it must find something, and each finding is either fixed or entered in the known-gaps ledger | `confidence-review` then `adversarial-reviewer`, both before the PR is opened; CodeRabbit when asked (§2) |
+| **Critical/major severity** | 1.4–1.7× | Two independent review passes before merge: self-doubt enumeration, then hostile review. The hostile pass is the gate — it must find something, and each finding is either fixed or entered in the known-gaps ledger | `confidence-review` then `adversarial-reviewer`, both before the PR is opened; `SonarCloud Code Analysis` on every PR (§2) |
 | **Overall volume** | 1.7× | Small PRs. One concern per PR, hard cap on changed lines | CI size gate |
 
 **Excessive I/O deserves its own note.** It is the largest single multiple in
@@ -57,28 +58,51 @@ budget test is what stops it coming back.
 (bandit + pip-audit + gitleaks) · `image` (Trivy, fixable HIGH/CRITICAL) ·
 `frontend` (lint, tsc, unit, build, a11y, workbench smoke).
 
+The third reviewer is deliberately **not** among them: `SonarCloud Code
+Analysis` is posted by SonarQube Cloud itself, and a CI job that analysed the
+same project would fail rather than add anything (§2).
+
 ### Review
 
-The intent was three reviewers with different blind spots. It is two, and they
-share weights.
+Three reviewers with different blind spots.
 
 **The gate is `adversarial-reviewer`, run before every PR is opened.** It is not
 advisory: each of its three personas must produce a finding, and every finding
 is either fixed in the PR or written into the CLAUDE.md known-gaps ledger with
 its reason. A pass that produced nothing means it was not run.
 
-**CodeRabbit is opportunistic.** It is installed, live and reading
-`.coderabbit.yaml`, but it does not auto-review this repository and the request
-cannot be automated — see the ledger entry in CLAUDE.md for both proofs. A
-person typing `@coderabbitai review` gets one in under a minute. Nobody should
-plan on it.
+**SonarQube is the third, and it is the only one that is not this model.**
+`confidence-review` and `adversarial-reviewer` are one model reading its own
+work in two postures; the persona structure buys back some independence and is
+not the same thing as a second opinion. SonarQube's rule engine was written by
+people who never saw this repository, which is exactly the property the review
+control was missing — see `docs/DECISIONS.md` §30.
 
-The honest cost: `confidence-review` and `adversarial-reviewer` are the same
-model reading its own work in different postures, which is weaker than an
-independent tool. The persona structure is what buys back some independence,
-and it is not the same thing. The measured value so far, on the two changes
-this arrangement has reviewed: CodeRabbit contributed two docstrings to #20;
-the adversarial pass over that same merged change found the assertion in
+**It runs from SonarQube Cloud's side, not from CI.** Automatic analysis reads
+the repository through the GitHub App and posts the `SonarCloud Code Analysis`
+check on every pull request; the check's conclusion is the quality gate's
+verdict, so it is a gate rather than a report without anything here waiting on
+it. Nothing in this tree starts it, and nothing here can: **automatic analysis
+and a CI scanner are mutually exclusive** — with automatic analysis on, a
+scanner run against the same project fails, and fails the build with it. A
+`sonarqube` job is therefore not a stronger gate than the analysis already
+running; it is the one commit that would stop it, which
+`test_nothing_here_starts_a_scanner_of_its_own` exists to refuse.
+
+**The predecessor could not run unasked at all.** CodeRabbit declined every PR
+here — *"does not receive automatic reviews because it has fewer than 10
+stars"* on #20, *"Draft PRs are not automatically reviewed by default"* on #41 —
+and honoured `@coderabbitai review` only from a human, never from a workflow, so
+no automation in this repository could produce a review. A control nobody runs
+is not a control.
+
+The one thing that follows the repository rather than the platform is analysis
+scope: `.sonarcloud.properties` excludes `vendor/`, so the bundle we never edit
+is not judged.
+
+The measured value of the arrangement so far, on the two changes it reviewed
+before this: CodeRabbit contributed two docstrings to #20; the adversarial pass
+over that same merged change found the assertion in
 `test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` was half
 blind, and two tables with no guard at all (#24). Both had already passed
 `make check`.
@@ -117,7 +141,10 @@ under them by name, plus a target holding no tracked .py at all, so a mistyped
 directory cannot quietly expect nothing. `--unscanned DIR…` names what is
 deliberately left out, and between the two every tracked .py in the repository
 has to be claimed: a source package a later phase adds cannot go unscanned
-without somebody saying so. This applies to every scanning gate, not just bandit.
+without somebody saying so. This applies to every scanning gate this
+repository runs. The third reviewer is the exception it cannot reach: SonarQube
+Cloud decides its own scope, and all this tree contributes is the `vendor/`
+exclusion in `.sonarcloud.properties` (§2).
 
 ---
 

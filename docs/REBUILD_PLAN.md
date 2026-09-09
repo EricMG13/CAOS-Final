@@ -19,7 +19,7 @@ exist before the code they govern.
   `.claude/settings.json` with the format and guard hooks.
 - CI: `lint · types · test · security · image`. Pre-commit with ruff, gitleaks,
   the vocabulary check.
-- CodeRabbit enabled on the repository.
+- SonarQube Cloud bound to the repository (DECISIONS.md §30).
 - `scripts/check_vocabulary.py`, `scripts/io_budget.py`, `scripts/scan_floors.py`.
 
 **Exit:** an empty PR that adds one unformatted, unnamed, untested function is

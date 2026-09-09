@@ -583,3 +583,42 @@ what a node was handed; `_anchor` refuses a citation naming anything else, which
 closes the half of invariant 9 that anchoring alone never could — the other
 document is in the same case, in the same pinned set, and carries the same
 sentence, so only the ledger can tell the two apart.
+
+## 2026-09-09 §30 — SonarQube replaces CodeRabbit as the third reviewer
+
+`.coderabbit.yaml` is deleted. SonarQube Cloud's automatic analysis takes its
+place: the GitHub App reads the repository from its own side and posts the
+`SonarCloud Code Analysis` check on every pull request, whose conclusion is the
+quality gate's verdict. `.sonarcloud.properties` excludes `vendor/`. Nothing
+else about it lives in this tree.
+
+**Reason.** CodeRabbit never reviewed anything here unprompted. Its answer on
+PR #20 was *"does not receive automatic reviews because it has fewer than 10
+stars"*; on PR #41 it was *"Draft PRs are not automatically reviewed by
+default"*. Two different reasons, one outcome, and `@coderabbitai review` posted
+by `github-actions[bot]` on PR #22 was never answered — so the ask needed a
+human every time. The property `docs/AI_CODE_QUALITY.md` §2 wanted from a third
+reviewer was independence, and what it had instead was `confidence-review` and
+`adversarial-reviewer`, one model in two postures.
+
+**And no `sonarqube` CI job.** The first version of this change added one, with
+a credential guard that refused to let the analysis be skipped inside a green
+job. It was wrong twice over. Automatic analysis was already enabled and already
+passing on PR #41 before the job ran, so the reviewer needed no wiring at all;
+and automatic analysis and a CI scanner are **mutually exclusive** — with the
+former on, a scanner against the same project fails and fails the build, so the
+job could never have gone green even with the `SONAR_TOKEN` it was waiting for.
+`sonar-project.properties` is the scanner CLI's file and is ignored by automatic
+analysis, so it configured nothing while it existed; `gitleaks` also read the
+`sonar.projectKey` in it as a generic API key and failed the `security` gate.
+`test_nothing_here_starts_a_scanner_of_its_own` refuses all of it, because the
+next agent to read §11 will reach for the same job.
+
+**Consequence.** The controls that are visible in this repository are one line
+narrower than a CI job would have been: analysis scope is
+`.sonarcloud.properties`, and the quality gate, the rule set and the schedule
+are settings in SonarQube Cloud that no test here can read. That is the trade
+this decision accepts — a reviewer with genuinely different weights, in exchange
+for a control whose configuration is not entirely in the tree. §14's answer
+applies to the check: `SonarCloud Code Analysis` joins the `main` ruleset's
+required checks once it has reported on `main`.
