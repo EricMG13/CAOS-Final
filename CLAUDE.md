@@ -235,6 +235,17 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   arrangement §39 gave up to obtain a coverage metric. The alternative worth
   having is a branch ruleset condition on the analysis' own reported scope,
   which SonarQube Cloud does not offer today.
+- **Two analysis configurations exist, and which one is live is not readable
+  from here.** `.sonarcloud.properties` is automatic analysis' and
+  `sonar-project.properties` is the scanner's; the switch between them is a
+  setting in SonarQube Cloud (`docs/DECISIONS.md` §39). While both exist,
+  `test_both_analysis_configurations_declare_the_same_scope` keeps their sources,
+  tests, Python version and exclusions identical, so whichever is being read says
+  the same thing. What no test here can tell is *which*, so a coverage report is
+  either imported or silently absent depending on a setting this tree cannot see.
+  *Upgrade:* delete `.sonarcloud.properties` in the commit that confirms the
+  `sonarqube` job is posting the check — which is a person reading the checks on
+  a pull request, not a test.
 - **The check name under CI analysis is unverified.** `SonarCloud Code Analysis`
   is a required check on `main`, bound to the SonarQubeCloud app
   (`docs/DECISIONS.md` §34), and it was the name posted under *automatic*

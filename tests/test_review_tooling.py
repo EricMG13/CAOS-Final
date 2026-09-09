@@ -59,16 +59,21 @@ REQUIRED_JOBS = frozenset({"lint", "types", "test", "postgres", "security", "siz
 SCAN_ACTION = "sonarsource/sonarqube-scan-action"
 
 
-def analysis_properties() -> dict[str, str]:
-    """`.sonarcloud.properties` as a mapping, comments and blanks dropped."""
+def _properties(path: Path) -> dict[str, str]:
+    """A java-properties file as a mapping, comments and blanks dropped."""
     values: dict[str, str] = {}
-    for line in PROPERTIES.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
         key, _, value = stripped.partition("=")
         values[key.strip()] = value.strip()
     return values
+
+
+def analysis_properties() -> dict[str, str]:
+    """`sonar-project.properties`, which is what the scanner reads."""
+    return _properties(PROPERTIES)
 
 
 def declared(key: str) -> set[str]:
@@ -106,10 +111,35 @@ def test_exactly_one_job_submits_the_analysis() -> None:
         f"{submissions} jobs submit an analysis; one project takes one scan per "
         "commit, and a second run fails and fails the build with it"
     )
-    assert not (REPO / ".sonarcloud.properties").exists(), (
-        ".sonarcloud.properties is read by automatic analysis only, which is no "
-        "longer how this repository is analysed; it would configure nothing"
-    )
+
+
+def test_both_analysis_configurations_declare_the_same_scope() -> None:
+    """Two files describe one analysis until the switch-over is done.
+
+    `.sonarcloud.properties` is read by automatic analysis and
+    `sonar-project.properties` by the scanner, and which of them is authoritative
+    is a setting in SonarQube Cloud rather than anything this tree can see. So
+    for as long as both exist they have to agree: a `vendor/` exclusion in one
+    and not the other is an analysis that judges the bundle, which is what
+    deleting the first one in the same commit as adding the second one caused.
+
+    The coverage path is deliberately not compared -- automatic analysis imports
+    no coverage report, which is the whole reason for §39.
+    """
+    automatic = REPO / ".sonarcloud.properties"
+    if not automatic.exists():
+        return  # the switch-over is done and this file has been removed
+    inherited = _properties(automatic)
+    for key in (
+        "sonar.sources",
+        "sonar.tests",
+        "sonar.python.version",
+        "sonar.exclusions",
+    ):
+        assert inherited.get(key) == analysis_properties().get(key), (
+            f"{key} differs between the two analysis configurations; whichever "
+            "one SonarQube Cloud is reading, the other is a lie about the scope"
+        )
 
 
 def test_the_analysis_imports_the_coverage_report_the_suite_writes() -> None:

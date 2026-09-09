@@ -881,10 +881,23 @@ most. Overrides §20's "left alone".
 
 ## 2026-09-09 §39 — Coverage moves the analysis into CI, and §31's independence is spent
 
-`.sonarcloud.properties` is deleted and `sonar-project.properties` takes its
-place. A `sonarqube` job submits the analysis with `SONAR_TOKEN`; `pytest-cov`
-writes `coverage.xml` from the suite; `sonar.python.coverage.reportPaths` is what
-the scanner reads it by. Overrides §31.
+`sonar-project.properties` is added and a `sonarqube` job submits the analysis
+with `SONAR_TOKEN`; `pytest-cov` writes `coverage.xml` from the suite, and
+`sonar.python.coverage.reportPaths` is what the scanner reads it by. Overrides
+§31.
+
+**`.sonarcloud.properties` stays until the switch-over is done, and that is not
+a hedge.** The first version of this change deleted it in the same commit, on
+the reasoning that a file automatic analysis reads is dead once the analysis is
+CI-based. It is not dead until somebody turns automatic analysis off in
+SonarQube Cloud's settings, which no commit can do — so between the merge and
+that click, deleting it does not remove a configuration nobody reads. It removes
+the only configuration anybody is reading, leaving the live analysis with no
+`vendor/**` exclusion, no test classification and no Python version, judging 147
+vendored files no pull request is allowed to fix. Both files therefore exist for
+one transition, saying the same thing, held together by
+`test_both_analysis_configurations_declare_the_same_scope`, and the second is
+deleted by the commit that confirms the `sonarqube` job is posting the check.
 
 **Reason.** SonarQube Cloud's automatic analysis imports no coverage report. The
 quality gate has had a coverage condition with no metric to evaluate since the
