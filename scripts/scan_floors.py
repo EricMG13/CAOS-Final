@@ -19,18 +19,19 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
-# B405 and B314 below: bandit reads anything after the test id as another test
-# id, so the reason is here. It is in `cobertura_metrics`, which is the only
-# caller.
-from xml.etree import ElementTree  # nosec B405
-
 from tracked import tracked_python
 
 REPO = Path(__file__).resolve().parents[1]
+
+# Cobertura carries `filename` on `<class>` and on no other element, so this is
+# the set of files the report measured. See `cobertura_metrics` for why the
+# report is read as text.
+MEASURED = re.compile(r'\bfilename="([^"]*)"')
 
 
 def covered_files(report: Mapping[str, object]) -> list[str]:
@@ -50,14 +51,14 @@ def cobertura_metrics(report: str) -> Mapping[str, object]:
     state which files were measured and only where they state it differs, so
     this normalises rather than growing a second set of floors.
 
-    The report is written by coverage.py in the same job that reads it, so the
-    entity attacks B314 is about would have to come from a run that already had
-    the machine. `ElementTree` over `defusedxml` for that reason: the dependency
-    would buy nothing here and needs a decision entry of its own.
+    Read as text, not parsed. `xml.etree` is vulnerable to entity expansion and
+    two scanners say so -- bandit as B314, SonarPython as S2755 -- so parsing
+    costs either a suppression each or `defusedxml` and a decision entry, to
+    harden a file this repository generated itself one step earlier. What the
+    floors want from it is one attribute of one element. A regex that misread it
+    would name a measured file as unmeasured, which fails closed.
     """
-    root = ElementTree.fromstring(report)  # nosec B314
-    measured = (element.get("filename") for element in root.iter("class"))
-    return {"metrics": {name: {} for name in measured if name is not None}}
+    return {"metrics": {name: {} for name in MEASURED.findall(report)}}
 
 
 def expected_files(repo: Path, directory: str) -> list[str]:
