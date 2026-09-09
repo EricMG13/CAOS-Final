@@ -239,6 +239,14 @@ system this size means nobody looked.
   every ceiling refuses before overspend; assembly has none because nothing
   downstream has a token budget to overspend yet. *Upgrade:* with
   `max_output_tokens` and the provider boundary.
+- **`execute_module` opens the bundle twice** -- once directly and once inside
+  `assemble_authority` -- about 2.6 ms per node. Verification at use is the
+  point, so the duplicate is honest rather than wrong. *Upgrade:* pass the
+  open bundle down, when a node call is worth 1.3 ms.
+- **A malformed `document_sha256` in a citation refuses as `DIGEST_INVALID`,**
+  from `checked_digest`, rather than a citation-shaped code. Public-safe
+  either way; it names the wrong layer. *Upgrade:* when the refusal codes
+  reach a surface a person reads.
 - **The loop and `execute_module` have not met.** `run_route` still takes an
   arbitrary `Executor` and prices every node at a flat 1.00; `execute_module`
   computes a real charge from reported usage and no loop calls it.

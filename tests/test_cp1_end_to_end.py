@@ -13,9 +13,11 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 
+from methodology.envelope import MAX_CITATIONS
 from methodology.registry import assemble_authority
 from server.boundary_text import BoundaryText
 from server.engine.node import ModuleRequest, ModuleResult, execute_module
@@ -116,8 +118,15 @@ def request_for(store: Store) -> ModuleRequest:
 
 
 @pytest.fixture
-def blobs(tmp_path: object) -> BlobStore:
-    return BlobStore(root=tmp_path)  # type: ignore[arg-type]
+def blobs(tmp_path: Path) -> BlobStore:
+    return BlobStore(root=tmp_path)
+
+
+def _stored(blobs: BlobStore) -> int:
+    """Blobs actually written. `.partial` files are a failed write, not a blob."""
+    return len(
+        [p for p in blobs.root.rglob("*") if p.is_file() and p.suffix != ".partial"]
+    )
 
 
 def test_cp1_produces_canonical_envelope_with_anchored_citations(
@@ -301,8 +310,13 @@ def test_a_module_may_not_supply_its_own_rectangles(
 def test_a_refused_envelope_writes_no_artifact(
     store: Store, request_for: ModuleRequest, blobs: BlobStore
 ) -> None:
-    """A module that cannot support its claims leaves nothing behind."""
-    before = store.execute("SELECT count(*) FROM artifacts").fetchone()
+    """A module that cannot support its claims leaves nothing behind.
+
+    Counted in the blob store, which is what `execute_module` writes -- the
+    earlier version counted `artifacts`, a table this code never touches, so it
+    could not fail whatever the code did.
+    """
+    assert _stored(blobs) == 0
     with pytest.raises(Refusal):
         execute_module(
             store,
@@ -310,8 +324,81 @@ def test_a_refused_envelope_writes_no_artifact(
             provider=_answering(_envelope(smuggled="x")),
             blobs=blobs,
         )
-    after = store.execute("SELECT count(*) FROM artifacts").fetchone()
-    assert before == after
+    assert _stored(blobs) == 0, "a refused envelope reached the blob store"
+
+    execute_module(
+        store, request=request_for, provider=_answering(_envelope()), blobs=blobs
+    )
+    assert _stored(blobs) == 1, "the accepted envelope did not reach it either"
+
+
+def test_a_non_finite_number_never_reaches_the_artifact(
+    store: Store, request_for: ModuleRequest, blobs: BlobStore
+) -> None:
+    """Invariant 7: refused before use, not stored and regretted.
+
+    `runtime_output` is typed only as an object, so the schema looks no further.
+    `1e999` parses to inf and re-serialises as the literal `Infinity`, which no
+    strict JSON reader accepts -- an artifact corrupt for every consumer that is
+    not Python.
+    """
+    for literal in ("1e999", "-1e999", "NaN", "Infinity"):
+        text = (
+            json.dumps(_envelope())[:-1]
+            + ', "runtime_output": {"ratio": '
+            + literal
+            + "}}"
+        )
+        with pytest.raises(Refusal) as refused:
+            execute_module(
+                store, request=request_for, provider=_answering(text), blobs=blobs
+            )
+        assert refused.value.code is RefusalCode.ENVELOPE_INVALID, literal
+    assert _stored(blobs) == 0
+
+
+def test_a_superseded_module_id_is_named_as_its_live_owner(
+    store: Store, request_for: ModuleRequest, blobs: BlobStore
+) -> None:
+    """CP-2C assembles CP-1A's methodology, so the artifact says CP-1A.
+
+    Running one module's methodology under another module's name is what
+    invariant 3 forbids, and the base schema's enum accepts both spellings --
+    so only the host can tell them apart.
+    """
+    aliased = replace(request_for, module_id="CP-2C")
+    provider = _answering(_envelope(module_id="CP-1A", module_name="FactPack"))
+    result = execute_module(store, request=aliased, provider=provider, blobs=blobs)
+    assert json.loads(blobs.get(result.artifact_sha256))["module_id"] == "CP-1A"
+    assert "CP-1A" in provider.calls[0].prompt
+
+    with pytest.raises(Refusal) as refused:
+        execute_module(
+            store,
+            request=aliased,
+            provider=_answering(_envelope(module_id="CP-2C")),
+            blobs=blobs,
+        )
+    assert refused.value.code is RefusalCode.ENVELOPE_INVALID
+
+
+def test_more_citations_than_the_ceiling_are_refused(
+    store: Store, request_for: ModuleRequest, blobs: BlobStore
+) -> None:
+    """Every claim costs two store reads to anchor (invariant 8)."""
+    flood = _envelope(
+        evidence_trace={
+            "citations": [
+                {"document_sha256": DIGEST, "page": 1, "matched_text": QUOTE}
+                for _ in range(MAX_CITATIONS + 1)
+            ]
+        }
+    )
+    with pytest.raises(Refusal) as refused:
+        execute_module(
+            store, request=request_for, provider=_answering(flood), blobs=blobs
+        )
+    assert refused.value.code is RefusalCode.ENVELOPE_INVALID
 
 
 def test_the_same_envelope_stores_at_the_same_digest(

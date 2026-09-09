@@ -23,6 +23,13 @@ from server.refusals import Refusal, RefusalCode
 
 BASE_SCHEMA = "CP_MODULE_PAYLOAD_BASE.schema.txt"
 
+# `runtime_output` and `evidence_trace` are typed only as objects, so nothing in
+# the schema looks inside them. A module writing 1e999 there parses to inf,
+# validates cleanly, and re-serialises as the literal `Infinity` -- an artifact
+# no strict JSON reader accepts. Invariant 7 refuses non-finite values before
+# use, and this is the boundary they arrive at.
+MAX_CITATIONS = 256
+
 # Where a module puts the quotes it wants anchored. The base schema leaves
 # `evidence_trace` open; this is the host's declaration of what it reads there.
 CITATIONS = "citations"
@@ -42,7 +49,9 @@ def parse_envelope(bundle: Bundle, text: str) -> dict[str, Any]:
     no fragment of what was wrong with them.
     """
     try:
-        parsed: object = json.loads(text)
+        parsed: object = json.loads(
+            text, parse_float=_finite, parse_int=_finite, parse_constant=_refuse
+        )
     except ValueError:
         parsed = None
     valid = False
@@ -50,6 +59,11 @@ def parse_envelope(bundle: Bundle, text: str) -> dict[str, Any]:
         try:
             jsonschema.validate(parsed, envelope_schema(bundle))
             valid = True
+        except jsonschema.SchemaError:
+            # The schema, not the module. A bundle whose own payload schema is
+            # malformed is unexecutable, and saying ENVELOPE_INVALID would blame
+            # whichever module happened to run first.
+            raise Refusal(RefusalCode.METHODOLOGY_BUNDLE_INVALID) from None
         except jsonschema.ValidationError:
             valid = False
     if not isinstance(parsed, dict) or not valid:
@@ -58,6 +72,19 @@ def parse_envelope(bundle: Bundle, text: str) -> dict[str, Any]:
         raise Refusal(RefusalCode.ENVELOPE_INVALID)
     payload: dict[str, Any] = parsed
     return payload
+
+
+def _finite(literal: str) -> float | int:
+    """Reject a numeric literal that is not finite, before it becomes a value."""
+    number = float(literal)
+    if number != number or number in (float("inf"), float("-inf")):
+        raise ValueError
+    return int(literal) if literal.lstrip("-").isdigit() else number
+
+
+def _refuse(literal: str) -> float:
+    """`Infinity`, `-Infinity` and `NaN` are literals `json` accepts by default."""
+    raise ValueError(literal)
 
 
 def claimed_citations(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -71,7 +98,9 @@ def claimed_citations(payload: dict[str, Any]) -> list[dict[str, Any]]:
     if not isinstance(trace, dict):
         raise Refusal(RefusalCode.ENVELOPE_INVALID)
     claimed = trace.get(CITATIONS, [])
-    if not isinstance(claimed, list):
+    if not isinstance(claimed, list) or len(claimed) > MAX_CITATIONS:
+        # Every claim costs two store reads to anchor. Invariant 8: the ceiling
+        # refuses before the work, not after it.
         raise Refusal(RefusalCode.ENVELOPE_INVALID)
     for claim in claimed:
         if not isinstance(claim, dict) or not _well_formed(claim):
