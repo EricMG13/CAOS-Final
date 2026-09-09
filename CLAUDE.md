@@ -212,12 +212,16 @@ system this size means nobody looked.
   automatically reviewed by default"*, naming the setting that changes it. So
   the ten-star rule was never the operative one on these PRs; the draft rule
   fires first, and unlike the other two it is a line of `.coderabbit.yaml`.
-  `reviews.auto_review.drafts: true` is now set. What is *not* known is which
-  rule binds after it -- enabling drafts may simply move the refusal to the
-  ten-star rule, and no PR has tested that yet. Until one does, the sentence
-  above still holds: the third reviewer is absent unless a human asks.
-  *Upgrade:* read what comes back on the next draft PR and record which refusal
-  it is, or that a review arrived.
+  `reviews.auto_review.drafts: true` is set, and the answer came back on that
+  same PR within two minutes: CodeRabbit re-read the file -- it names the path
+  and the ASSERTIVE profile in its own run configuration -- and replaced the
+  draft refusal with the ten-star one. So two refusals stood where the entry
+  above recorded one, and the setting buys exactly one thing: the draft rule is
+  no longer the reason. It is kept for that, because only that one was ever
+  ours to answer. In effect the sentence above is unchanged -- the third
+  reviewer is absent unless a human types `@coderabbitai review` -- and the
+  blocker that remains is the one it already names. *Upgrade:* unchanged. 10
+  stars, or a plan whose auto-review does not gate on them.
 
 **Phase 6.**
 

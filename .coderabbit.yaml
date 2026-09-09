@@ -9,10 +9,11 @@ reviews:
     # branch unless told otherwise. This covers that.
     base_branches:
       - "phase-.*"
-    # Every PR opened here is a draft, and a draft is declined before any other
-    # rule is reached -- CodeRabbit's own words on PR #39, naming this setting.
-    # That is the one refusal a config file can answer. Whether the ten-star
-    # rule binds instead once this is set is untested; see CLAUDE.md.
+    # Every PR opened here is a draft, and a draft was declined before any
+    # other rule was reached -- CodeRabbit's own words on PR #39, naming this
+    # setting. Setting it moved the refusal on to the ten-star rule, which is
+    # all it buys and is why it is kept: two refusals stood where CLAUDE.md
+    # recorded one, and only this one was ever ours to answer.
     drafts: true
   request_changes_workflow: true
   high_level_summary: true
