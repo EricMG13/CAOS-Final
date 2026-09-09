@@ -19,11 +19,16 @@ from server.refusals import Refusal, RefusalCode
 
 DEFAULT_LIMIT = 4096
 
-# LRE, RLE, PDF, LRO, RLO (U+202A-U+202E), then the isolates LRI, RLI, FSI,
-# PDI (U+2066-U+2069). Written as code points on purpose: a literal bidi
-# control here would make this file itself render deceptively, which is the
-# trojan-source class (CVE-2021-42574) this module exists to refuse.
-_BIDI = frozenset(map(chr, [*range(0x202A, 0x202F), *range(0x2066, 0x206A)]))
+# LRE, RLE, PDF, LRO, RLO (U+202A-U+202E), the isolates LRI, RLI, FSI, PDI
+# (U+2066-U+2069), and the marks LRM, RLM, ALM (U+200E, U+200F, U+061C) --
+# Unicode's twelve Bidi_Control characters. The marks are Cf, not overrides,
+# and steer the order of the digits and punctuation next to them, which is the
+# same approved-versus-stored mismatch. Written as code points on purpose: a
+# literal bidi control here would make this file itself render deceptively,
+# which is the trojan-source class (CVE-2021-42574) this module exists to refuse.
+_BIDI = frozenset(
+    map(chr, [*range(0x202A, 0x202F), *range(0x2066, 0x206A), 0x200E, 0x200F, 0x061C])
+)
 _KEPT_CONTROLS = frozenset("\r\n\t")
 
 

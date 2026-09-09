@@ -390,6 +390,11 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   `member_id` is the same text an approval records in `approved_by`, and
   nothing yet joins it to a person. *Upgrade:* identity derivation, which is
   the first thing with a person to record.
+- **`BoundaryText` refuses the twelve `Bidi_Control` characters and admits five
+  format characters that cannot reorder text but can make two strings render
+  alike** -- ZWJ, ZWNJ, WJ, BOM and the soft hyphen. NFC does not fold them,
+  and nobody has ruled (`docs/DECISIONS.md` §46). *Upgrade:* a decision entry
+  either way, the day an identifier is compared by eye rather than by bytes.
 - **Two structural tests are lexical.** `test_only_lock_run_takes_the_run_row_lock`
   and `test_only_the_owner_reads_the_sources_table` read `server/` as text for
   `FOR UPDATE` beside `FROM runs`, and for `FROM` or `JOIN sources`, in any

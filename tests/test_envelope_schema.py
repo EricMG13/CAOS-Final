@@ -55,6 +55,48 @@ def test_anything_that_is_not_an_envelope_is_refused(text: str) -> None:
     assert refused.value.code is RefusalCode.ENVELOPE_INVALID
 
 
+def test_a_pathologically_nested_answer_is_refused_not_crashed() -> None:
+    # `json.loads` raises RecursionError, not ValueError, past its depth --
+    # a RuntimeError nothing here caught, so a module answering with a
+    # hundred-thousand-deep list crashed the node with a traceback instead of
+    # the typed refusal this function promises. Depth is the one shape
+    # `_bounded` never counted.
+    deep = "[" * 300_000 + "]" * 300_000
+    with pytest.raises(Refusal) as refused:
+        parse_envelope(open_bundle(), deep)
+    assert refused.value.code is RefusalCode.ENVELOPE_INVALID
+    assert refused.value.__context__ is None
+
+
+def test_an_exact_large_integer_is_finite() -> None:
+    # Invariant 7 refuses non-finite values. A 400-digit integer is finite and
+    # exact; casting every integer literal through float() to find out
+    # overflowed it to inf and refused a valid envelope wholesale.
+    import json
+
+    huge = 10**400
+    payload = json.dumps({**VALID, "runtime_output": {"n": huge}})
+    assert parse_envelope(open_bundle(), payload)["runtime_output"]["n"] == huge
+
+
+def test_a_malformed_bundle_schema_refuses_with_no_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # `raise ... from None` inside the handler suppresses the context for the
+    # printer and leaves __context__ populated for anyone who reads it -- the
+    # jsonschema SchemaError, whose message quotes the schema. Every other
+    # refusal here raises clear of the handler; this one now does too.
+    import json
+
+    import methodology.envelope as envelope
+
+    monkeypatch.setattr(envelope, "envelope_schema", lambda bundle: {"type": 12})
+    with pytest.raises(Refusal) as refused:
+        parse_envelope(open_bundle(), json.dumps(VALID))
+    assert refused.value.code is RefusalCode.METHODOLOGY_BUNDLE_INVALID
+    assert refused.value.__context__ is None
+
+
 @pytest.mark.parametrize(
     "trace",
     [

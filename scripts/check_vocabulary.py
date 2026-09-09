@@ -125,7 +125,13 @@ def violations(path: Path, banned: dict[str, str]) -> Iterator[str]:
         # names are the shape agent-written code reaches for most.
         words |= {word[:-1] for word in words if word.endswith("s")}
         for token in ENFORCED:
-            hit = token in normalised if "_" in token else token in words
+            # A multi-word synonym is matched on word boundaries: `already_set`
+            # contains `ready_set` as a substring and is not that concept.
+            if "_" in token:
+                pattern = rf"(?:^|_){re.escape(token)}s?(?:_|$)"
+                hit = re.search(pattern, normalised) is not None
+            else:
+                hit = token in words
             if hit:
                 yield f"{path}:{lineno}: {name!r} says {token!r}; use {banned[token]!r}"
 

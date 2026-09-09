@@ -309,11 +309,32 @@ def test_a_policy_refusal_is_a_typed_refusal_not_an_empty_answer() -> None:
     assert refused.value.code is RefusalCode.PROVIDER_REFUSED
 
 
+def test_a_truncated_answer_is_a_typed_refusal_not_a_priced_success() -> None:
+    """`stop_reason: max_tokens` is HTTP 200 and a full charge -- and no answer.
+
+    The ceiling, not the module, failed; an envelope that stops mid-object
+    would otherwise be refused as ENVELOPE_INVALID, telling whoever reads it
+    to fix the module rather than raise `max_output_tokens`.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return _sse(*_message("max_tokens"))
+
+    with pytest.raises(Refusal) as refused:
+        provider_using(_client_answering(handler))(CALL)
+    assert refused.value.code is RefusalCode.PROVIDER_OUTPUT_TRUNCATED
+
+
 @pytest.mark.parametrize(
     ("status", "code"),
     [
         (400, RefusalCode.PROVIDER_CALL_INVALID),
+        (401, RefusalCode.PROVIDER_CALL_INVALID),
+        (403, RefusalCode.PROVIDER_CALL_INVALID),
         (404, RefusalCode.PROVIDER_CALL_INVALID),
+        (409, RefusalCode.PROVIDER_CALL_INVALID),
+        (413, RefusalCode.PROVIDER_CALL_INVALID),
+        (422, RefusalCode.PROVIDER_CALL_INVALID),
         (429, RefusalCode.PROVIDER_UNAVAILABLE),
         (500, RefusalCode.PROVIDER_UNAVAILABLE),
         (529, RefusalCode.PROVIDER_UNAVAILABLE),

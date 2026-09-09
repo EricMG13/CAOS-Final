@@ -71,6 +71,19 @@ def test_identifiers_includes_imported_names() -> None:
     assert found == {"chunker", "fragment_reader"}
 
 
+def test_a_multiword_synonym_is_read_on_word_boundaries(tmp_path: Path) -> None:
+    # `ready_set` is the banned spelling. `already_set` contains it across
+    # "al|ready_set" and is not that concept; a gate that read substrings
+    # refused a correct identifier and blocked the PR that carried it.
+    module = tmp_path / "m.py"
+    module.write_text("already_set = 1\nready_set = 2\n", encoding="utf-8")
+    reported = list(
+        check_vocabulary.violations(module, check_vocabulary.banned_terms(CONTEXT_MD))
+    )
+    assert len(reported) == 1
+    assert "'ready_set'" in reported[0] and "'frontier'" in reported[0]
+
+
 def test_violations_catches_a_plural_synonym(tmp_path: Path) -> None:
     module = tmp_path / "m.py"
     module.write_text("def read_chunks() -> None: ...\n", encoding="utf-8")

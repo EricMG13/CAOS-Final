@@ -1417,3 +1417,42 @@ times. Each is real and each is its own concern; the ledger carries them. The
 design audit also found the loop's `Executor` seam hypothetical -- one adapter,
 a fake -- and §44 gave it its second, `module_executor`, while this audit was
 open; it is a real seam now, and the finding is recorded as it stood.
+
+## 2026-09-09 §46 — The first codebase audit: eight refusals and one gate
+
+The second half of the first codebase audit -- the seams are §45. Eight
+refusals that leaked, crashed or misled, each verified before it was fixed,
+and one gate that refused correct code.
+
+**Eight refusals.** `BlobStore` caught only `FileNotFoundError`, so an
+unreadable blob escaped as the `OSError` whose `.filename` is the root; every
+`OSError` is `BLOB_IO_FAILED` now, raised clear of the handler. `json.loads`
+raises `RecursionError` -- a `RuntimeError` -- past its depth, which `except
+ValueError` never caught in the envelope or the calculator output: an answer
+nested three hundred thousand deep crashed the node with a traceback instead
+of `ENVELOPE_INVALID`, and depth is the one shape no size bound counts.
+`parse_envelope` raised `METHODOLOGY_BUNDLE_INVALID` with `from None` inside
+its handler, which suppresses the `SchemaError` for the printer and leaves it
+on `__context__` -- the one site in the tree that used the weaker idiom.
+`_finite` cast every integer literal through `float()`, so a 400-digit
+integer -- exact, finite -- was refused as infinity. `BoundaryText` refused
+the nine bidi overrides and isolates and admitted the three marks (LRM, RLM,
+ALM), which are `Cf` and steer the order of the digits beside them; all twelve
+`Bidi_Control` characters are refused. The provider mapped 401, 403, 409, 413
+and 422 to `PROVIDER_UNAVAILABLE` -- the code §37 makes retry-worthy -- so a
+revoked key or an oversized prompt would have been retried at a reservation a
+time; they are `PROVIDER_CALL_INVALID`. A completion stopped at
+`max_output_tokens` was priced and parsed like a clean one; it is
+`PROVIDER_OUTPUT_TRUNCATED`, so the remedy reads as the ceiling and not the
+module. And `_token_runs` joined tokens with one space each, so an empty-text
+token -- an extractor artifact -- made a valid quote unlocatable; a token with
+no text is nothing to match and nothing to box.
+
+**One gate refused correct code.** `check_vocabulary.py` matched its one
+multi-word synonym as a substring, so `already_set` was refused as
+`ready_set`; it matches on word boundaries, plural included.
+
+**What stays admitted.** The five format characters that cannot reorder text
+but can make two strings render alike -- ZWJ, ZWNJ, WJ, BOM, the soft hyphen
+-- are not refused, and nobody has ruled that they should be; the ledger
+carries it.

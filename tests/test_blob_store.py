@@ -82,15 +82,41 @@ def test_a_write_that_fails_leaves_no_partial_behind(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # The temp name is unique per call, so a failure that leaves one behind
-    # leaves one behind forever -- nothing ever reuses that name.
+    # leaves one behind forever -- nothing ever reuses that name. And the
+    # failure is the host's typed code, never an OSError carrying the root.
     store = BlobStore(tmp_path)
 
     def refusing(self: Path, target: Path) -> None:
-        raise OSError
+        raise OSError(13, "Permission denied", str(target))
 
     monkeypatch.setattr(Path, "replace", refusing)
-    with pytest.raises(OSError):
+    with pytest.raises(Refusal) as caught:
         store.put(PAYLOAD)
+    assert caught.value.code is RefusalCode.BLOB_IO_FAILED
+    assert caught.value.__context__ is None
+    assert str(tmp_path) not in f"{caught.value!r} {caught.value.args}"
 
     monkeypatch.undo()
     assert list(tmp_path.rglob("*.partial")) == []
+
+
+def test_an_unreadable_blob_is_a_typed_refusal_naming_no_path(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Only FileNotFoundError was caught, so a blob the process may not read --
+    # or a directory where a file should be -- escaped as the OSError whose
+    # .filename is the blob root, the disclosure the module says it prevents.
+    # The refusal is injected rather than chmod'd, so the test runs the same
+    # as root, where a permission cannot be refused and a chmod test would skip.
+    store = BlobStore(tmp_path)
+    digest = store.put(PAYLOAD)
+
+    def refusing(self: Path) -> bytes:
+        raise PermissionError(13, "Permission denied", str(self))
+
+    monkeypatch.setattr(Path, "read_bytes", refusing)
+    with pytest.raises(Refusal) as caught:
+        store.get(digest)
+    assert caught.value.code is RefusalCode.BLOB_IO_FAILED
+    assert caught.value.__context__ is None
+    assert str(tmp_path) not in f"{caught.value!r} {caught.value.args}"
