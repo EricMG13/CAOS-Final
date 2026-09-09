@@ -14,6 +14,7 @@ it is a host contract: `docs/DECISIONS.md` §29.
 from __future__ import annotations
 
 import json
+import math
 from typing import Any
 
 import jsonschema
@@ -77,7 +78,7 @@ def parse_envelope(bundle: Bundle, text: str) -> dict[str, Any]:
 def _finite(literal: str) -> float | int:
     """Reject a numeric literal that is not finite, before it becomes a value."""
     number = float(literal)
-    if number != number or number in (float("inf"), float("-inf")):
+    if not math.isfinite(number):
         raise ValueError
     return int(literal) if literal.lstrip("-").isdigit() else number
 
