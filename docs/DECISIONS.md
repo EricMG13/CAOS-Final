@@ -517,3 +517,39 @@ first boot skips it; every restart after it pays for one.
 **Refusing, not repairing.** A mismatch is reconciled by hand. Generating the
 `ALTER TABLE` would be a migration engine, which is the thing §12's no-ORM
 decision and this file's shape exist to avoid.
+
+## 2026-09-09 §28 — The Anthropic SDK, not raw HTTP
+
+`anthropic==1.4.0` enters `requirements.in`, bringing 14 transitive packages
+(`httpx2`, `pydantic`, `anyio`, `truststore` and their dependencies) into a
+fully hashed lock. `pip-audit` is clean over the recompiled locks.
+
+**Reason.** One `POST /v1/messages` is forty lines of `urllib`, and that was the
+first instinct. It is the wrong one: the SDK owns retry and backoff on 429 and
+5xx, typed exception classes the refusal mapping switches on, streaming
+assembly, and the request shapes that change under us — `budget_tokens` became
+`effort`, `output_format` became `output_config.format`, and a hand-rolled
+client would have carried each stale shape until something broke in production.
+The bundled Claude API reference is explicit that a Python project uses the
+official SDK and does not reach for raw HTTP because it feels lighter.
+
+**Two departures from the SDK's own defaults**, both recorded here because both
+look like omissions otherwise.
+
+*No server-side `fallbacks`.* The SDK recommends enabling them on
+`claude-opus-5` so a policy refusal is retried on another model. A run here is
+bound to a provider identity (`REBUILD_PLAN.md` Phase 10). A silent switch mid-run
+would make two replays of one pinned route incomparable and an accepted artifact
+unattributable, which is a larger loss than a refused node. `stop_reason ==
+"refusal"` becomes `PROVIDER_REFUSED`.
+
+*A credential means an environment variable.* The SDK also resolves an `ant`
+profile from disk. Honouring that would let a developer's machine spend money in
+a suite that is meant to be free and offline, and would make
+`test_a_live_call_needs_a_credential_and_says_so` pass or fail depending on
+whose laptop ran it.
+
+**Consequence.** `pytest -m live_provider` is the only test in this repository
+that spends money, and it skips without a credential. Everything else drives the
+real SDK against a mock transport, which is what caught `ParsedMessage` having
+no `_request_id` — a crash on every live call that `mypy` could not see.
