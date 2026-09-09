@@ -938,27 +938,41 @@ check nothing, so the standing this call reads can be conferred by any caller.
 The ledger carries it, with why it waits for intake authority rather than
 being half-closed here.
 
-## 2026-09-09 §40 — Two SonarQube findings are accepted; three were defects
+## 2026-09-09 §40 — One SonarQube finding is accepted; three were defects, one was fixed later
 
 The third reviewer (§31) reported five open issues. Three are fixed in the
-commit carrying this entry. Two are accepted here, because an accepted finding
+commit carrying this entry. Two were accepted here, because an accepted finding
 is reported again on every analysis and its reason has to outlive the browser
-tab it was read in.
+tab it was read in. One of those two acceptances did not survive: §41 fixed
+`scan_floors.py` rather than living with it, and the paragraph below is
+corrected in place to say so.
 
-**Accepted — `scripts/scan_floors.py` reads the report path it is given.**
-High, "escape file system restrictions". The rule names its adversary as an LLM
-running the code with faulty arguments, and dismissing that as hypothetical
-would be dishonest in a repository written and gated by an agent: the agent
-*is* the caller. It is accepted on what the traversal would buy, not on who
-holds the keyboard. The path is a positional CLI argument the `Makefile`
-supplies as `bandit.json`, and the agent that runs `make check` already reads
-the filesystem with its own tools, so reaching a file through this script
-confers nothing it lacks. Nor does the script disclose what it reads --
-verified both ways: a non-JSON file raises `JSONDecodeError`, whose message
-carries a position and no content, and a JSON file of the wrong shape is
-refused as `scanned 0 files, floor is 1`. Read-only, non-disclosing, and no
-privilege gained. *Revisit* the day `scan_floors.py` reads a path from anything
-but the command line that invoked it, or reports any part of the file back.
+**~~Accepted~~ — `scripts/scan_floors.py` reads the report path it is given.
+Overridden by §41, which fixed it.** This entry accepted the High
+"escape file system restrictions" finding, on the argument that the traversal
+bought an attacker nothing: the path is a positional CLI argument the
+`Makefile` supplies as `bandit.json`, the agent that runs `make check` already
+reads the filesystem with its own tools, and the script discloses nothing it
+reads -- verified both ways, a non-JSON file raising `JSONDecodeError` whose
+message carries a position and no content, and a wrong-shaped JSON file refused
+as `scanned 0 files, floor is 1`. It set a *Revisit* condition that never
+triggered.
+
+**That was the wrong call, and §41 made the right one.** `report_within` now
+resolves the path and refuses one outside the directory the gate was invoked
+in, before anything is read; SonarQube closed the issue as *Fixed*. Two things
+this entry got wrong. It reasoned only about disclosure and privilege and never
+asked the cheaper question -- what does containment cost? Four lines, as it
+turned out, against a sink that let
+`scan_floors.py ../../etc/passwd --cobertura` read the file. And it treated
+"the caller is trusted" as settling the matter, when §41's answer is the better
+one: *a line you rewrite is yours*, whatever its provenance.
+
+**Kept here rather than deleted, because the reasoning is the record.** §38
+says overridden text is corrected in place and cites the entry that overrode
+it, so a reader is not left reconciling two decisions. An accepted finding that
+someone later fixes is the ledger working -- but only if the acceptance stops
+claiming to stand.
 
 **Accepted — `tests/test_ingestion.py` carries a bidirectional character.**
 Medium, a former hotspot. The `\u202e` is the argument
