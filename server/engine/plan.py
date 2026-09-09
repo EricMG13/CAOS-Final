@@ -125,7 +125,12 @@ def approve_plan(
     gate = _current_gate(store, run_id=run_id, plan=plan)
     with store.transaction():
         approve_gate(store, gate, approver=approver)
-        return pin_route(store, run_id=run_id, resolved=plan.route)
+        return pin_route(
+            store,
+            run_id=run_id,
+            resolved=plan.route,
+            source_set_version=plan.source_set_version,
+        )
 
 
 def _current_gate(store: Store, *, run_id: str, plan: Plan) -> Gate:

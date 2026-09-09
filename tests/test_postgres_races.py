@@ -126,7 +126,9 @@ def test_concurrent_first_pins_refuse_with_a_typed_code(
 
     def pin(_: int) -> str:
         with _connect(postgres_dsn, store_schema) as connection:
-            return pin_route(connection, run_id=run_id, resolved=ASSESSMENT)
+            return pin_route(
+                connection, run_id=run_id, resolved=ASSESSMENT, source_set_version=1
+            )
 
     with ThreadPoolExecutor(max_workers=4) as pool:
         digests = list(pool.map(pin, range(4)))
@@ -151,7 +153,9 @@ def test_a_concurrent_pin_of_a_different_route_refuses_by_code(
     def pin(resolved: ResolvedRoute) -> str:
         with _connect(postgres_dsn, store_schema) as connection:
             try:
-                pin_route(connection, run_id=run_id, resolved=resolved)
+                pin_route(
+                    connection, run_id=run_id, resolved=resolved, source_set_version=1
+                )
             except Refusal as refusal:
                 return refusal.code.value
             return "pinned"

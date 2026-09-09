@@ -448,6 +448,16 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   the transaction it was taken in. *Upgrade:* refuse a connection in autocommit
   at entry, with the slice that fixes all four -- the API layer, which is what
   brings callers this file did not write.
+- **`run_routes.source_set_version` has no foreign key, and nothing yet reads
+  it.** `run_routes` carries no `case_id` to key `(case_id, version)` on, so
+  `pin_route` refuses only a non-positive version -- a caller can still pin
+  one that does not exist, or one with no members. The plan gate already
+  refuses an empty set before it asks for approval, so the ordinary path is
+  guarded; a caller reaching `pin_route` directly is not, and nothing here
+  has a consequence for it yet: `pinned_evidence`, the reader this column and
+  `pinned_source_set_version` exist for, is exercised only by its own test.
+  *Upgrade:* the slice that calls `pinned_evidence` in earnest, which is
+  where an empty or absent version first has something to refuse against.
 
 **Phase 5.**
 

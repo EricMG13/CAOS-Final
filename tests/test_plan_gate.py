@@ -306,7 +306,12 @@ def test_a_pin_that_fails_takes_the_release_down_with_it(store: Store) -> None:
     """
     version = _evidence(store, "a" * 64)
     run_id = _run(store)
-    pin_route(store, run_id=run_id, resolved=resolve_route(CATALOG, FULL, PORTFOLIO))
+    pin_route(
+        store,
+        run_id=run_id,
+        resolved=resolve_route(CATALOG, FULL, PORTFOLIO),
+        source_set_version=version,
+    )
 
     plan = _plan(version)
     open_plan_gate(store, run_id=run_id, plan=plan)
