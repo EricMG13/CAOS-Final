@@ -40,7 +40,7 @@ DIGEST = "a" * 64
 def _token(
     place: tuple[int, int, int], text: str, at: tuple[int, int], page: int = 3
 ) -> Token:
-    """`place` is (block, line, ordinal); `at` is the token's top-left corner."""
+    """`place` is (block, line, ordinal); `at` is the token's bottom-left corner."""
     block, line, ordinal = place
     x0, y0 = at
     return Token(

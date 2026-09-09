@@ -60,7 +60,9 @@ class SourceDocument:
 class Token:
     """One extracted text run, with the rectangle it occupies on its page.
 
-    A region is a column or a paragraph -- not CONTEXT.md's `block`, which is
+    The rectangle is PDF user space: points from the page's lower-left corner,
+    y upwards, so `(x0, y0)` is the bottom-left corner and `(x1, y1)` the top
+    right. A region is a column or a paragraph -- not CONTEXT.md's `block`, which is
     the unit `read_evidence` returns. `region_id` and `line_id` come from the
     extractor, not from geometry here:
     separating two columns that share a y-band is layout analysis, and a

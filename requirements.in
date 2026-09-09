@@ -1,3 +1,5 @@
 psycopg[binary]==3.2.12
 anthropic==1.4.0
 jsonschema==4.26.0
+# PDF text with a rectangle, region and line per character (docs/DECISIONS.md section 49).
+pdfminer.six==20260107
