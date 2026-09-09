@@ -713,7 +713,7 @@ and so never hold KEY SHARE before it. `pin_route` is therefore left as it is.
 A new path that writes a child row of `runs` and then emits should take the run
 row lock first, which is what both gate paths do.
 
-## 2026-09-09 §32 — The release and the pin are one call, not two
+## 2026-09-09 §33 — The release and the pin are one call, not two
 
 `approve_plan` releases the plan gate and pins the route in a single
 transaction it opens itself. The obvious alternative -- `approve_gate`, then a

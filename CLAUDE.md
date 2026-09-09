@@ -80,7 +80,7 @@ directory the repository does not have costs more than no map.
   recomputation from the accepted-attempt ledger.
 - `server/engine/plan.py` — the plan gate. `Plan`, `plan_preview`, `plan_gate`,
   `open_plan_gate` and `approve_plan`: the one place a route is pinned, and only
-  against content a person approved (`docs/DECISIONS.md` §32).
+  against content a person approved (`docs/DECISIONS.md` §33).
 - `server/store/` — Postgres owns everything transactional.
   `server/store/schema.sql` is applied whole at startup, with no migrations.
   The write paths are `server/store/runs.py`, `server/store/attempts.py`,
