@@ -6,6 +6,7 @@ rewrites. The triggers and CHECKs are asserted here against the store itself.
 
 from __future__ import annotations
 
+import re
 import uuid
 from decimal import Decimal
 
@@ -13,7 +14,7 @@ import psycopg
 import pytest
 
 from server.boundary_text import BoundaryText
-from server.store import Store
+from server.store import SchemaDrifted, Store, apply_schema
 from server.store.runs import TerminalCommit, commit_terminal, start_run
 
 CASE = BoundaryText.of("acme")
@@ -140,3 +141,54 @@ def test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate(
     truncatable = [table for table, _, truncate in guarded if not truncate]
     assert rewritable == [], f"append-only but rewritable: {rewritable}"
     assert truncatable == [], f"append-only but truncatable: {truncatable}"
+
+
+def test_a_widened_table_definition_is_not_silently_ignored(store: Store) -> None:
+    """A live table narrower than schema.sql declares must refuse the store.
+
+    `CREATE TABLE IF NOT EXISTS t (a int)` followed by
+    `CREATE TABLE IF NOT EXISTS t (a int, b text)` leaves the table with `a`
+    only -- no error, no warning. Dropping a column reproduces the state that
+    reaches: a running instance holding the old shape while the file says
+    otherwise. Applying the file again is what a restart does, and a restart is
+    where the mismatch has to be caught.
+    """
+    apply_schema(store)  # a restart against a store that does match: no refusal
+    store.execute("ALTER TABLE runs DROP COLUMN ceiling")
+    with pytest.raises(SchemaDrifted, match=r"runs\.ceiling"):
+        apply_schema(store)
+    store.rollback()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "named"),
+    [
+        ("ALTER TABLE runs ADD COLUMN leftover text", "runs.leftover"),
+        ("ALTER TABLE runs DROP CONSTRAINT runs_state_check", "runs_state_check"),
+        # `IF NOT EXISTS` re-creates an index that is gone. It does not rebuild
+        # one that still exists under that name over different columns.
+        (
+            "DROP INDEX run_attempts_by_run;"
+            " CREATE INDEX run_attempts_by_run ON run_attempts (route_node_id)",
+            "run_attempts_by_run",
+        ),
+        (
+            "CREATE TRIGGER stale BEFORE UPDATE ON artifacts"
+            " FOR EACH ROW EXECUTE FUNCTION refuse_rewrite()",
+            "stale",
+        ),
+    ],
+)
+def test_drift_is_refused_in_every_catalogue_the_check_reads(
+    store: Store, mutation: str, named: str
+) -> None:
+    """A column is one of four things schema.sql declares, not the only one.
+
+    A check that read `information_schema.columns` alone would pass three of
+    these: a dropped CHECK, an index rebuilt over other columns and a trigger
+    the file never declared are all drift, and none of them is a column.
+    """
+    store.execute(mutation)
+    with pytest.raises(SchemaDrifted, match=re.escape(named)):
+        apply_schema(store)
+    store.rollback()

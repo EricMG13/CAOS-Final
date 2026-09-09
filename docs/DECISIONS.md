@@ -412,3 +412,37 @@ than dropping the edge or running CP-CF without an input it reads. Three FULL
 pathways carry all three owners; `COVENANT_REFINANCING` carries CP-1 and CP-4
 but no CP-2G and is refused, which is what `test_model_extension_refuses_
 missing_owner` asserts.
+
+## 2026-09-09 §24 — "No migrations" is enforced at startup, not assumed
+
+`server/store/schema.sql` opened by claiming that a file applied in full at
+startup makes drift impossible. It does not. Verified against PostgreSQL 16:
+
+    CREATE TABLE IF NOT EXISTS t (a int);
+    CREATE TABLE IF NOT EXISTS t (a int, b text);
+
+leaves `t` with column `a` only — no error, no warning. Adding a *new* table to
+the file works exactly as the file intends; changing an *existing* one silently
+does nothing, and a long-running instance keeps the old shape while the file
+says otherwise. CLAUDE.md's ledger recorded the case that works and not the case
+that does not.
+
+**`apply_schema` now compares and refuses.** It applies the file a second time
+into an empty schema created for the comparison, describes both schemas from
+`pg_catalog` — columns with type, nullability, identity and default;
+constraints; indexes; triggers — and raises `SchemaDrifted` naming what differs
+if the two sets are not equal. This is the §11 posture: refuse before acting.
+
+**Postgres parses the file, not us.** The alternative was a SQL parser in
+Python deciding what `schema.sql` declares, which is a second implementation of
+DDL semantics that can disagree with the first. Applying the file to an empty
+schema is the same authority answering the question about itself.
+
+**A schema that was empty before the file was applied is not compared.** There
+is nothing for it to have drifted from, and the comparison costs a second full
+apply — which every test would otherwise pay for a state it cannot reach. A
+first boot skips it; every restart after it pays for one.
+
+**Refusing, not repairing.** A mismatch is reconciled by hand. Generating the
+`ALTER TABLE` would be a migration engine, which is the thing §12's no-ORM
+decision and this file's shape exist to avoid.
