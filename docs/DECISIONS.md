@@ -776,7 +776,29 @@ ruleset is edited to match. `test_every_required_check_is_a_job_the_ci_still_def
 refuses the rename. Nothing here can read the ruleset, so the test pins this
 entry's list against the workflow rather than against GitHub.
 
-## 2026-09-09 §35 — Readiness is read from the CP-0 artifact, and CONDITIONAL exists
+## 2026-09-09 §35 — A plan never severs a blocking edge into a module it keeps
+
+**Decided.** `module_order` may drop modules from a pathway (§18); it may not
+drop one that a kept module reaches through a REQUIRED, CONDITIONAL or QA_GATE
+edge. `resolve_route` refuses such a plan with `ROUTE_NOT_RESOLVABLE` before
+anything is pinned.
+
+**Why.** Narrowing filters the edge set to the surviving modules, so keeping
+CP-2 and dropping CP-1 — which CP-2 REQUIRES — resolved to a CP-2 that was
+RUNNABLE with nothing to read. Reproduced against the pinned catalog. A blocking
+edge is the catalog saying a module cannot run without that input; a plan that
+deletes the edge does not make the input unnecessary, it makes the gap
+invisible.
+
+**What §18 said and did not say.** "Narrows, never adds" ruled out invention. It
+was silent on severance, and the code read the silence as permission.
+
+**Soft edges are not covered.** Dropping the source of an OPTIONAL or ADVISORY
+edge removes the edge too, so its target runs RUNNABLE rather than RESTRICTED
+and carries no limitation forward. That is a lesser loss and a separate
+decision; it is noted here so it is not mistaken for one already made.
+
+## 2026-09-09 §36 — Readiness is read from the CP-0 artifact, and CONDITIONAL exists
 
 **Decided.** `accepted_attempts` reads CP-0's readiness from its accepted
 artifact at `runtime_output.readiness_summary.overall_readiness`, the field

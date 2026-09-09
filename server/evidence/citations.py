@@ -51,15 +51,6 @@ def _collapse(text: str) -> str:
     return " ".join(text.split())
 
 
-def _line_runs(tokens: list[Token]) -> list[tuple[str, list[Token]]]:
-    """Each line as its collapsed text and the tokens that make it up."""
-    runs = []
-    for _, line in groupby(tokens, key=lambda token: (token.region_id, token.line_id)):
-        members = list(line)
-        runs.append((" ".join(_collapse(token.text) for token in members), members))
-    return runs
-
-
 def _enclosing_box(tokens: list[Token]) -> Rectangle:
     """The smallest rectangle containing every token given."""
     return (
@@ -70,24 +61,25 @@ def _enclosing_box(tokens: list[Token]) -> Rectangle:
     )
 
 
-def _covered(
-    runs: list[tuple[str, list[Token]]], start: int, stop: int
-) -> list[list[Token]]:
-    """The tokens a character span covers, split back into one list per line."""
-    covering: list[list[Token]] = []
-    at = 0
-    for text, members in runs:
-        offset = 0
-        line: list[Token] = []
-        for token in members:
-            width = len(_collapse(token.text))
-            if at + offset < stop and at + offset + width > start:
-                line.append(token)
-            offset += width + 1
-        if line:
-            covering.append(line)
-        at += len(text) + 1
-    return covering
+def _token_runs(members: list[Token], quote: str) -> list[list[Token]]:
+    """Every run of whole, consecutive tokens that reads exactly as the quote.
+
+    Whole tokens, never a substring of one: `find` over the joined text would
+    match "4.2x" inside "14.2x" and box the whole token, a rectangle enclosing
+    a digit the quote does not contain. A quote either is a run of tokens as the
+    extractor cut them, or it is not on the page.
+    """
+    words = [_collapse(token.text) for token in members]
+    runs = []
+    for start in range(len(words)):
+        stop = start + 1
+        joined = words[start]
+        while len(joined) < len(quote) and stop < len(words):
+            joined = f"{joined} {words[stop]}"
+            stop += 1
+        if joined == quote:
+            runs.append(members[start:stop])
+    return runs
 
 
 def _locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
@@ -100,20 +92,17 @@ def _locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
     if not quote:
         raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
 
-    hits: list[list[list[Token]]] = []
-    for _, region in groupby(tokens, key=lambda token: token.region_id):
-        runs = _line_runs(list(region))
-        text = " ".join(line for line, _ in runs)
-        at = text.find(quote)
-        while at >= 0:
-            hits.append(_covered(runs, at, at + len(quote)))
-            at = text.find(quote, at + 1)
-
+    hits = [
+        run
+        for _, region in groupby(tokens, key=lambda token: token.region_id)
+        for run in _token_runs(list(region), quote)
+    ]
     if not hits:
         raise Refusal(RefusalCode.CITATION_NOT_LOCATABLE)
     if len(hits) > 1:
         raise Refusal(RefusalCode.CITATION_AMBIGUOUS)
-    return hits[0]
+    by_line = groupby(hits[0], key=lambda token: (token.region_id, token.line_id))
+    return [list(line) for _, line in by_line]
 
 
 def _page_tokens(
