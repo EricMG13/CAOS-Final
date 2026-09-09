@@ -107,9 +107,17 @@ every server file and exits 0 — a green SAST gate that scanned nothing. The st
 asserts the JSON report carries no parse errors and covers the whole server, so
 a naive version bump fails loudly.
 
-**A scanner that scanned nothing is a failure.** `scan_floors.py` refuses a
-scanner reporting zero files. This applies to every scanning gate, not just
-bandit.
+**A scanner that skipped a file is a failure.** `scan_floors.py` holds three
+floors, and they catch different things. `--no-parse-errors` is what catches the
+interpreter failure above: under 3.14 bandit still lists all 29 files in
+`metrics` with their line counts, and files the 26 it choked on under `errors` —
+so a coverage count would pass it. `--cover DIR…` names the directories the scan
+was pointed at and refuses a report that does not account for each tracked .py
+under them by name, plus a target holding no tracked .py at all, so a mistyped
+directory cannot quietly expect nothing. `--unscanned DIR…` names what is
+deliberately left out, and between the two every tracked .py in the repository
+has to be claimed: a source package a later phase adds cannot go unscanned
+without somebody saying so. This applies to every scanning gate, not just bandit.
 
 ---
 

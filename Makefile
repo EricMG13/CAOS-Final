@@ -3,6 +3,10 @@ PY  := .venv/bin/python
 PYTEST := .venv/bin/pytest
 PG_DIGEST := cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685
 SEC := .venv-security/bin
+# One list, so what bandit scans and what the floor expects cannot drift, and
+# one for what it deliberately does not (see the known-gaps ledger in CLAUDE.md).
+SEC_TARGETS := scripts server methodology
+SEC_UNSCANNED := tests
 
 .PHONY: venv lock lint types test test-model security check pg merge dev
 
@@ -34,10 +38,11 @@ test-model:  ## needs soffice on PATH; a green model suite without it is vacuous
 	soffice --version
 	$(PYTEST) -m model_parity
 
-security:  # the floor is checked first: a report that parsed nothing must fail
-	$(SEC)/bandit -r scripts server methodology -f json -o bandit.json || true
-	$(PY) scripts/scan_floors.py bandit.json --min-files 1 --no-parse-errors
-	$(SEC)/bandit -r scripts server methodology
+security:  # the floor is checked first: a report that skipped a file must fail
+	$(SEC)/bandit -r $(SEC_TARGETS) -f json -o bandit.json || true
+	$(PY) scripts/scan_floors.py bandit.json --no-parse-errors \
+		--cover $(SEC_TARGETS) --unscanned $(SEC_UNSCANNED)
+	$(SEC)/bandit -r $(SEC_TARGETS)
 	$(SEC)/pip-audit --require-hashes -r requirements.txt -r requirements-dev.txt \
 		-r requirements-security.txt
 	gitleaks git --no-banner
