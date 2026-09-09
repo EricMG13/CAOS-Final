@@ -202,6 +202,24 @@ def test_every_edge_is_typed(route: ResolvedRoute) -> None:
     assert all(isinstance(e, Edge) and e.type for e in route.edges)
 
 
+def test_a_plan_cannot_narrow_away_an_input_a_kept_node_requires() -> None:
+    # Narrowing filtered the edge set to the surviving modules, so keeping CP-2
+    # and dropping CP-1 -- which CP-2 REQUIRES -- silently produced a CP-2 that
+    # was RUNNABLE with nothing to read. A REQUIRED edge into a kept node is a
+    # constraint on the plan, not a line the plan may delete.
+    with pytest.raises(Refusal) as caught:
+        resolve_route(CATALOG, FULL, ASSESSMENT, module_order=("CP-0", "CP-2"))
+    assert caught.value.code is RefusalCode.ROUTE_NOT_RESOLVABLE
+
+    kept = resolve_route(
+        CATALOG, FULL, ASSESSMENT, module_order=("CP-0", "CP-1", "CP-2")
+    )
+    assert [n.module_id for n in kept.nodes] == ["CP-0", "CP-1", "CP-2"]
+    assert {(e.source, e.target) for e in kept.edges if e.type == "REQUIRED"} >= {
+        (kept.nodes[1].route_node_id, kept.nodes[2].route_node_id)
+    }
+
+
 def test_a_pathway_the_catalog_does_not_have_is_refused() -> None:
     with pytest.raises(Refusal) as caught:
         resolve_route(CATALOG, FULL, "NO_SUCH_PATHWAY")
