@@ -1646,3 +1646,77 @@ The vocabulary loses the model build's `build` and keeps the word for the
 thing it already names everywhere else -- the bundle release a run is pinned
 to. `MODEL_EXTENSION` drops CP-MODEL in the slice that builds CP-CF (Phase 7),
 with the two tests that placed it.
+
+## 2026-09-09 §49 — pdfminer.six is the extractor, and document text drops what a reader cannot see
+
+**Decided.** `pdfminer.six` 20260107 (MIT) is the one new runtime dependency,
+and `server/evidence/extract.py` is the only way document text enters the
+host. pdfminer's layout analysis assigns the region (`LTTextBox`) and the line
+(`LTTextLine`); the host cuts each line at whitespace into tokens, each with
+the union of its characters' boxes quantised to a thousandth of a point, in
+PDF user space -- origin at the page's lower-left corner, y up. Blocks are
+packed by `SYSTEM_SPEC.md` §5's rule at `BLOCK_WIDTH` = 2000 characters. The
+layout parameters are written out in `extract.py` rather than left to
+pdfminer's defaults, so a release that moves one cannot move which quotes
+anchor. Every control, format and surrogate character and every Unicode
+noncharacter is dropped from a token and its coordinates kept -- the rule
+§16 deferred to "where extraction happens", and a wider one than
+`BoundaryText`'s, because document text reaches a prompt: the tag block
+U+E0000 to U+E007F spells an instruction a model reads and no reviewer sees,
+a joiner or a soft hyphen can make two tokens of one word or one of two, and
+`BoundaryText` guards a name, where none of that arises. The cost is a
+zero-width non-joiner dropped from Persian, which changes how a word is
+shaped and not which letters it has. A PDF with no text is refused
+`SOURCE_HAS_NO_TEXT`, and one that does not parse, or that puts a non-finite
+number in a coordinate, `SOURCE_NOT_EXTRACTABLE` -- the host checks
+finiteness itself rather than leaving it to what `quantize` does with an
+infinity, since it does nothing with NaN -- with nothing chained: pdfminer's
+exceptions quote the bytes they choked on; `MemoryError` alone
+passes through, being the host's failure and not the document's. There is
+no OCR, so a scanned filing is refused at intake, which is what the Phase 1
+ledger asked for. pdfminer's logger is cut off from the root at import, for
+the reason measured below. `cryptography` loads with pdfminer whether or not
+a filing is encrypted; an encrypted one is refused `SOURCE_NOT_EXTRACTABLE`,
+cleanly, since the host holds no password.
+
+**Reason: layout is the extractor's.** §15 put line identity with the
+extractor because separating two columns that share a y-band is layout
+analysis, and a threshold in the anchoring path would be a heuristic on the
+evidence boundary. pdfminer.six is the one candidate that ships that
+analysis. The others were costed: `pypdf` -- already the bundle's choice for
+CP-MEMO, pure Python, no dependencies -- exposes text runs with a matrix and
+no rectangle per glyph, and no lines; `pypdfium2` -- one binary wheel,
+Chrome's parser -- exposes a box per character and per run, and no regions,
+so the host would write the column heuristic §15 refused to own; PyMuPDF
+yields both and is AGPL, in a public repository whose `LICENSE` reserves all
+rights (§30). The
+cost of the choice is four packages -- `cffi`, `charset-normalizer`,
+`cryptography`, `pycparser` -- of which `cryptography` is compiled and is the
+one `pip-audit` will name most often; a red audit is a recompile (§10).
+
+**Measured.** On the two-page PDF `tests/test_extraction.py` writes -- a
+generator rather than checked-in bytes, so the diff shows what is read and
+nothing hand-maintained can drift: two regions on page 1 with three lines
+each, and "net debt" never forms across the gutter; the ToUnicode-mapped
+U+202E arrives as an `LTChar` of its own and is dropped; and unguarded,
+pdfminer emits 234 DEBUG records for a one-line page, four of them quoting
+the content stream's bytes -- the reason the logger is silenced rather than
+trusted at a level. Apple's parser renders the same bytes, so they are a PDF
+and not merely what pdfminer accepts.
+
+**Measured under review, and not closed here.** The extractor has no ceiling,
+and a byte ceiling would not be one: a 204 KB file whose one Flate stream
+inflates to 210 MB peaks at 684 MB resident in under a second; a 1 KB file
+whose ToUnicode map spans `<00000000>` to `<00FFFFFF>` builds a 16.7 M-entry
+table, 2.4 GB in ten seconds, and the four-byte span would run for hours;
+2.6 KB of compressed glyphs cost 9 s and 465 MB, and pdfminer's layout
+analysis is quadratic in glyphs, so doubling them costs 4.6× the time. The
+ledger entry says what closes it and when: a page and glyph ceiling during
+parsing and a wall clock, in a process of its own with an address-space
+limit, in the same slice as the route that first hands this an upload.
+
+**What it does not do**, each in the CLAUDE.md ledger: text drawn through
+Form XObjects, the ceilings above, de-hyphenation, rotated pages, a
+deterministic region order when pdfminer's boxes tie, ligatures and unmapped
+glyphs, storing the bytes, and a store that checks what its one producer
+hands it.

@@ -31,6 +31,7 @@ from server.store.sources import Token
 # predecessor's ~8x I/O defect (docs/AI_CODE_QUALITY.md section 1).
 IO_BUDGET = 2
 
+# `(x0, y0, x1, y1)` in PDF user space: bottom-left corner, then top-right.
 type Rectangle = tuple[Decimal, Decimal, Decimal, Decimal]
 
 

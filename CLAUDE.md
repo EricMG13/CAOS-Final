@@ -96,7 +96,11 @@ directory the repository does not have costs more than no map.
   `server/store/blobs.py` is the content-addressed blob store.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
-  quote and derives its rectangles.
+  quote and derives its rectangles; `server/evidence/extract.py` is
+  `extract_document`, the only way document text enters the host -- pdfminer's
+  regions and lines, one token per word with its rectangle, blocks packed by
+  `pack_blocks` (`docs/DECISIONS.md` §49). Its `_LAYOUT` is the layout
+  analysis invariant 11 rests on, written out.
 - `server/engine/node.py` — `execute_module`: assemble, ask, validate, anchor,
   store. Nothing is written until every citation has been re-derived.
   `module_executor` is the loop's side of it: every node of a pinned run,
@@ -156,7 +160,8 @@ system this size means nobody looked.
 
 An entry that defers to *a slice* — the extraction slice, the ingestion slice,
 the run surface, the API layer — defers to the current phase, the lowest whose
-exit test does not pass. `docs/REBUILD_PLAN.md` lists under that phase what the
+exit test does not pass. The bold phase headings below name the phase whose
+slice wrote the entry, not the phase that owes it. `docs/REBUILD_PLAN.md` lists under that phase what the
 exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 
 **Phase 0.**
@@ -354,6 +359,51 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   whether it should ever mean purge is a decision nobody has made.
   *Upgrade:* the run surface, which is the first caller that both re-derives
   a plan for an analyst and can say why a node refused.
+- **Text inside a Form XObject is not extracted.** pdfminer nests it in an
+  `LTFigure`, `_index` reads a page's own text boxes, and a filing drawn that
+  way refuses `SOURCE_HAS_NO_TEXT`: fail-closed, and a legitimate document
+  refused. *Upgrade:* `all_texts=True` in `_LAYOUT` and a descent into
+  figures, with a fixture drawn that way.
+- **The bytes of a source are not stored.** `SYSTEM_SPEC.md` §5 keeps them at
+  their `sha256`; `extract_document` digests them and hands back an index, so
+  Phase 9 has no page to draw on. *Upgrade:* the ingestion route.
+- **Document text keeps what is visible, however deceptive.** Private-use
+  glyphs, combining marks and look-alike letters stay (`docs/DECISIONS.md`
+  §49): a reviewer sees them as the model does. *Upgrade:* none owed.
+- **pdfminer's caches are process-global and unlocked**, and its logger is
+  configured once at import; nothing threads today. *Upgrade:* a decision
+  entry with the API layer, or the parse jail the ceilings entry wants.
+- **`BLOCK_WIDTH` is a judgment, not a measurement.** Half a page of prose,
+  doing two jobs -- `test_the_width_is_also_the_size_of_a_page_packed_line_by_line`
+  says which. *Upgrade:* the first node timed against a real filing.
+- **pdfminer's logger is cut off from the root for the whole process.** It
+  logs the bytes it parses at DEBUG, so `extract.py` gives it a null handler
+  and no propagation at import; the line that said why a filing was refused
+  goes with the ones that quote it. *Upgrade:* a redacting filter, with the
+  first logger (`docs/DECISIONS.md` §45).
+- **A bug in the host's own indexing reads as `SOURCE_NOT_EXTRACTABLE`.**
+  `extract_document` catches everything raised while pdfminer parses, since
+  malformed input surfaces as `KeyError` as often as a typed `PSException`;
+  a defect in `_index`, or a `RecursionError` from a deeply nested filing,
+  refuses the document with the same code, and `MemoryError` alone passes
+  through as the host's failure. *Upgrade:* a test per pdfminer exception
+  class, the day one is telling.
+- **Region order is pdfminer's, and pdfminer breaks a tie on addresses.**
+  `group_textboxes` orders equidistant box pairs by `id()`, so two
+  extractions of the same bytes can number regions -- and so blocks --
+  differently when boxes tie, as a table's can. Text and rectangles do not
+  move, the index is computed once at admission, and
+  `test_extraction_is_deterministic` proves a fixture whose pairs cannot tie.
+  *Upgrade:* `boxes_flow=None`, geometric order that interleaves two columns
+  -- a product call on reading order, not taken here.
+- **An unmapped glyph arrives as `(cid:N)` and a ligature as one character.**
+  A symbol font is noise a module reads; `financial` quoted from a block
+  showing `ﬁnancial` (U+FB01, which NFC keeps) is refused. *Upgrade:* NFKC at
+  extraction, as its own decision entry: it changes what "the same
+  characters" means.
+- **Rotated pages, CropBox offsets and right-to-left text are untested.**
+  Coordinates are pdfminer's page space, rotation applied, and the fixture
+  has none of the three. *Upgrade:* the first real filing, and Phase 9.
 - **The `RESEARCH_PLAN` gate has no caller.** `GateKind` declares it and
   `docs/REBUILD_PLAN.md` Phase 6 names research-plan approval beside source-set
   pinning; CP-DR's brief has no gate, so only `SOURCE_SET` is ever opened.
@@ -811,13 +861,18 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   table is the one misnamed. Renaming it is its own slice. *Upgrade:* unclear
   that a checker can do this; the control is review.
 - **A quote must align to whole extracted tokens, and must not be hyphenated
-  across a line.** A PDF that breaks `leverage` into `lever-` and `age` yields
-  two tokens, and a module quoting `leverage` is refused. *Upgrade:*
-  de-hyphenate at extraction, in the slice that adds real PDF extraction.
-- **Citation anchoring is proven against a synthetic token index.** No real
-  PDF has been extracted, so nothing shows that an extractor's blocks and
-  lines are the ones this logic assumes. *Upgrade:* the extraction slice adds
-  a real document fixture and re-runs these tests against it.
+  across a line.** `lever-` and `age` are two tokens on two lines, and a
+  token has one rectangle where the word has two, so the extractor cannot
+  mend it. *Upgrade:* the matcher -- `_token_runs` joining a trailing-hyphen
+  token with the next line's first in the same region -- the day a filing's
+  quote is refused for it.
+- **Citation anchoring is proven against one generated PDF.** Two pages of
+  Helvetica from `tests/test_extraction.py`: two columns sharing a y-band, a
+  quote that wraps, a ToUnicode map delivering a bidirectional override. It
+  proves the extractor's regions and lines are the ones anchoring assumes,
+  not a filing a typesetter produced -- CID fonts, tables, rotated pages.
+  *Upgrade:* the first real filing admitted, kept as a fixture if its terms
+  allow.
 - **`delivered_evidence` is recorded and not yet read.** `read_evidence` writes
   what each node was handed, but `anchor_citation` still checks only the case,
   so a module can cite a document it was never delivered. Invariant 9 is half
@@ -826,27 +881,33 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 - **`admit_source` and `start_run` both mint a `cases` row.** Tenancy is
   created as a side effect, with no authority check at the boundary.
   *Upgrade:* the ingestion slice, where intake authority is decided.
-- **Document-derived text is not `BoundaryText`.** `Block.text` and
-  `Token.text` reach pinned state unvalidated; identifiers and digests do not
-  (`docs/DECISIONS.md` §16). A document carrying a bidirectional override is
-  stored as given. *Upgrade:* the extraction slice strips the control rather
-  than refusing the document.
-- **Nothing bounds the size of anything ingested.** Token text, block text,
-  blob payloads and tokens per page are all unbounded, and `IO_BUDGET` counts
-  round-trips rather than rows -- so one dense page is unbounded memory per
-  citation. Invariant 8 says every ceiling refuses before overspend; the
-  ingestion path has no ceilings. *Upgrade:* the extraction slice, which is the
-  first code that knows how large a real document is.
-- **Blocks are accepted as given.** Nothing checks that a block's page exists
-  in the source, that blocks cover the document, or that they respect the size
-  rule in `SYSTEM_SPEC.md` §5 (one per line while small, bounded line groups
-  once not). *Upgrade:* the extraction slice, which is what produces them.
+- **Document-derived text is not `BoundaryText`, and only the extractor
+  cleans it.** `extract_document` drops every control, format and surrogate
+  character and the noncharacters (`docs/DECISIONS.md` §49); `admit_pack`
+  stores a hand-built `Block.text` or `Token.text` as given, controls and
+  all. *Upgrade:* the ingestion route, after which nothing but the extractor
+  reaches `admit_pack` with document text.
+- **Nothing bounds what a filing costs to parse, and a byte ceiling would
+  not.** `extract_document` parses in memory with no ceiling on bytes, pages,
+  glyphs, time or memory, and the cost is amplification: a 1 KB file reached
+  2.4 GB under review (`docs/DECISIONS.md` §49). `_split` is quadratic on a
+  line with no spaces, after pdfminer has paid far more to make one. This is
+  the one place untrusted bytes are parsed, and nothing calls it yet, which
+  is the only reason this is an entry and not a blocker. *Upgrade:* in the
+  same slice as the route that first calls it on an upload: a page and glyph
+  ceiling during parsing and a wall clock, in a process of its own with an
+  address-space limit -- the calculator boundary's shape.
+- **Blocks are checked by nobody but their producer.** `pack_blocks` packs
+  by `SYSTEM_SPEC.md` §5's rule; `admit_pack` still accepts a hand-built
+  block on a page the source does not have, or of any size. *Upgrade:* the
+  day a second producer of blocks exists.
 - **A source set can be pinned to sources from a single case only, and nothing
   yet reads it.** `read_evidence` is what makes a pinned set mean something.
   *Upgrade:* the next slice.
-- **A source admitted with no tokens is accepted.** Every citation against it
-  is then refused, which is correct but late; a scanned document with no text
-  layer should be refused at intake. *Upgrade:* the ingestion slice.
+- **A source with no text is refused by the extractor, not by the store.**
+  `extract_document` refuses `SOURCE_HAS_NO_TEXT` -- there is no OCR --
+  while `admit_pack` still admits a `SourceDocument` with no tokens, as the
+  `read_evidence` suite relies on. *Upgrade:* the ingestion route.
 - **A run's terminal event is the only run-level event kind.** `RUN_COMPLETED`
   is written; failure is not, and no node-level transition is: `accept` writes
   the artifact and the charge and emits nothing, though `SYSTEM_SPEC.md` §10
