@@ -237,14 +237,23 @@ system this size means nobody looked.
   loosened-gate case while the gate lives in a UI, and reverting to a CI scanner
   trades it for a configuration the author of the code can edit, which is the
   worse end for a repository written by an agent.
-- **`.sonarcloud.properties` is unverified from here.** It is the file automatic
-  analysis reads — `sonar-project.properties` is the scanner CLI's and is
-  ignored — but nothing in this repository can prove the exclusion took effect,
-  and a pull-request analysis only reports on the diff, so `vendor/` being
-  judged or not judged does not show up on a PR. Its authoritative equivalent is
-  the project's Analysis Scope settings in SonarQube Cloud.
-  *Upgrade:* read the project's measures once, and set the exclusion in the UI
-  instead if the file did nothing.
+- **`.sonarcloud.properties` is verified by the project's analysis warnings,
+  and by nothing in this tree.** The first version of this file declared only
+  `sonar.exclusions`, and SonarQube Cloud's *Analysis warnings* said what that
+  cost: `sonar.tests` unset, so SonarPython found test-shaped files and ran
+  production rules on none of them — 29 files under neither rule set; and
+  `sonar.python.version` unset, so every rule was evaluated against all of
+  Python 3 at once. Both are now declared, and the warnings are the only place
+  either could have been noticed: a pull-request analysis reports on the diff,
+  so a rule that never ran shows up as nothing rather than as a finding.
+  The same holds for the `vendor/` exclusion, which no test here can prove took
+  effect. What the suite pins is that the *file* says the right thing —
+  `sonar.sources` and `sonar.tests` between them claim every tracked .py, and
+  `sonar.python.version` matches the type gate's interpreter. Whether SonarQube
+  read it is a question only SonarQube answers.
+  *Upgrade:* read the analysis warnings after a change to this file — an
+  ignored key reappears there. The authoritative equivalent, if the file is
+  ever ignored wholesale, is the project's Analysis Scope settings.
 - **Nothing replaces `.coderabbit.yaml`'s `path_instructions`.** They asked a
   reviewer to flag a float on a money path, a `str(exc)` on a wire response, a
   model without `extra="forbid"`, a synonym for a `CONTEXT.md` term. SonarQube
