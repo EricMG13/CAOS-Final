@@ -20,6 +20,7 @@ from server.boundary_text import BoundaryText
 from server.engine.route import ResolvedRoute, resolve_route, route_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
+from server.store.audit import GENESIS, AuditEvent, AuditKind, record
 from server.store.events import EventKind, emit
 from server.store.gates import Gate, GateKind, approve_gate, open_gate
 from server.store.members import Standing, grant_membership
@@ -180,6 +181,7 @@ def test_two_connections_release_one_gate_once(
             case_id=CASE,
             member_id=BoundaryText.of(approver),
             standing=Standing.APPROVER,
+            actor=BoundaryText.of("pm"),
         )
     gate = Gate(run_id, GateKind.SOURCE_SET, "a" * 64, "b" * 64)
     open_gate(store, gate)
@@ -224,3 +226,41 @@ def test_concurrent_emitters_allocate_distinct_sequences(
         seqs = sorted(pool.map(append, range(6)))
 
     assert seqs == [1, 2, 3, 4, 5, 6]
+
+
+def test_concurrent_governed_writes_chain_in_sequence(
+    store: Store, store_schema: str, postgres_dsn: str
+) -> None:
+    """The head row is the lock: two appends on one case read two seqs.
+
+    Without it both read seq 0, both link to genesis, and the loser collides
+    on `audit_events_pkey` -- a constraint name escaping a governed write. Six
+    connections, six events, one chain that reads end to end.
+    """
+    start_run(store, case_id=CASE)
+    store.commit()
+
+    def append(i: int) -> str:
+        event = AuditEvent(
+            kind=AuditKind.MEMBERSHIP_GRANTED,
+            actor=BoundaryText.of("pm"),
+            subject=BoundaryText.of(f"member-{i}"),
+        )
+        with _connect(postgres_dsn, store_schema) as connection:
+            with connection.transaction():
+                return record(connection, case_id=CASE, event=event)
+
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        heads = set(pool.map(append, range(6)))
+
+    rows = store.execute(
+        "SELECT seq, prev_sha256, sha256 FROM audit_events ORDER BY seq"
+    ).fetchall()
+    assert [seq for seq, _, _ in rows] == [1, 2, 3, 4, 5, 6]
+    digests = [sha256 for _, _, sha256 in rows]
+    assert [prev for _, prev, _ in rows] == [GENESIS, *digests[:-1]]
+    assert heads == set(digests)
+    assert store.execute("SELECT seq, head FROM audit_chain_heads").fetchone() == (
+        6,
+        digests[-1],
+    )

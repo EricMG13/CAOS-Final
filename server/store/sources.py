@@ -27,6 +27,7 @@ from server.boundary_text import BoundaryText
 from server.digests import checked_digest, checked_uuid
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
+from server.store.audit import AuditEvent, AuditKind, record
 from server.store.members import Standing, require_standing
 
 # Who may withdraw. A reader is shown the evidence and does not manage it.
@@ -119,6 +120,8 @@ def withdraw_source(
     Destructive and final, so it carries the standing check a gate's release
     carries: a writer, approver or admin on the case, read under `FOR SHARE`
     inside this transaction so a revocation waits for it. A reader may not.
+    A governed write, so the actor is recorded on the case's audit chain in
+    the same transaction: the withdrawal commits with its event or not at all.
 
     `withdrawn_at IS NULL` on the UPDATE is what keeps a second withdrawal from
     reaching the finality trigger; a row it did not match is read again to
@@ -139,6 +142,12 @@ def withdraw_source(
             params,
         )
         if updated.rowcount == 1:
+            event = AuditEvent(
+                kind=AuditKind.SOURCE_WITHDRAWN,
+                actor=actor,
+                subject=BoundaryText.of(source_id),
+            )
+            record(store, case_id=case_id, event=event)
             return True
         found = store.execute(
             "SELECT 1 FROM sources WHERE case_id = %s AND source_id = %s", params

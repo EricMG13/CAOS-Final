@@ -88,7 +88,11 @@ def _run(store: Store) -> str:
     """A run on whose case `APPROVER` holds the standing to release a gate."""
     run_id = start_run(store, case_id=CASE)
     grant_membership(
-        store, case_id=CASE, member_id=APPROVER, standing=Standing.APPROVER
+        store,
+        case_id=CASE,
+        member_id=APPROVER,
+        standing=Standing.APPROVER,
+        actor=BoundaryText.of("pm"),
     )
     return run_id
 

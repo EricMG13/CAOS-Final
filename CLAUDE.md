@@ -86,12 +86,14 @@ directory the repository does not have costs more than no map.
   The write paths are `server/store/runs.py`, `server/store/attempts.py`,
   `server/store/routes.py`, `server/store/gates.py` (digest-bound interrupts),
   `server/store/members.py` (case standing, read where a gate is released),
-  `server/store/sources.py` (admission) and `server/store/source_sets.py`
-  (pinning); `server/store/events.py` is the one emitter every run event is
-  allocated through and holds `lock_run`, the one seam every governed write
-  takes the run row through; the `live_sources` view in `schema.sql` is the
-  one every read of a source goes through; and `server/store/blobs.py` is the
-  content-addressed blob store.
+  `server/store/sources.py` (admission and withdrawal) and
+  `server/store/source_sets.py` (pinning); `server/store/events.py` is the one
+  emitter every run event is allocated through and holds `lock_run`, the one
+  seam every run-scoped governed write takes the run row through;
+  `server/store/audit.py` is the one emitter every case-scoped governed
+  write's audit event is chained through; the `live_sources` view in
+  `schema.sql` is the one every read of a source goes through; and
+  `server/store/blobs.py` is the content-addressed blob store.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
   quote and derives its rectangles.
@@ -350,13 +352,12 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   one replays as decided while the run's reads refuse; re-pinning is a new
   run. A withdrawal that commits between `approve_plan`'s member read and its
   release binds a plan the run will refuse to read in full, by that same
-  fail-closed read. Who withdrew is not recorded: `withdrawn_at` says when,
-  and the actor is the audit chain's, owed by this phase. The blocks and
-  tokens stay in the store -- withdrawal means no further use, not purge, and
+  fail-closed read. Who withdrew is on the case's audit chain
+  (`docs/DECISIONS.md` §47); what is not is a watcher. The blocks and tokens
+  stay in the store -- withdrawal means no further use, not purge, and
   whether it should ever mean purge is a decision nobody has made.
   *Upgrade:* the run surface, which is the first caller that both re-derives
-  a plan for an analyst and can say why a node refused; `audit_events` for
-  the actor.
+  a plan for an analyst and can say why a node refused.
 - **The `RESEARCH_PLAN` gate has no caller.** `GateKind` declares it and
   `docs/REBUILD_PLAN.md` Phase 6 names research-plan approval beside source-set
   pinning; CP-DR's brief has no gate, so only `SOURCE_SET` is ever opened.
@@ -379,13 +380,13 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   holds about it. *Upgrade:* identity derivation with the first HTTP route,
   which is what turns a header or an OIDC group into a role the call can be
   handed.
-- **`case_members` is current membership, with no history and no guard.** A
-  grant, a change of standing and a revocation each rewrite the row in place,
-  and nothing records who did it or when the previous standing ended; the
-  audit chain that would is owed by this phase. A raw `DELETE` on the table is
-  a revocation nobody made, and a raw `UPDATE` a grant nobody gave. *Upgrade:*
-  `audit_events`, with `test_a_governed_write_commits_its_audit_event_or_nothing`,
-  which makes a membership change a governed write.
+- **`case_members` is current membership, with no guard.** A grant, a change
+  of standing and a revocation each rewrite the row in place; who made each,
+  and when, is the case's audit chain's (`docs/DECISIONS.md` §47), so the
+  history exists and the row is not it. A raw `DELETE` on the table is still a
+  revocation nobody made and a raw `UPDATE` a grant nobody gave, and neither
+  reaches the chain. *Upgrade:* a guard function permitting only the store's
+  own paths, or the least-privilege role Phase 1 owes.
 - **There is no `users` table.** `SYSTEM_SPEC.md` §2 lists one under tenancy.
   `member_id` is the same text an approval records in `approved_by`, and
   nothing yet joins it to a person. *Upgrade:* identity derivation, which is
@@ -404,9 +405,11 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   write that hid. *Upgrade:* a parser over the statements the store actually
   issues, the day a query is built rather than written.
 - **Granting and revoking standing check nothing about who is doing it.**
-  `grant_membership` and `revoke_membership` take no actor: any caller holding
-  a connection can make anyone `ADMIN` on any case, or strip a case's last
-  `ADMIN`, and then release its gate through the check this slice added. The
+  `grant_membership` and `revoke_membership` take an actor and record it on
+  the chain (`docs/DECISIONS.md` §47), and check nothing about it: any caller
+  holding a connection can make anyone `ADMIN` on any case under any name, or
+  strip a case's last `ADMIN`, and then release its gate through the check
+  this slice added. The
   release is guarded and the thing that confers the standing to release is
   not, which is a privilege-escalation path the moment a route wraps either
   call. It is not closed here because the rule that closes it is intake's:
@@ -462,9 +465,10 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   caller. Every caller today opens one. Same shape as `commit_terminal`'s and
   `apply_schema`'s assumptions below, and it gets the same answer for the same
   reason; `require_standing` shares it, since its `FOR SHARE` is released with
-  the transaction it was taken in. *Upgrade:* refuse a connection in autocommit
-  at entry, with the slice that fixes all four -- the API layer, which is what
-  brings callers this file did not write.
+  the transaction it was taken in, and so does `record`, whose head row lock
+  goes the same way. *Upgrade:* refuse a connection in autocommit at entry,
+  with the slice that fixes all five -- the API layer, which is what brings
+  callers this file did not write.
 - **`run_routes.source_set_version` has no foreign key.** `run_routes` carries
   no `case_id` to key `(case_id, version)` on. The plan gate refuses a version
   with no members before it pins; a direct `pin_route` caller can pin a version
@@ -507,6 +511,45 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   (`docs/DECISIONS.md` §44). §21 rules for the indeterminate case and is silent
   on the accepted one. *Upgrade:* release `reserved - charged` on `accept`, as
   its own decision, because it changes what `reserved_total` means.
+- **The audit chain is checked one link deep at append, and only against an
+  incomplete rewrite.** `record` recomputes the last event's digest from its
+  row and compares `(seq, digest)` with the head row before chaining another
+  event, refusing `AUDIT_CHAIN_BROKEN` on a mismatch (`docs/DECISIONS.md`
+  §47). A rewrite further back is invisible to it, and so is a coherent one
+  anywhere: the table owner, with triggers disabled, can rewrite a row,
+  recompute its digest with the public formula and move the head to match,
+  and no live check -- this one or a full recompute -- can tell, because the
+  chain has no anchor (`SYSTEM_SPEC.md` §2). What tells is a retained head
+  compared with the live one, and nothing retains one. *Upgrade:* Phase 8's
+  package, `test_audit_package_verifies_with_stdlib_alone`, which is what
+  retains a head.
+- **A broken chain has no repair path.** Once the head and the last event
+  disagree, every governed write on that case refuses until someone reconciles
+  them by hand -- and `audit_events` refuses the UPDATE that would, so the
+  hand is the table owner's with triggers disabled. Fail-closed, which is the
+  posture wanted for a ledger that was rewritten, and a case nobody can act on
+  meanwhile. *Upgrade:* a repair procedure with its own decision entry, the
+  day a chain is found broken.
+- **The actor on the chain is the name the caller gave.** There is no served
+  identity, so `record` writes what it is handed: `withdraw_source` has checked
+  that the name holds standing on the case; `grant_membership` and
+  `revoke_membership` have not (above). *Upgrade:* identity derivation with the
+  first HTTP route.
+- **Gate releases are not on the chain, and which writes must be is prose.**
+  `run_gate_approvals` records the approver, the digests and the time in an
+  append-only ledger of its own; the chain carries membership and withdrawal.
+  Admission and `start_run` are not governed writes yet (Phase 1, below) and
+  record nothing anywhere. The list of writes that must call `record` is this
+  entry and `docs/DECISIONS.md` §47, enforced by nothing: a new store write
+  that should be governed and is not passes every gate. *Upgrade:* Phase 8's
+  package, the first reader that can say what it needs on the chain, and the
+  first place a missing kind would be noticed.
+- **`audit_chain_heads` keeps its UPDATE path.** The head moves with every
+  event, so the table needs one, as `run_gates` does; its DELETE and TRUNCATE
+  are refused. A raw UPDATE therefore moves the head, and what refuses that is
+  the link check on the next write rather than the store. *Upgrade:* the
+  second guard function `run_gates` waits for, permitting only the emitter's
+  own advance.
 
 **Phase 5.**
 
@@ -725,12 +768,12 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   §11 runs one `api` and one `worker`, which is two processes. *Upgrade:* a
   `pg_advisory_xact_lock` around the apply, in the phase that first starts both.
 
-- **Append-only is enforced on the four tables that exist.** `run_events`,
-  `source_sets`, `source_set_members` and `delivered_evidence` each refuse
-  UPDATE, DELETE and TRUNCATE. `run_attempts`, `deliverable_opinions`,
-  `model_revisions` and `audit_events` are equally append-only in the spec and
-  are not yet created. *Upgrade:* each carries both `refuse_rewrite` triggers in
-  the phase that creates it, and
+- **Append-only is enforced on the tables that exist.** `run_events`,
+  `source_sets`, `source_set_members`, `delivered_evidence`, `run_attempts`,
+  `run_gate_approvals` and `audit_events` each refuse UPDATE, DELETE and
+  TRUNCATE. `deliverable_opinions` and `model_revisions` are equally
+  append-only in the spec and are not yet created. *Upgrade:* each carries
+  both `refuse_rewrite` triggers in the phase that creates it, and
   `test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate` fails until
   it does.
 - **`artifacts` and `budget_ledger` refuse nothing.** Invariant 6 promises one
@@ -751,10 +794,11 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   refused, not an untrusted caller contained. *Upgrade:* a role that owns no
   table and holds no TRUNCATE grant, in the phase that first deploys the store
   somewhere real.
-- **Refusal is proven behaviourally for `run_events` only.** `source_sets`,
+- **Refusal is proven behaviourally for `run_events`, `run_gate_approvals`,
+  `audit_events` and `audit_chain_heads` only.** `source_sets`,
   `source_set_members`, `delivered_evidence` and `run_attempts` are covered
   structurally -- the pairing test asserts each carries both triggers, and
-  `run_events` proves the shared `refuse_rewrite` function actually raises. A
+  the four prove the shared `refuse_rewrite` function actually raises. A
   DELETE against the other four touches zero rows in a fresh schema, so it
   succeeds whether the trigger is there or not; a behavioural test needs a
   populated fixture per table. *Upgrade:* the slice that gives those tables
