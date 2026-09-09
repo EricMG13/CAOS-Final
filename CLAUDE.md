@@ -89,14 +89,18 @@ directory the repository does not have costs more than no map.
   quote and derives its rectangles.
 - `server/boundary_text.py`, `server/digests.py`, `server/refusals.py` — the
   types every boundary uses.
+- `methodology/bundle.py` — `open_bundle` and `Bundle.read`, the only reader of
+  vendored bytes: no-follow handles, hashed against the manifest at every use.
+  `methodology/registry.py` — `ModuleSpec`, `reference_files`, `module_spec` and
+  `assemble_authority`. The catalog says what is live, the manifest says what its
+  bytes are, and `_CARVE_OUTS` is the host's one override.
 - `vendor/deploy-v/` — the methodology bundle, read-only and never edited
   (`docs/DECISIONS.md` §6). The gates do not scan it.
 - `scripts/` — the five gates `make check` runs.
 
-Arriving with their phase, and not yet present: `methodology/` — bundle
-verification at use, the registry, the calculator boundary (Phase 5);
-`models/` — the build and the workbook renderer (Phase 7); `frontend/` — one
-workspace, nine sections, static export (Phase 9).
+Arriving with their phase, and not yet present: `models/` — the build and the
+workbook renderer (Phase 7); `frontend/` — one workspace, nine sections, static
+export (Phase 9).
 
 ## Rules of work
 
@@ -179,6 +183,54 @@ system this size means nobody looked.
   *Upgrade:* 10 stars, or a plan whose auto-review does not gate on them. A
   workflow driven by a personal access token would also work and is not worth a
   long-lived credential for this.
+
+**Phase 5.**
+
+- **The registry declares identity and folders, not execution.** `ModuleSpec`
+  carries `module_id`, `skill_slug` and `reference_files`. `SYSTEM_SPEC.md` §3
+  also lists execution mode, `max_output_tokens`, `calculators`,
+  `derived_projections`, `source_mode` and `plan_approval`; nothing reads any of
+  them yet, and a field no caller reads is a field no test can constrain.
+  *Upgrade:* each arrives with the slice that reads it — `calculators` with the
+  calculator boundary, the rest with the provider boundary.
+- **No run records the build it ran under.** `Bundle.build_id` is read and
+  `Authority` carries it, and no `runs` column holds it, so "a run pinned to one
+  build never executes under another" is enforced nowhere. Nothing executes a
+  module yet, so there is no execution to refuse. *Upgrade:* the slice that runs
+  CP-1, which is the first caller with a run to bind.
+- **Three `references/` workbooks are authority the host does not deliver.**
+  CP-3 has two and CP-6 one, all `.xlsx`. `reference_files` allowlists `.md`,
+  `.txt` and `.json` because authority reaches a module as prompt text, so a
+  module whose reference is a workbook is given everything except that.
+  `test_a_binary_reference_is_not_delivered_as_text` pins the set at three.
+  *Upgrade:* the slice that gives a module a non-text attachment, if one ever
+  needs to; otherwise a decision that these three are host-side inputs.
+- **`MANIFEST_SHA256` refuses an accident, not an author.** It is the only
+  cover for `DEPLOY_V_INTEGRITY_v1.json`, which is the one vendored file no
+  manifest entry covers — verified by
+  `test_the_manifest_is_the_only_uncovered_vendored_file`. It stops a partial
+  edit, a bad merge and a corrupt checkout. Anyone with commit rights edits the
+  constant and `vendor/` in one commit. *Upgrade:* a signature over the bundle
+  from a key this repository does not hold, which is a supply-chain decision
+  rather than a code one.
+- **Nothing bounds the size of an assembled authority.** CP-OS aside, the
+  largest module reads its `SKILL.md`, up to 20 reference files and the 48 KB
+  shared canon on every call, with no ceiling and no cache. Invariant 8 says
+  every ceiling refuses before overspend; assembly has none because nothing
+  downstream has a token budget to overspend yet. *Upgrade:* with
+  `max_output_tokens` and the provider boundary.
+- **Vendored authority text is not `BoundaryText`.** `Bundle.read` checks the
+  digest and that the bytes decode as UTF-8, nothing more, and that text goes
+  straight into a prompt. `docs/DECISIONS.md` §16 rules on identifiers and on
+  document text; vendored authority is a third category nobody has ruled on. A
+  bidirectional override in an upstream markdown file is delivered as written.
+  Trusting it follows from invariant 4 — the bundle *is* the authority — but it
+  is a decision nobody has made rather than one that has been made.
+  *Upgrade:* a decision entry either way, in the slice that first sends
+  authority to a provider.
+- **CP-CF has no skill folder.** `_CALCULATORS`, `cp-cf-cash-flow-engine` and
+  the calculator boundary are the next slice; a route carrying CP-CF still
+  resolves and still cannot execute.
 
 **Phase 4.**
 

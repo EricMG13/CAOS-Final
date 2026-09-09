@@ -412,3 +412,33 @@ than dropping the edge or running CP-CF without an input it reads. Three FULL
 pathways carry all three owners; `COVENANT_REFINANCING` carries CP-1 and CP-4
 but no CP-2G and is refused, which is what `test_model_extension_refuses_
 missing_owner` asserts.
+
+## 2026-09-09 §24 — The catalog says what is live; the manifest says what its bytes are
+
+`SYSTEM_SPEC.md` §3 reads as though `ModuleSpec.reference_files` is written out
+per module. It is derived instead, from two sources with two different jobs.
+
+**The live set is the catalog's `modules` list**, plus the one host carve-out.
+It is not the manifest's folder list. The bundle ships 25 skill folders and the
+catalog declares 24 modules; the extra folder is `cp-os-credit-os`, whose
+`references/` hold `CREDIT_OS_V_MODULE_CATALOG_v2.json` — the routing catalog
+itself. A live set taken from folder layout makes `CP-OS` a module and hands a
+model the map that routes it, which inverts invariant 4's direction of
+authority. `test_the_os_skill_folder_is_not_a_live_module` is the guard.
+
+**The file set is an allowlist**: `SKILL.md`, the module's own `references/`
+where the suffix is `.md`, `.txt` or `.json`, and root `CANON_SHARED.md`. Not a
+denylist naming `scripts/` and `agents/`. One Deploy V release changed 175 files
+(§6); a rule naming what to exclude admits every directory the next release
+invents. `scripts/` is calculator code the host selects and never puts in a
+prompt (`SYSTEM_SPEC.md` §3), and `CANON_SHARED.md` is in because 23 of 25
+`SKILL.md` instruct the module to open it and a module has no filesystem.
+
+**Reason.** Twenty-five hand-written file lists drift from the bundle in one
+direction only: a new upstream reference file is silently withheld from the
+module that ships with it, and nothing fails. Derivation cannot drift, because
+the manifest that names the files is the manifest that pins their bytes.
+
+**Consequence.** The host keeps exactly one declaration, `_CARVE_OUTS`, and it
+is CP-PARSE (§5). Everything else about a module's identity comes from the
+bundle, verified at use.
