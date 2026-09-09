@@ -16,6 +16,7 @@ import argparse
 import ast
 import re
 import sys
+import tokenize
 from pathlib import Path
 
 from tracked import tracked_python
@@ -43,10 +44,23 @@ def public_definitions(source: str, filename: str) -> list[tuple[int, str]]:
 
 
 def _named_in(tests_dir: Path) -> str:
-    """Every byte of the test suite, as one haystack to search for symbol names."""
-    return "\n".join(
-        path.read_text(encoding="utf-8") for path in sorted(tests_dir.rglob("*.py"))
-    )
+    """Every identifier the test suite names, as one haystack.
+
+    Identifiers only: a comment, a docstring or a string literal is prose, and a
+    symbol mentioned there has no test naming it -- which is what this gate is
+    for. Tokenising rather than stripping with a regex because a triple-quoted
+    shell stub and an escaped quote are both ordinary here, and `tokenize` is
+    the stdlib answer that gets them right.
+    """
+    names: list[str] = []
+    for path in sorted(tests_dir.rglob("*.py")):
+        with path.open("rb") as handle:
+            names.extend(
+                token.string
+                for token in tokenize.tokenize(handle.readline)
+                if token.type == tokenize.NAME
+            )
+    return "\n".join(names)
 
 
 def untested(path: Path, haystack: str) -> list[str]:

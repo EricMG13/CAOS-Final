@@ -29,7 +29,7 @@ from server.engine.loop import (
 from server.engine.route import resolve_route
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.attempts import reserve, reserved_total
+from server.store.attempts import accept, reserve, reserved_total
 from server.store.routes import pin_route
 from server.store.runs import start_run
 
@@ -200,3 +200,31 @@ def test_a_charge_within_its_reservation_is_recorded_as_charged(
     ).fetchone()
     assert charged is not None
     assert charged[0] == cheap * 2
+
+
+def test_accepting_one_node_twice_records_one_artifact_and_one_charge(
+    store: Store, pinned: str
+) -> None:
+    """Invariant 6: one artifact, one charge, however often a node is accepted.
+
+    The `artifacts` primary key is what refuses the second, and the transaction
+    `accept` shares with the ledger insert is what keeps its charge out. Neither
+    table carries a rewrite trigger (CLAUDE.md, Phase 1), so this pairing is the
+    whole of the guarantee.
+    """
+    node = BoundaryText.of("CP-0")
+    charge = Decimal("1.00")
+    accept(store, run_id=pinned, node_id=node, artifact_sha256="a" * 64, charge=charge)
+    # No commit here: `accept` opens the outermost transaction, so the first
+    # call is already durable. A commit would also mask one that never was.
+    with pytest.raises(psycopg.errors.UniqueViolation):
+        accept(
+            store, run_id=pinned, node_id=node, artifact_sha256="b" * 64, charge=charge
+        )
+    store.rollback()
+    counted = store.execute(
+        "SELECT (SELECT count(*) FROM artifacts WHERE run_id = %s),"
+        " (SELECT count(*) FROM budget_ledger WHERE run_id = %s)",
+        (pinned, pinned),
+    ).fetchone()
+    assert counted == (1, 1)

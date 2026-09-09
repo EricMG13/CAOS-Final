@@ -143,11 +143,22 @@ system this size means nobody looked.
   (`docs/DECISIONS.md` §11). *Upgrade:* the phase that adds the Dockerfile adds
   `trivy image` with `--exit-code 1` on fixable HIGH/CRITICAL and a scan floor
   asserting a non-empty target list.
-- **`check_tested.py` matches a name as a whole word anywhere in the suite's
-  bytes,** docstrings and comments included. It catches the definition no test
-  mentions, not the definition whose test asserts nothing. *Upgrade:* resolve
-  references through the AST once the suite is large enough for the false
-  negatives to matter.
+- **`check_tested.py` matches a name as a whole word anywhere the suite names
+  an identifier,** with no scope resolution. The haystack is `NAME` tokens only,
+  so a comment, a docstring or a string literal no longer counts -- two
+  definitions passed on prose alone before it did (`Node`, `accept`). What it
+  still cannot tell apart is one identifier from another that spells the same:
+  an unrelated import, a local variable, an attribute on some other object. It
+  catches the definition no test mentions, not the definition whose test asserts
+  nothing. *Upgrade:* resolve references to the symbol they bind, once the suite
+  is large enough for the false negatives to matter.
+- **A test file that does not tokenise crashes `check_tested.py`** with an
+  unhandled `TokenError` rather than a typed refusal. Fail-closed, and the same
+  shape as `check_vocabulary.py`'s `ast.parse`. `make lint` runs `ruff check`
+  first, so the `make check` path never reaches it -- but a standalone run has
+  no such guard, and `tests/test_phase0_gates.py` drives the script directly.
+  *Upgrade:* a typed refusal naming the file, the day a gate is run anywhere a
+  traceback is not a fine answer.
 - **`check_tested.py` sees module-level definitions only.** A method is covered
   through the class that holds it. *Upgrade:* descend into classes when a
   governed path first puts logic on a method.

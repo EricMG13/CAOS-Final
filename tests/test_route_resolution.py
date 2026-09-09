@@ -22,6 +22,7 @@ from server.engine.route import (
     _SOFT,
     Accepted,
     Edge,
+    Node,
     NodeState,
     ResolvedRoute,
     State,
@@ -174,6 +175,7 @@ def test_a_resolved_route_is_a_closed_node_list_and_typed_edge_set(
     route: ResolvedRoute,
 ) -> None:
     assert isinstance(route, ResolvedRoute)
+    assert route.nodes and all(isinstance(node, Node) for node in route.nodes)
     known = {node.route_node_id for node in route.nodes}
     assert all({e.source, e.target} <= known for e in route.edges), (
         "an edge may not name a node outside the route"
