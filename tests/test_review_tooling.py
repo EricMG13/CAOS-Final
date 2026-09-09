@@ -113,6 +113,30 @@ def test_exactly_one_job_submits_the_analysis() -> None:
     )
 
 
+def test_the_analysis_runs_when_a_draft_is_marked_ready() -> None:
+    """A draft pull request got an analysis before §41 and must still get one.
+
+    Automatic analysis ran from SonarQube Cloud's side and did not know or care
+    whether a pull request was a draft -- it posted on this repository's drafts,
+    including the one that carried §41. A CI analysis is not free of that: no
+    `pull_request` workflow run was created for PR #52 while it was a draft, over
+    five pushes, so the `sonarqube` job was skipped every time. Marking it ready
+    does not fix that on its own, because `ready_for_review` is not one of the
+    activity types `pull_request` runs on by default -- the default set is
+    `opened`, `synchronize` and `reopened`.
+
+    So the types are declared rather than defaulted. Without this the analysis
+    this repository now depends on has a hole exactly the size of "the pull
+    request was a draft while the work was being done", which is most of them.
+    """
+    triggers = re.search(r"^on:\n(?:  .*\n|    .*\n|      .*\n)+", CI, re.M)
+    assert triggers is not None, "the workflow no longer declares `on:` as a block"
+    assert "ready_for_review" in triggers.group(0), (
+        "converting a draft to ready posts no analysis: `ready_for_review` is "
+        "not a default pull_request activity type, and a draft gets no run"
+    )
+
+
 def test_both_analysis_configurations_declare_the_same_scope() -> None:
     """Two files describe one analysis until the switch-over is done.
 

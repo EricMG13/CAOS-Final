@@ -5,7 +5,15 @@
 #   frontend (lint, tsc, a11y) ....... Phase 9
 #   image    (Trivy) ................. the phase that adds the Dockerfile
 name: ci
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+    # Declared, not defaulted. The default set is opened, synchronize and
+    # reopened, and a draft pull request produced no `pull_request` run at all
+    # here -- so under DECISIONS.md 41, where the analysis is a CI job rather
+    # than something SonarQube Cloud runs from its own side, a draft would get
+    # no analysis and marking it ready would not start one.
+    types: [opened, synchronize, reopened, ready_for_review]
 
 jobs:
   lint:

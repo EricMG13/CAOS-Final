@@ -1080,6 +1080,19 @@ What this cost is a lesson worth the entry: an analysis this repository cannot
 read is an analysis it cannot fix without a person in the loop. Two cycles
 were spent on inference, and the finding was on the dashboard the whole time.
 
+**A draft pull request keeps its analysis, which took declaring the activity
+types.** Automatic analysis ran from SonarQube Cloud's side and did not know
+whether a pull request was a draft; it posted on this repository's drafts,
+including the one carrying this entry. A CI analysis inherits GitHub's rules
+instead, and the pull request that made this change produced no `pull_request`
+workflow run at all while it was a draft — five pushes, `sonarqube` skipped
+every time — so moving the analysis into CI would have left a hole the size of
+"the work was done on a draft", which is most of it. Marking a draft ready does
+not close that either: `ready_for_review` is not one of the activity types
+`pull_request` runs on by default. So `ci.yml` declares its types rather than
+taking the default set, and
+`test_the_analysis_runs_when_a_draft_is_marked_ready` holds it there.
+
 One more, found while pinning the fix. The mutation checks that backed this
 change's tests were first run under `pytest -q` on top of the `-q` already in
 `addopts`, and `-qq` prints no `N passed` line — so a harness that grepped for
