@@ -13,6 +13,7 @@ from __future__ import annotations
 from psycopg import errors
 
 from server.boundary_text import BoundaryText
+from server.digests import checked_uuid
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.sources import code_for
@@ -26,7 +27,12 @@ def pin_source_set(
     A set is a set: naming a source twice pins it once. Naming none is refused --
     a run pinned to no evidence is a mistake worth making early.
     """
-    members = tuple(dict.fromkeys(source_ids))
+    members = tuple(
+        dict.fromkeys(
+            checked_uuid(source_id, refusal=RefusalCode.SOURCE_NOT_IN_CASE)
+            for source_id in source_ids
+        )
+    )
     if not members:
         raise Refusal(RefusalCode.SOURCE_SET_EMPTY)
     try:
@@ -44,12 +50,20 @@ def _pin(store: Store, *, case_id: BoundaryText, members: tuple[str, ...]) -> in
             "SELECT case_id FROM cases WHERE case_id = %s FOR UPDATE",
             (case_id.value,),
         )
+        # count(column) skips NULLs, so the second number is how many are withdrawn.
         mine = store.execute(
-            "SELECT count(*) FROM sources WHERE case_id = %s AND source_id = ANY(%s)",
+            "SELECT count(*), count(withdrawn_at) FROM sources"
+            " WHERE case_id = %s AND source_id = ANY(%s)",
             (case_id.value, list(members)),
         ).fetchone()
         if mine is None or mine[0] != len(members):
             raise Refusal(RefusalCode.SOURCE_NOT_IN_CASE)
+        if mine[1]:
+            # Pinning is a use (invariant 1): a set naming a withdrawn source is
+            # one the run could never read in full, refused here rather than one
+            # read at a time later. A person is pinning, so this may say why; a
+            # module reading is told only that it was not given the block.
+            raise Refusal(RefusalCode.SOURCE_WITHDRAWN)
         allocated = store.execute(
             "INSERT INTO source_sets (case_id, version)"
             " SELECT %s, coalesce(max(version), 0) + 1 FROM source_sets"

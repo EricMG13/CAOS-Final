@@ -24,9 +24,13 @@ from decimal import Decimal
 from psycopg import errors
 
 from server.boundary_text import BoundaryText
-from server.digests import checked_digest
+from server.digests import checked_digest, checked_uuid
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
+from server.store.members import Standing, require_standing
+
+# Who may withdraw. A reader is shown the evidence and does not manage it.
+_MAY_WITHDRAW = frozenset({Standing.WRITER, Standing.APPROVER, Standing.ADMIN})
 
 
 @dataclass(frozen=True, slots=True)
@@ -77,7 +81,7 @@ class Token:
 # The store's uniqueness rules, in the host's own words. A driver exception
 # would carry a constraint name, a table and the vendor into whatever logs it.
 _REFUSALS = {
-    "sources_case_id_sha256_key": RefusalCode.SOURCE_ALREADY_ADMITTED,
+    "sources_admitted_once": RefusalCode.SOURCE_ALREADY_ADMITTED,
     "source_tokens_pkey": RefusalCode.SOURCE_TOKEN_INDEX_INVALID,
 }
 
@@ -98,6 +102,50 @@ def admit_pack(
     # attached as __context__ -- and `raise ... from None` only hides that from
     # a traceback, it does not detach it. The DETAIL line carries key values.
     raise Refusal(code)
+
+
+def withdraw_source(
+    store: Store, *, case_id: BoundaryText, source_id: str, actor: BoundaryText
+) -> bool:
+    """Withdraw a source from every use from now on. True now; False if already.
+
+    The row stays, and so does every pin that names it: a pinned set is
+    immutable, and an already-executed run was pinned to this source. What
+    changes is each use from here -- `read_evidence` refuses the block, a
+    citation no longer anchors in it, `pin_source_set` refuses the source, and
+    a plan re-derived over a set that names it no longer names it (invariant
+    1: checked live at every use).
+
+    Destructive and final, so it carries the standing check a gate's release
+    carries: a writer, approver or admin on the case, read under `FOR SHARE`
+    inside this transaction so a revocation waits for it. A reader may not.
+
+    `withdrawn_at IS NULL` on the UPDATE is what keeps a second withdrawal from
+    reaching the finality trigger; a row it did not match is read again to
+    tell "already withdrawn" from "no such source". One refusal for a source
+    of another case, of no case, or an id that is no id at all -- the last
+    checked before the store sees it, since the driver's complaint would name
+    the type.
+    """
+    source_id = checked_uuid(source_id, refusal=RefusalCode.SOURCE_NOT_IN_CASE)
+    params = (case_id.value, source_id)
+    with store.transaction():
+        require_standing(
+            store, case_id=case_id.value, member_id=actor, allowed=_MAY_WITHDRAW
+        )
+        updated = store.execute(
+            "UPDATE sources SET withdrawn_at = now()"
+            " WHERE case_id = %s AND source_id = %s AND withdrawn_at IS NULL",
+            params,
+        )
+        if updated.rowcount == 1:
+            return True
+        found = store.execute(
+            "SELECT 1 FROM sources WHERE case_id = %s AND source_id = %s", params
+        ).fetchone()
+        if found is None:
+            raise Refusal(RefusalCode.SOURCE_NOT_IN_CASE)
+    return False
 
 
 def code_for(constraint_name: str | None) -> RefusalCode:

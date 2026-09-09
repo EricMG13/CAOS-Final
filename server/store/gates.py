@@ -178,10 +178,26 @@ def _asked_content(store: Store, gate: Gate) -> tuple[str, str] | None:
     return (str(found[0]), str(found[1])) if found is not None else None
 
 
-def _released_content(store: Store, gate: Gate) -> tuple[str, str] | None:
+def released_gate(store: Store, *, run_id: str, kind: GateKind) -> Gate | None:
+    """The gate as it was released, or None while it is undecided.
+
+    A decision replays as itself. A caller re-deriving a gate's content after
+    the release -- recovery replaying a plan gate over a set that has since
+    lost a source -- asks for this first, so what it replays is the decision a
+    person made rather than a content the store would rightly refuse to move.
+    """
     found = store.execute(
         "SELECT preview_sha256, input_fingerprint FROM run_gate_approvals"
         " WHERE run_id = %s AND kind = %s",
-        (gate.run_id, gate.kind.value),
+        (run_id, kind.value),
     ).fetchone()
-    return (str(found[0]), str(found[1])) if found is not None else None
+    if found is None:
+        return None
+    return Gate(run_id, kind, str(found[0]), str(found[1]))
+
+
+def _released_content(store: Store, gate: Gate) -> tuple[str, str] | None:
+    released = released_gate(store, run_id=gate.run_id, kind=gate.kind)
+    if released is None:
+        return None
+    return released.preview_sha256, released.input_fingerprint

@@ -938,12 +938,6 @@ check nothing, so the standing this call reads can be conferred by any caller.
 The ledger carries it, with why it waits for intake authority rather than
 being half-closed here.
 
-**Global role is not checked, and cannot be yet.** §8 names two things to
-recheck at commit time. The store call is handed an approver's name and can
-check what the store holds about it; a global role is derived from an OIDC
-group or a development header by an edge this repository does not have. It
-arrives with identity derivation, and the ledger carries it.
-
 ## 2026-09-09 §40 — Two SonarQube findings are accepted; three were defects
 
 The third reviewer (§31) reported five open issues. Three are fixed in the
@@ -1126,3 +1120,98 @@ required check stops reporting and blocks every merge until the ruleset follows
 -- §14's hazard, arriving from the direction §34 did not cover. Nothing in this
 repository can read the ruleset or the check name, so this is verified by
 watching the first analysis on `main` and not before. The ledger carries it.
+
+## 2026-09-09 §42 — Withdrawal is a column, and every use checks it
+
+`sources.withdrawn_at` is set by `withdraw_source` and read by the four uses
+a source has. `read_evidence` refuses a withdrawn block in the same statement
+that refuses every other block a module was not given. A citation does not
+anchor in it: `anchor_citation` looks the digest up among the live admissions
+-- which is also what tells a re-admitted document from the withdrawn one it
+shares a digest with -- so a withdrawal landing during a node's provider
+round-trip cannot let the quote into the artifact. `pin_source_set` refuses a
+set that names one, `SOURCE_WITHDRAWN`. The plan gate's member list leaves it
+out, so a plan re-derived over a set that names it re-opens the gate on the
+documents that remain, and an approval of the earlier list is refused as the
+stale content it is. Invariant 1's second half, owed since Phase 2
+(`docs/ADVERSARIAL_REVIEW.md`, review 2, C2). The first draft of this slice
+reached three of the four; the adversarial pass found anchoring.
+
+**Withdrawal takes an actor.** `withdraw_source` refuses anyone who is not a
+`WRITER`, `APPROVER` or `ADMIN` on the case, read `FOR SHARE` inside its own
+transaction as `approve_gate` reads its approver (§39). Granting standing
+still takes no actor and waits for intake authority, and this does not: a
+withdrawal is destructive and final, so leaving it open until then would hand
+whoever holds a connection a way to defeat an approved run permanently. A
+reader is shown the evidence and does not manage it. The lock order is the
+membership row, then the source row; nothing takes them the other way round.
+
+**A column, not a deletion, and not an edit to the pin.** A pinned set is
+immutable by design and stays so: the member row naming a withdrawn source is
+still what an already-executed run was pinned to, and deleting it would
+rewrite that run's evidence after the fact. The set is not what changes; each
+use of it is.
+
+**Final.** `sources_withdrawal_is_final` refuses the column moving from set
+to unset, or to another moment, with its own message rather than
+`refuse_rewrite`'s: the table is not append-only -- `withdraw_source`'s own
+write is an UPDATE -- and a guard on every rewrite would refuse the one it
+exists to allow. Re-admitting a withdrawn document is a new source with a new
+id, the same digest and its own history: `sources_admitted_once` is a partial
+unique index over the live rows for exactly that reason, where the table-level
+UNIQUE it replaces would have made every withdrawal permanent for the document
+as well as for the source. The store refuses the reversal rather than the
+callers remembering not to, for the reason every guard in `schema.sql` gives.
+
+**The read refusal is the read refusal.** `read_evidence` says
+`EVIDENCE_NOT_DELIVERABLE` for a withdrawn block, as it does for a block of
+another case, another version or a document that does not exist. The module's
+own docstring rules it: a module asking for a block it was not given learns
+only that it was not given it, and a distinct code would be one more thing to
+read a case with. Who withdrew what, and when, is a person's question, and
+the source's own row answers it. `withdraw_source` records when and not who;
+the actor is the audit chain's, owed by this phase.
+
+**Re-derivation is the caller's, and the caller is not here yet.** Nothing in
+this slice watches for a withdrawal and re-opens gates on its own. The gate
+moves when `open_plan_gate` is replayed -- which recovery does, and which the
+run surface will do with an analyst in front of it -- because `_members`
+reads the column at that moment. Until a caller exists, the reads refuse,
+which is the half that has to hold with nobody looking.
+
+**A decided plan gate replays as decided.** `_members` is no longer a pure
+function of the version -- that is the point -- so a replay of
+`open_plan_gate` or `approve_plan` after a withdrawal would derive content the
+store rightly refuses to move a decision onto (`GATE_ALREADY_DECIDED`,
+`APPROVAL_CONTENT_CHANGED`), and a recovering loop would abort a healthy,
+approved run over a source it was never going to read again. Both ask
+`released_gate` first and replay the decision a person made; the pin is the
+pin it already has, and the run's reads refuse the withdrawn source. The
+first draft raised, and the adversarial pass caught it.
+
+**Ids are canonicalised before the driver sees them.** `uuid.UUID` accepts
+`urn:uuid:`, braces and missing hyphens; PostgreSQL's parser does not, so a
+check that only parsed could still hand the driver a spelling it names in its
+complaint. `checked_uuid` returns the one spelling both accept, and
+`read_evidence`, `withdraw_source` and `pin_source_set` all use it -- the
+last found by the same pass, one `ANY(%s)` away from a `22P02` escaping.
+
+**Neither pinning nor approval is serialised with withdrawal.** `_pin` reads
+the sources after taking the case row lock and a withdrawal takes only its
+source row, so a withdrawal committing between that read and the pin's commit
+leaves a set that names a withdrawn source -- the same set that a pin
+committed a moment earlier would have left, which is why nothing observable
+turns on it. `approve_plan` reads the member list before its transaction
+opens, so a withdrawal that commits between that read and the release binds
+a plan whose set names a withdrawn source.
+Invariant 5 still holds -- the approval is of exactly what was on screen --
+and invariant 1 is what makes it safe: the run's first read of that source
+refuses. Holding the source rows `FOR SHARE` through the approval would close
+the window. It is not taken, because what it changes is when the person
+learns of the withdrawal, not whether the run reads the source.
+
+**Global role is not checked, and cannot be yet.** §8 names two things to
+recheck at commit time. The store call is handed an approver's name and can
+check what the store holds about it; a global role is derived from an OIDC
+group or a development header by an edge this repository does not have. It
+arrives with identity derivation, and the ledger carries it.

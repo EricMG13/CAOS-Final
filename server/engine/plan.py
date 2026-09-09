@@ -29,7 +29,7 @@ from server.boundary_text import BoundaryText
 from server.engine.route import ResolvedRoute, route_digest
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
-from server.store.gates import Gate, GateKind, approve_gate, open_gate
+from server.store.gates import Gate, GateKind, approve_gate, open_gate, released_gate
 from server.store.routes import pin_route
 
 
@@ -98,9 +98,11 @@ def open_plan_gate(store: Store, *, run_id: str, plan: Plan) -> Gate:
 
     Replaying it is ordinary -- recovery re-runs the gate -- and `open_gate`
     emits nothing when the content has not moved, so a restart does not ask for
-    a second approval of the same plan.
+    a second approval of the same plan. A decided plan replays as decided:
+    the release stands whatever the member list reads now, and a run whose set
+    has since lost a source finds that out at the read, not here.
     """
-    gate = plan_gate(run_id, plan, _members(store, plan))
+    gate = _current_gate(store, run_id=run_id, plan=plan)
     open_gate(store, gate)
     return gate
 
@@ -117,12 +119,19 @@ def approve_plan(
     own compare-and-set before anything is pinned.
 
     Idempotent for the same reason both halves are: a replayed release writes
-    nothing and a replayed pin is the pin it already has.
+    nothing and a replayed pin is the pin it already has -- including after a
+    withdrawal has moved what the member list would say today.
     """
-    gate = plan_gate(run_id, plan, _members(store, plan))
+    gate = _current_gate(store, run_id=run_id, plan=plan)
     with store.transaction():
         approve_gate(store, gate, approver=approver)
         return pin_route(store, run_id=run_id, resolved=plan.route)
+
+
+def _current_gate(store: Store, *, run_id: str, plan: Plan) -> Gate:
+    """The decision if there is one, else the ask this plan makes today."""
+    released = released_gate(store, run_id=run_id, kind=GateKind.SOURCE_SET)
+    return released or plan_gate(run_id, plan, _members(store, plan))
 
 
 def _members(store: Store, plan: Plan) -> tuple[str, ...]:
@@ -135,12 +144,15 @@ def _members(store: Store, plan: Plan) -> tuple[str, ...]:
 
     A version with no members and a version that was never pinned are the same
     answer to a plan: there is no evidence to run against, so nothing to
-    approve.
+    approve. So is a version whose every member has been withdrawn: the
+    preview is what a run will read, and a withdrawn source is not that, so it
+    is left out here -- which is what moves a gate a person is mid-way through
+    reviewing onto the documents that remain (invariant 1, checked at this use).
     """
     rows = store.execute(
         "SELECT s.sha256 FROM source_set_members m"
         " JOIN sources s ON s.source_id = m.source_id"
-        " WHERE m.case_id = %s AND m.version = %s",
+        " WHERE m.case_id = %s AND m.version = %s AND s.withdrawn_at IS NULL",
         (plan.case_id.value, plan.source_set_version),
     ).fetchall()
     if not rows:

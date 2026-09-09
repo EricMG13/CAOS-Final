@@ -13,11 +13,10 @@ is one row, addressed directly, and IO_BUDGET is what holds it there.
 
 from __future__ import annotations
 
-import uuid
 from dataclasses import dataclass
 
 from server.boundary_text import BoundaryText
-from server.digests import checked_digest
+from server.digests import checked_digest, checked_uuid
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.sources import Block
@@ -42,26 +41,20 @@ class EvidenceRequest:
     node_id: BoundaryText
 
 
-def _checked(request: EvidenceRequest) -> str:
-    """The request's digest, once every field has been found well-formed.
+def _checked(request: EvidenceRequest) -> tuple[str, str]:
+    """The request's run id and digest, once every field is found well-formed.
 
     Shape is checked before the store is touched, so a malformed request never
     reaches SQL: a driver's own complaint about a bad uuid or an out-of-range
-    integer would name the type, the column and the vendor.
+    integer would name the type, the column and the vendor. The run id comes
+    back in the store's own spelling, so the check and the query agree.
     """
     if not 0 <= request.block_id <= _MAX_BLOCK_ID:
         raise Refusal(RefusalCode.EVIDENCE_REQUEST_INVALID)
     if request.source_set_version <= 0:
         raise Refusal(RefusalCode.EVIDENCE_REQUEST_INVALID)
-    try:
-        uuid.UUID(request.run_id)
-    except ValueError:
-        malformed = True
-    else:
-        malformed = False
-    if malformed:
-        raise Refusal(RefusalCode.EVIDENCE_REQUEST_INVALID)
-    return checked_digest(request.document_sha256)
+    run_id = checked_uuid(request.run_id, refusal=RefusalCode.EVIDENCE_REQUEST_INVALID)
+    return run_id, checked_digest(request.document_sha256)
 
 
 def read_evidence(store: Store, request: EvidenceRequest) -> Block:
@@ -72,8 +65,11 @@ def read_evidence(store: Store, request: EvidenceRequest) -> Block:
     membership, case ownership, run ownership and existence are one question
     with one answer. Splitting them would answer four, and the differences
     between those answers are what a module would read the case with.
+    Withdrawal is a fifth predicate of the same statement, checked live at this
+    use as invariant 1 asks, and a withdrawn block is refused as any block the
+    module was not given.
     """
-    digest = _checked(request)
+    run_id, digest = _checked(request)
     with store.transaction():
         found = store.execute(
             "SELECT b.source_id, b.block_id, b.page, b.text"
@@ -82,9 +78,10 @@ def read_evidence(store: Store, request: EvidenceRequest) -> Block:
             " JOIN source_set_members m ON m.source_id = b.source_id"
             " JOIN runs r ON r.run_id = %s AND r.case_id = m.case_id"
             " WHERE m.case_id = %s AND m.version = %s"
-            " AND s.case_id = %s AND s.sha256 = %s AND b.block_id = %s",
+            " AND s.case_id = %s AND s.sha256 = %s AND s.withdrawn_at IS NULL"
+            " AND b.block_id = %s",
             (
-                request.run_id,
+                run_id,
                 request.case_id.value,
                 request.source_set_version,
                 request.case_id.value,
@@ -98,6 +95,6 @@ def read_evidence(store: Store, request: EvidenceRequest) -> Block:
         store.execute(
             "INSERT INTO delivered_evidence (run_id, node_id, source_id, block_id)"
             " VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
-            (request.run_id, request.node_id.value, source_id, block_id),
+            (run_id, request.node_id.value, source_id, block_id),
         )
     return Block(block_id=block_id, page=page, text=text)

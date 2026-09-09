@@ -57,6 +57,7 @@ class RefusalCode(StrEnum):
     STANDING_INSUFFICIENT = "STANDING_INSUFFICIENT"
     # A token here is an extracted text run, not a credential.
     SOURCE_TOKEN_INDEX_INVALID = "SOURCE_TOKEN_INDEX_INVALID"  # nosec B105
+    SOURCE_WITHDRAWN = "SOURCE_WITHDRAWN"
 
 
 class Refusal(Exception):
