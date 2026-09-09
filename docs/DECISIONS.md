@@ -1241,3 +1241,108 @@ touched -- a version that is merely absent, or pinned with no members, is not
 refused by anything added here. The plan gate already refuses an empty set
 before it ever asks for approval, so the ordinary path is guarded; a caller
 reaching `pin_route` directly is not. The ledger carries it.
+
+## 2026-09-09 §44 — A node reserves the ceiling of the call it has assembled
+
+**Decided.** The loop meets `execute_module`. Every node of a pinned run runs
+through `module_executor`, and the ledger records `price_of` the answer. What a
+node reserves before its call is `ceiling_of` the `ProviderCall` it has
+assembled: the most input tokens its bytes can be counted as, at the input
+price, plus `max_output_tokens` at the output price. That is the reservation
+and the ceiling on the charge, and `CHARGE_EXCEEDS_RESERVATION` is unchanged.
+Closes Phase 4's flat price and Phase 5's "the loop and `execute_module` have
+not met", both from the ledger.
+
+**The executor is two steps.** `Executor` returns a `Prepared` -- a ceiling
+and a call -- rather than an outcome. Invariant 8 wants the ceiling before the
+call, and the only thing a host knows before a call is what it is about to
+send. So assembling (authority, identity, evidence) happens first, the loop
+reserves the ceiling of exactly that, and then the call is made. One assembly
+is priced and sent: there is no pricing copy of the prompt to drift from the
+sending copy, which is the two-sources-of-truth shape §25 refused.
+`test_the_reservation_is_the_ceiling_of_the_bytes_that_were_sent` reads the
+reservation back and compares it to the call the provider received. Delivery
+to `delivered_evidence` therefore precedes the reservation. A refusal before
+the reservation commits -- a block that cannot be read, a ceiling that cannot
+be met -- is rolled back by the loop on the connection it owns: the rows were
+only ever uncommitted, and a caller committing later for its own reasons would
+otherwise have landed them.
+`test_a_refused_reservation_leaves_no_delivery_behind` reads them back on the
+loop's own connection, where merely-uncommitted rows would still show. `run_route`
+now owns that transaction outright -- it commits and rolls back, and so cannot
+be called inside `store.transaction()`.
+
+**Each acceptance is committed by the loop.** `accept` is the outermost
+transaction only when nothing is open, and a real executor's anchoring reads
+have opened one by the time it runs -- so under `module_executor` it became a
+savepoint, and the last node's artifact and charge sat uncommitted when
+`run_route` returned. The fake executors touched no store, so the old loop had
+durability by accident, and every assertion ran on the loop's own connection
+and saw the rows either way. `_run_node` now commits after `accept`, and
+`test_every_acceptance_is_durable_when_the_loop_returns` reads from a second
+connection, which is the only kind of reader that can tell.
+
+**The bound rests on one claim: a token is at least one byte.** A byte-fallback
+tokenizer never emits more tokens than it consumed bytes, so the UTF-8 length
+of `system` and `prompt` bounds `input_tokens`, plus an allowance for what the
+API counts around the content. The allowance, `_FRAMING_TOKENS = 256`, is the
+one number in the ceiling that is not derived; single digits are typical, and
+it was set by judgment rather than measurement. `max_tokens` caps thinking and
+text together, so the output side is exact.
+`test_the_live_provider_returns_a_completion` now sends a passage chosen to
+tokenise badly -- spaced punctuation, digits, ten scripts -- and asserts
+`input_tokens <= input_token_bound(call)`. That is where the claim meets the
+tokenizer, and it has not yet run: Phase 6 owes the run, and the request id it
+records will be the first evidence either way.
+
+**Every node is handed every block of the pinned set.** `module_executor` reads
+§43's `pinned_evidence` once, when it is built, and hands the same list to
+every node: members are append-only and a source's blocks are fixed at
+admission, so a per-node read could see nothing the first did not -- except a
+row a raw `INSERT` added between nodes, which would hand node five more than
+node one and make a replay from the same pin assemble different bytes
+(invariant 10). What is live at every use is the read of each block, which
+`_deliver` makes per node through `read_evidence` -- which now also refuses a
+block whose source has been withdrawn since (§42), so a large pack that a
+withdrawal has thinned is still priced at what `pinned_evidence` lists and not
+at what survives the read. That is invariant 1 read plainly -- runs execute
+against the pinned source set -- and it is also the absence of a rule:
+`source_mode` is the registry field that would narrow it, and nothing reads it
+(Phase 5 ledger). The consequence is priced rather than hidden. A large pack is
+a large prompt, a large reservation, and `BUDGET_CEILING_EXCEEDED` before the
+provider is called -- after the assembly that priced it, which is every block
+read and the whole prompt in memory. That is what pricing from the bytes
+themselves costs, and the ledger carries it.
+
+**A version with no members is refused before any node.** §43 left this
+unguarded past `pin_route`'s own check on the version's sign; `module_executor`
+is the first reader of `pinned_evidence` in a production path, and it refuses
+`SOURCE_SET_EMPTY` before assembling a node if the list is empty. The first
+draft of this entry said such a pin would get "every read refused, one node
+late" -- and the test proving it showed `pinned_evidence` returning `()`
+instead. Empty is not every read refused; it is no reads at all, and a module
+called over nothing, whose envelope citing nothing would have been accepted.
+
+**What this does not do.** The run is not ended: no `COMPLETE`, no terminal
+event; the Phase 4 entry stands. Reservations are not released on acceptance:
+`reserved_total` sums every attempt's reservation, indeterminate or accepted,
+and a node reserved at one token per byte holds roughly four times its charge
+against the ceiling for the rest of the run. §21 rules that an indeterminate
+attempt keeps its exposure and says nothing about an accepted one; releasing
+`reserved - charged` on `accept` is the natural next decision, taken
+separately because it changes what `reserved_total` means. The build a run
+executes under is still not recorded, and now there is execution to bind --
+the Phase 5 entry is amended to say so.
+
+**A charge above its ceiling is refused and not recorded.** That is Phase 4's
+rule, kept: `test_a_charge_above_its_reservation_is_refused` asserts no ledger
+row and no artifact, and §21 makes the reservation the recorded exposure of an
+attempt that was not accepted. What changed is that the ceiling now rests on
+the byte bound, so the path is reachable exactly when that claim is wrong --
+and then the ledger understates by the excess, the blob `_complete` wrote is
+orphaned, and the true spend is known only to the provider. Whether a refused
+attempt should record what the provider reported is a §21 question, asked in
+the ledger and not answered here. The ceiling is rounded up to the ledger's six
+places (`test_the_ceiling_is_rounded_up_to_the_ledgers_scale`), because the
+pinned prices happened to land on six exactly and a ceiling the column rounds
+down is not a ceiling.

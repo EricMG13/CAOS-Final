@@ -95,6 +95,8 @@ directory the repository does not have costs more than no map.
   quote and derives its rectangles.
 - `server/engine/node.py` — `execute_module`: assemble, ask, validate, anchor,
   store. Nothing is written until every citation has been re-derived.
+  `module_executor` is the loop's side of it: every node of a pinned run,
+  reserved at the ceiling of the call it assembled (`docs/DECISIONS.md` §44).
 - `methodology/envelope.py` — the canonical envelope, validated against the
   bundle's own `CP_MODULE_PAYLOAD_BASE.schema.txt`.
 - `server/provider.py` — the provider boundary: `ProviderCall`, `Completion`,
@@ -448,16 +450,48 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   the transaction it was taken in. *Upgrade:* refuse a connection in autocommit
   at entry, with the slice that fixes all four -- the API layer, which is what
   brings callers this file did not write.
-- **`run_routes.source_set_version` has no foreign key, and nothing yet reads
-  it.** `run_routes` carries no `case_id` to key `(case_id, version)` on, so
-  `pin_route` refuses only a non-positive version -- a caller can still pin
-  one that does not exist, or one with no members. The plan gate already
-  refuses an empty set before it asks for approval, so the ordinary path is
-  guarded; a caller reaching `pin_route` directly is not, and nothing here
-  has a consequence for it yet: `pinned_evidence`, the reader this column and
-  `pinned_source_set_version` exist for, is exercised only by its own test.
-  *Upgrade:* the slice that calls `pinned_evidence` in earnest, which is
-  where an empty or absent version first has something to refuse against.
+- **`run_routes.source_set_version` has no foreign key.** `run_routes` carries
+  no `case_id` to key `(case_id, version)` on. The plan gate refuses a version
+  with no members before it pins; a direct `pin_route` caller can pin a version
+  that does not exist, or one with no members, and `module_executor` (below)
+  refuses either `SOURCE_SET_EMPTY` before any node. What the missing key
+  leaves is a pin row naming evidence that is not there, refused at execution
+  rather than at the pin. *Upgrade:* `case_id` on the pin, when the pin grows
+  its `build_id` (Phase 5, below).
+- **Every node is handed every block of the pinned set.** `pinned_evidence`
+  lists them all, once, and `module_executor` hands the list to every node,
+  because `source_mode` -- the registry field that would narrow it -- is read
+  by nothing (`docs/DECISIONS.md` §44). A large pack is therefore a large
+  prompt, and the reservation says so: `BUDGET_CEILING_EXCEEDED` before the
+  provider is called -- but after the assembly that priced it, which is every
+  block read and the whole prompt in memory. Fail-closed, and a pack the
+  ceiling cannot afford pays its assembly I/O to learn so. *Upgrade:* the slice
+  that reads `source_mode`.
+- **A charge above its ceiling leaves no ledger row.** Phase 4's rule, kept:
+  the attempt is refused, its reservation stays its recorded exposure (§21),
+  and nothing says what the provider actually billed. Reachable exactly when
+  the byte bound is wrong, and then the ledger understates by the excess and
+  the blob is orphaned. *Upgrade:* a §21 decision on whether a refused attempt
+  records the reported charge -- not taken here, because it changes what "one
+  charge" means.
+- **`run_route` owns the connection's transaction state.** It commits after
+  every reservation and every acceptance and rolls back a refused node, so a
+  caller holding `store.transaction()` around it gets psycopg's own refusal of
+  an explicit commit, not a `Refusal`. *Upgrade:* the API layer, which decides
+  who holds the connection.
+- **The framing allowance is a judgment, not a measurement.**
+  `_FRAMING_TOKENS = 256` covers what the API counts around a call's bytes;
+  single digits are typical, and nothing here has measured it. It is the one
+  number in the ceiling that is not derived from the call.
+  `test_the_live_provider_returns_a_completion` asserts
+  `input_tokens <= input_token_bound(call)` over a passage chosen to tokenise
+  badly, and it has not run. *Upgrade:* the live run this phase already owes.
+- **A reservation is never released.** `reserved_total` sums every attempt,
+  accepted or not, so a node reserved at one token per byte holds about four
+  times its charge against the ceiling for the rest of the run
+  (`docs/DECISIONS.md` §44). §21 rules for the indeterminate case and is silent
+  on the accepted one. *Upgrade:* release `reserved - charged` on `accept`, as
+  its own decision, because it changes what `reserved_total` means.
 
 **Phase 5.**
 
@@ -470,9 +504,14 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   calculator boundary, the rest with the provider boundary.
 - **No run records the build it ran under.** `Bundle.build_id` is read and
   `Authority` carries it, and no `runs` column holds it, so "a run pinned to one
-  build never executes under another" is enforced nowhere. Nothing executes a
-  module yet, so there is no execution to refuse. *Upgrade:* the slice that runs
-  CP-1, which is the first caller with a run to bind.
+  build never executes under another" is enforced nowhere. The loop now
+  executes modules (`docs/DECISIONS.md` §44), so there is execution to bind
+  and nothing binds it: two nodes of one run assembled under two valid bundles
+  would each verify against their own manifest and neither would notice the
+  other. A tampered bundle is still refused at use; a *different* one is not.
+  *Upgrade:* a `build_id` written at the gate beside the route and checked in
+  `_assemble` -- the same shape as `source_set_version`, and the next thing the
+  pin should carry.
 - **Three `references/` workbooks are authority the host does not deliver.**
   CP-3 has two and CP-6 one, all `.xlsx`. `reference_files` allowlists `.md`,
   `.txt` and `.json` because authority reaches a module as prompt text, so a
@@ -488,12 +527,18 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   constant and `vendor/` in one commit. *Upgrade:* a signature over the bundle
   from a key this repository does not hold, which is a supply-chain decision
   rather than a code one.
-- **Nothing bounds the size of an assembled authority.** CP-OS aside, the
-  largest module reads its `SKILL.md`, up to 20 reference files and the 48 KB
-  shared canon on every call, with no ceiling and no cache. Invariant 8 says
-  every ceiling refuses before overspend; assembly has none because nothing
-  downstream has a token budget to overspend yet. *Upgrade:* with
-  `max_output_tokens` and the provider boundary.
+- **An assembled authority is priced, not bounded.** CP-OS aside, the largest
+  module reads its `SKILL.md`, up to 20 reference files and the 48 KB shared
+  canon on every call, with no cache. What now holds it is money rather than
+  bytes: the reservation is taken from the assembled call at one token per
+  byte (`docs/DECISIONS.md` §44), so an authority the run cannot afford is
+  refused `BUDGET_CEILING_EXCEEDED` before the call. That is invariant 8
+  satisfied and nothing more -- there is no byte ceiling, and a 125 KB
+  authority is reserved as ~125k tokens when it is ~31k, so it holds about four
+  times its charge against the ceiling until the run ends. *Upgrade:* a cache
+  keyed on `authority_digest` when a node call is worth it, and the release of
+  `reserved - charged` on acceptance, which is a decision about what
+  `reserved_total` means and is taken separately.
 - **`execute_module` opens the bundle twice** -- once directly and once inside
   `assemble_authority` -- about 2.6 ms per node. Verification at use is the
   point, so the duplicate is honest rather than wrong. *Upgrade:* pass the
@@ -502,10 +547,6 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   from `checked_digest`, rather than a citation-shaped code. Public-safe
   either way; it names the wrong layer. *Upgrade:* when the refusal codes
   reach a surface a person reads.
-- **The loop and `execute_module` have not met.** `run_route` still takes an
-  arbitrary `Executor` and prices every node at a flat 1.00; `execute_module`
-  computes a real charge from reported usage and no loop calls it.
-  *Upgrade:* Phase 6, with the run surface.
 - **`max_output_tokens` is one constant for every module.** `SYSTEM_SPEC.md`
   §3 puts it on `ModuleSpec`; no module has needed a different ceiling yet.
   *Upgrade:* the first module that does.
@@ -525,10 +566,6 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   machine spend money in a suite meant to be free (`docs/DECISIONS.md` §28).
   A machine with a profile and no environment variable gets no live provider.
   *Upgrade:* an explicit opt-in variable, if anyone wants profiles.
-- **The loop still prices every node at 1.00.** `price_of` computes the real
-  charge from reported usage and nothing calls it: `server/engine/loop.py`
-  keeps `_price()`. *Upgrade:* the slice that runs CP-1, which is the first
-  caller with a `Completion` to price.
 - **A calculator's stdout is bounded in memory, not on disk.** `_captured`
   writes the child's stdout to a file and refuses on `st_size` before reading a
   byte, so the host cannot be OOMed. Nothing bounds what the child writes to
@@ -586,10 +623,6 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   from `commit_terminal`'s tests.** One column, two spellings, which is the
   defect `CONTEXT.md` exists to prevent. Nothing yet forces either.
   *Upgrade:* Phase 6, when the terminal path and the loop meet.
-- **One flat price per node.** `_price()` returns `Decimal("1.00")` until a
-  provider quotes a real one. It is both the reservation and the ceiling for
-  that call: a charge above it is refused, so a provider cannot bill past what
-  the budget agreed to.
 **Phase 3.**
 
 - **`pin_route` has a gate, and `pinned_route` still has no reader.**

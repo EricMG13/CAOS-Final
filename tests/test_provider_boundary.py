@@ -18,11 +18,15 @@ import httpx2 as httpx
 import pytest
 from anthropic import Anthropic
 
+import server.provider as boundary
 from server.provider import (
     MODEL,
+    OUTPUT_PER_MTOK,
     Completion,
     ProviderCall,
     RecordedProvider,
+    ceiling_of,
+    input_token_bound,
     live_client,
     live_provider_or_none,
     price_of,
@@ -125,25 +129,84 @@ def test_the_live_client_never_retries_on_its_own(
     assert client.max_retries == 0
 
 
+def test_the_ceiling_is_what_a_completion_at_every_limit_costs() -> None:
+    """The reservation is the most a call can cost, from what the host knows first.
+
+    Output is bounded exactly, by `max_output_tokens`. Input is bounded by the
+    bytes sent, because a token is at least one byte, plus an allowance for the
+    framing the API adds around them. A completion at both limits costs the
+    ceiling and not a unit more -- so the reservation is the ceiling, and a
+    provider cannot bill past what the budget agreed to.
+    """
+    at_limits = Completion(
+        text="",
+        model=MODEL,
+        input_tokens=input_token_bound(CALL),
+        output_tokens=CALL.max_output_tokens,
+        request_id=None,
+    )
+    assert price_of(at_limits) == ceiling_of(CALL)
+    sent = len(CALL.system.encode("utf-8")) + len(CALL.prompt.encode("utf-8"))
+    assert input_token_bound(CALL) > sent, "the framing allowance is not zero"
+
+
+def test_the_ceiling_is_rounded_up_to_the_ledgers_scale(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`numeric(18, 6)` rounds what it is given, in either direction.
+
+    A ceiling that rounded down would store a reservation below what was
+    computed. The pinned prices happen to land on six places exactly, so this
+    moves one to prove the rounding is deliberate rather than a coincidence of
+    `5.00` and `25.00`.
+    """
+    # Three places: `CALL`'s byte bound is 300, so a two-place price times it
+    # is whole, and the guard below refused the first draft of this test.
+    monkeypatch.setattr(boundary, "INPUT_PER_MTOK", Decimal("5.555"))
+    exact = (
+        Decimal("5.555") * input_token_bound(CALL)
+        + OUTPUT_PER_MTOK * CALL.max_output_tokens
+    ) / Decimal(1_000_000)
+    assert exact != exact.quantize(Decimal("0.000001")), "the case must need rounding"
+
+    ceiling = ceiling_of(CALL)
+    assert ceiling >= exact
+    assert ceiling == ceiling.quantize(Decimal("0.000001"))
+    assert ceiling - exact < Decimal("0.000001")
+
+
+# Chosen to tokenise badly: spaced punctuation and digits, then mixed scripts.
+# If any single byte ever cost more than one token, this is where it would show.
+_HARD_TO_TOKENISE = (
+    "7 ) ; ~ 1 ! 2 @ 3 # 4 $ 5 % 6 ^ 8 & 9 * 0 ( _ + = - [ ] { } | \\ : ' , . < > / ?\n"
+    "Ünïcödé Ελληνικά кириллица 日本語 中文 한국어 العربية עברית हिन्दी ไทย\n"
+) * 12
+
+
 @pytest.mark.live_provider
 def test_the_live_provider_returns_a_completion() -> None:
     """Opt-in, and the only test in this repository that spends money.
 
     Skipped without a credential. Nothing else in the suite touches a network.
+
+    The reservation rests on one claim -- a token is at least one byte -- and
+    this is the only place the claim meets the tokenizer, so the system text
+    carries a passage chosen to tokenise as badly as text can.
     """
     provider = live_provider_or_none()
     if provider is None:
         pytest.skip("no Anthropic credential configured")
-    answered = provider(
-        ProviderCall(
-            system="Answer with the single word: ready.",
-            prompt="Are you there?",
-            max_output_tokens=16,
-        )
+    call = ProviderCall(
+        system="Answer with the single word: ready.\n\n" + _HARD_TO_TOKENISE,
+        prompt="Are you there?",
+        max_output_tokens=16,
     )
+    answered = provider(call)
     assert answered.model.startswith("claude-opus-5")
     assert answered.output_tokens > 0
     assert price_of(answered) > Decimal("0")
+    assert answered.input_tokens <= input_token_bound(call)
+    assert price_of(answered) <= ceiling_of(call)
 
 
 def _client_answering(handler: Callable[[httpx.Request], httpx.Response]) -> Anthropic:
