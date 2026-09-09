@@ -66,19 +66,17 @@ def report_within(path: Path, base: Path) -> Path:
     """`path` resolved, provided it lies under `base`; refused otherwise.
 
     The report argument is the one piece of caller input that reaches the
-    filesystem. The third reviewer traced it from `parse_args` to `read_text`
-    and called it path traversal, and for a gate an agent invokes it is: nothing
-    stopped `scan_floors.py ../../etc/passwd` from reading the file and then
-    reporting on it. A scanner report is a build output of the tree being
-    scanned, so the one place it is read from is under the directory the gate
-    was run in -- the repository root, in the Makefile and in CI. Refused before
-    anything is read, so no floor is ever evaluated on a file that was not one.
+    filesystem, and nothing stopped `scan_floors.py ../../etc/passwd` reading a
+    file and then reporting on it -- the path traversal the third reviewer
+    traced from `parse_args` to `read_text`. A scanner report is a build output
+    of the tree being scanned, so the one place it is read from is under the
+    directory the gate ran in: the repository root, in the Makefile and in CI.
+    Refused before anything is read.
 
     `os.path.realpath` and `startswith` rather than `Path.resolve` and
-    `is_relative_to`, which say the same thing. This is the sanitizer shape the
-    rule's own documentation gives, and whether the analyzer recognises the
-    pathlib spelling is not known here; three analyses have already failed on
-    this file, and a check the reviewer cannot see is a check it keeps failing.
+    `is_relative_to`, which say the same thing: this is the sanitizer shape the
+    rule documents, and whether the analyzer reads the pathlib spelling is not
+    known here.
     """
     resolved = os.path.realpath(path)
     root = os.path.realpath(base)

@@ -25,8 +25,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 def _run(script: str, *args: str, cwd: Path = REPO) -> subprocess.CompletedProcess[str]:
     # `cwd` matters to scan_floors: it reads a report only from under the
-    # directory it was invoked in, so a test that writes one to tmp_path runs
-    # the script from there. What it holds the report *to* is REPO regardless.
+    # directory it was invoked in, so a test writing one to tmp_path runs there.
     return subprocess.run(
         [sys.executable, str(REPO / "scripts" / script), *args],
         cwd=cwd,
@@ -431,6 +430,30 @@ def _coverage_report(tmp_path: Path, *, files: list[str]) -> str:
         encoding="utf-8",
     )
     return str(path)
+
+
+def test_main_reads_a_report_in_process_and_returns_its_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The entry point, called rather than spawned.
+
+    Every other test here drives the script as a child process, which is what
+    the gate does -- and coverage.py measures the parent, so `main` reads as
+    unmeasured however often it runs. The analysis caught that as 66.7% on new
+    code. An entry point nothing calls directly is worth not having either way.
+    """
+    monkeypatch.chdir(tmp_path)
+    assert (
+        scan_floors.main([_coverage_report(tmp_path, files=["a.py"]), "--cobertura"])
+        == 0
+    )
+    assert scan_floors.main([_coverage_report(tmp_path, files=[]), "--cobertura"]) == 1
+
+    outside = tmp_path.parent / "outside.xml"
+    outside.write_text("<coverage/>", encoding="utf-8")
+    with pytest.raises(SystemExit) as refused:
+        scan_floors.main([str(outside), "--cobertura"])
+    assert refused.value.code == 2
 
 
 def test_cobertura_metrics_names_the_files_the_coverage_run_measured() -> None:
