@@ -6,11 +6,14 @@ reviews:
   auto_review:
     # Each phase stacks on its predecessor to stay under the CI size gate, so a
     # phase PR's base is never `main`, and CodeRabbit reviews only the default
-    # branch unless told otherwise. This covers that. It does not cover the
-    # other reason auto-review is off -- a public repository under 10 stars gets
-    # none at all -- and nothing in this repository can. See CLAUDE.md.
+    # branch unless told otherwise. This covers that.
     base_branches:
       - "phase-.*"
+    # Every PR opened here is a draft, and a draft is declined before any other
+    # rule is reached -- CodeRabbit's own words on PR #39, naming this setting.
+    # That is the one refusal a config file can answer. Whether the ten-star
+    # rule binds instead once this is set is untested; see CLAUDE.md.
+    drafts: true
   request_changes_workflow: true
   high_level_summary: true
   path_instructions:

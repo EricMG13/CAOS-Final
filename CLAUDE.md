@@ -205,6 +205,19 @@ system this size means nobody looked.
   *Upgrade:* 10 stars, or a plan whose auto-review does not gate on them. A
   workflow driven by a personal access token would also work and is not worth a
   long-lived credential for this.
+- **A draft is declined before the star rule is reached, and that one is
+  ours to fix.** New evidence, and it narrows the entry above. PR #39 is a
+  draft -- which is what every pull request opened here is -- and CodeRabbit
+  answered it in under a minute with a *different* refusal: *"Draft PRs are not
+  automatically reviewed by default"*, naming the setting that changes it. So
+  the ten-star rule was never the operative one on these PRs; the draft rule
+  fires first, and unlike the other two it is a line of `.coderabbit.yaml`.
+  `reviews.auto_review.drafts: true` is now set. What is *not* known is which
+  rule binds after it -- enabling drafts may simply move the refusal to the
+  ten-star rule, and no PR has tested that yet. Until one does, the sentence
+  above still holds: the third reviewer is absent unless a human asks.
+  *Upgrade:* read what comes back on the next draft PR and record which refusal
+  it is, or that a review arrived.
 
 **Phase 6.**
 
