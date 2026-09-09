@@ -2,5 +2,8 @@
 ruff==0.14.0
 mypy==1.18.2
 pytest==9.0.3
+# Coverage is a measurement the analysis imports, not a gate of its own; the
+# floor that makes it mean something is scripts/scan_floors.py --cobertura.
+pytest-cov==7.1.0
 types-jsonschema
 -r requirements.in

@@ -56,14 +56,16 @@ believes exists.
 ### CI jobs
 
 Running: `lint` · `types` · `test` · `postgres` (two-connection races) ·
-`security` (bandit + pip-audit + gitleaks) · `size`. Arriving with their
-subjects (`docs/DECISIONS.md` §11): `model` (LibreOffice recalculation —
+`security` (bandit + pip-audit + gitleaks) · `size` · `sonarqube`. Arriving with
+their subjects (`docs/DECISIONS.md` §11): `model` (LibreOffice recalculation —
 `MODEL_BUILDER_SPEC.md` §8) and `image` (Trivy, fixable HIGH/CRITICAL) in
 Phase 7, `frontend` (lint, tsc, unit, build, a11y, workbench smoke) in Phase 9.
 
-The third reviewer is deliberately **not** among them: `SonarCloud Code
-Analysis` is posted by SonarQube Cloud itself, and a CI job that analysed the
-same project would fail rather than add anything (§2).
+`sonarqube` is the third reviewer, and it is the one job that does not decide
+its own verdict: it submits the analysis, and `SonarCloud Code Analysis` —
+posted by SonarQube Cloud's GitHub App — carries the quality gate's answer. It
+was deliberately absent until `docs/DECISIONS.md` §41; the paragraph below says
+what changed and what it cost.
 
 ### Review
 
@@ -81,16 +83,24 @@ not the same thing as a second opinion. SonarQube's rule engine was written by
 people who never saw this repository, which is exactly the property the review
 control was missing — see `docs/DECISIONS.md` §31.
 
-**It runs from SonarQube Cloud's side, not from CI.** Automatic analysis reads
-the repository through the GitHub App and posts the `SonarCloud Code Analysis`
-check on every pull request; the check's conclusion is the quality gate's
-verdict, so it is a gate rather than a report without anything here waiting on
-it. Nothing in this tree starts it, and nothing here can: **automatic analysis
-and a CI scanner are mutually exclusive** — with automatic analysis on, a
-scanner run against the same project fails, and fails the build with it. A
-`sonarqube` job is therefore not a stronger gate than the analysis already
-running; it is the one commit that would stop it, which
-`test_nothing_here_starts_a_scanner_of_its_own` exists to refuse.
+**It runs from CI, and it did not always.** Until `docs/DECISIONS.md` §41 the
+analysis ran from SonarQube Cloud's own side, which meant the agent writing this
+repository could not narrow the reviewer reading it — the independence §2 had
+been missing. That ended for one reason: **automatic analysis imports no
+coverage report.** The quality gate's coverage condition had no metric to judge,
+and no setting fixes it, because coverage reaches a SonarQube Cloud project
+through a scanner or not at all. So the `sonarqube` job submits the analysis and
+hands it `coverage.xml`; the GitHub App still posts `SonarCloud Code Analysis`,
+whose conclusion is the quality gate's verdict.
+
+The cost is real and is in the CLAUDE.md ledger: `sonar.sources`, the exclusions
+and the coverage path now sit in the tree, editable in the pull request they
+judge. The verdict does not — the gate's conditions stay in SonarQube Cloud.
+What guards the scope is `test_the_analysis_claims_every_tracked_python_file`,
+`test_the_coverage_floor_measures_what_the_analysis_reads` and
+`test_exactly_one_job_submits_the_analysis`, each of which an author could also
+edit. That is a weaker arrangement than the one it replaced, bought for a
+coverage number the gate can actually evaluate.
 
 **The predecessor could not run unasked at all.** CodeRabbit declined every PR
 here — *"does not receive automatic reviews because it has fewer than 10
@@ -99,13 +109,12 @@ and honoured `@coderabbitai review` only from a human, never from a workflow, so
 no automation in this repository could produce a review. A control nobody runs
 is not a control.
 
-The one thing that follows the repository rather than the platform is analysis
-scope: `.sonarcloud.properties` excludes `vendor/`, so the bundle we never edit
-is not judged. Everything else living outside the tree is what keeps this
-reviewer independent of the agent that writes the code — a scanner configured
-from `sonar-project.properties` could be narrowed in the same PR it reviews.
-The check belongs in the `main` ruleset for the reason §14 gives, and the case
-that remains uncovered is a quality gate loosened rather than switched off.
+Analysis scope follows the repository: `sonar-project.properties` excludes
+`vendor/`, so the bundle we never edit is not judged, and names the three source
+directories every tracked `.py` outside `tests/` falls under. The check belongs
+in the `main` ruleset for the reason §14 gives. Two cases remain uncovered: a
+quality gate loosened rather than switched off, and — since §41 — a scope
+narrowed in the diff under review.
 
 The measured value of the arrangement so far, on the two changes it reviewed
 before this: CodeRabbit contributed two docstrings to #20; the adversarial pass
@@ -149,9 +158,12 @@ directory cannot quietly expect nothing. `--unscanned DIR…` names what is
 deliberately left out, and between the two every tracked .py in the repository
 has to be claimed: a source package a later phase adds cannot go unscanned
 without somebody saying so. This applies to every scanning gate this
-repository runs. The third reviewer is the exception it cannot reach: SonarQube
-Cloud decides its own scope, and all this tree contributes is the `vendor/`
-exclusion in `.sonarcloud.properties` (§2).
+repository runs, and since `docs/DECISIONS.md` §41 that includes the coverage
+report: `scan_floors.py --cobertura` reads `coverage.xml` through the same
+floors, because a file missing from a coverage report is not a file at zero per
+cent — it raises the percentage of every file that is there. The third reviewer
+is no longer the exception it could not reach, now that this tree declares the
+scope it reads (§2).
 
 ---
 

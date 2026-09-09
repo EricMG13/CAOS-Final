@@ -37,8 +37,30 @@ exclude = ["^\\.venv/", "^vendor/"]
 testpaths = ["tests"]
 # The repo root for `server`, and scripts/ for the gate executables.
 pythonpath = [".", "scripts"]
-addopts = "-q"
+# Coverage is declared here rather than in the Makefile and the CI step, so the
+# report the analysis imports is the one a local run produces. `make test` and
+# a bare `pytest` write the same coverage.xml.
+addopts = "-q --cov --cov-report=xml --cov-report=term:skip-covered"
 markers = [
   "model_parity: requires LibreOffice (docs/MODEL_BUILDER_SPEC.md section 8)",
   "live_provider: spends money; needs an Anthropic credential (server/provider.py)",
 ]
+
+[tool.coverage.run]
+branch = true
+# The repository root, not the three directories sonar.sources names. Each
+# `source` entry is a root the Cobertura filenames are written relative to, so
+# naming them individually emits `boundary_text.py` for server/boundary_text.py
+# and the same `__init__.py` three times -- paths the scanner resolves against
+# the project and does not find, which imports as no coverage at all rather than
+# as an error. One root keeps every filename repo-relative; `omit` does the
+# narrowing instead.
+source = ["."]
+omit = ["tests/*", "vendor/*", ".venv*/*"]
+# `source` (rather than bare `include`) is what puts a module no test imported
+# into the report at zero instead of leaving it out -- the difference
+# scan_floors.py --cobertura reads as a file the run skipped.
+relative_files = true
+
+[tool.coverage.xml]
+output = "coverage.xml"

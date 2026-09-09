@@ -1,0 +1,26 @@
+# gitleaks' default rules, plus one exemption.
+#
+# `generic-api-key` matches the word "key" followed by a high-entropy value, and
+# `sonar.projectKey=EricMG13_CAOS-Final` scores 4.14. That finding failed the
+# `security` gate the first time a scanner configuration was committed here
+# (docs/DECISIONS.md section 31); section 41 brings the file back, so it has to
+# be answered rather than avoided.
+#
+# It is answered by what the value is: a project key is a public identifier, in
+# the query string of every dashboard URL the check posts, authorising nothing.
+# The credential is SONAR_TOKEN, a repository secret, exempted nowhere.
+[extend]
+useDefault = true
+
+# Scoped to the exact string, not to the file: a path exemption would stop the
+# scanner reading sonar-project.properties, and a credential pasted into it
+# later would be the one thing nothing here reads.
+# test_the_secret_exemption_names_a_string_rather_than_a_file holds that.
+#
+# `[allowlist]`, singular, not `[[allowlists]]`: on gitleaks 8.24.3, the version
+# `make security` and the CI action both run, the plural form parses without
+# complaint and exempts nothing. Measured on this file, both ways.
+[allowlist]
+description = "The Sonar project key is an identifier, not a credential"
+regexTarget = "match"
+regexes = ['''sonar\.projectKey=EricMG13_CAOS-Final''']

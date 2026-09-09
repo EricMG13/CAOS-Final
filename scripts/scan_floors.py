@@ -19,6 +19,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import re
 import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -27,6 +29,11 @@ from tracked import tracked_python
 
 REPO = Path(__file__).resolve().parents[1]
 
+# Cobertura carries `filename` on `<class>` and on no other element, so this is
+# the set of files the report measured. See `cobertura_metrics` for why the
+# report is read as text.
+MEASURED = re.compile(r'\bfilename="([^"]*)"')
+
 
 def covered_files(report: Mapping[str, object]) -> list[str]:
     """The files a bandit report actually measured, excluding its own totals row."""
@@ -34,6 +41,53 @@ def covered_files(report: Mapping[str, object]) -> list[str]:
     if not isinstance(metrics, dict):
         return []
     return [name for name in metrics if name != "_totals"]
+
+
+def cobertura_metrics(report: str) -> Mapping[str, object]:
+    """A Cobertura coverage report in the shape the floors already read.
+
+    A coverage report is a scanner report, and it falls through the same floors:
+    one that measured nothing, or that left out a file it was pointed at, is a
+    report SonarQube imports as a number rather than as an error. Both formats
+    state which files were measured and only where they state it differs, so
+    this normalises rather than growing a second set of floors.
+
+    Read as text, not parsed. `xml.etree` is vulnerable to entity expansion and
+    two scanners say so -- bandit as B314, SonarPython as S2755 -- so parsing
+    costs either a suppression each or `defusedxml` and a decision entry, to
+    harden a file this repository generated itself one step earlier. What the
+    floors want from it is one attribute of one element. A regex that misread it
+    would name a measured file as unmeasured, which fails closed.
+    """
+    return {"metrics": {name: {} for name in MEASURED.findall(report)}}
+
+
+def report_within(path: Path, base: Path) -> Path:
+    """`path` resolved, provided it lies under `base`; refused otherwise.
+
+    The report argument is the one piece of caller input that reaches the
+    filesystem, and nothing stopped `scan_floors.py ../../etc/passwd` reading a
+    file and then reporting on it -- the path traversal the third reviewer
+    traced from `parse_args` to `read_text`. A scanner report is a build output
+    of the tree being scanned, so the one place it is read from is under the
+    directory the gate ran in: the repository root, in the Makefile and in CI.
+    Refused before anything is read.
+
+    `os.path.realpath` and `startswith` rather than `Path.resolve` and
+    `is_relative_to`, which say the same thing: this is the sanitizer shape the
+    rule documents, and whether the analyzer reads the pathlib spelling is not
+    known here.
+    """
+    resolved = os.path.realpath(path)
+    root = os.path.realpath(base)
+    # The separator is load-bearing: `/base-secret/x` starts with `/base`.
+    if not resolved.startswith(root + os.sep):
+        message = (
+            f"{path} is outside {base}; a scanner report is read only from under "
+            "the directory the gate was invoked in"
+        )
+        raise ValueError(message)
+    return Path(resolved)
 
 
 def expected_files(repo: Path, directory: str) -> list[str]:
@@ -130,9 +184,19 @@ def main(argv: list[str] | None = None) -> int:
         metavar="DIR",
         help="directories deliberately left out; each needs a ledger entry",
     )
+    parser.add_argument(
+        "--cobertura",
+        action="store_true",
+        help="read a Cobertura coverage report rather than a bandit JSON one",
+    )
     args = parser.parse_args(argv)
 
-    report = json.loads(args.report.read_text(encoding="utf-8"))
+    try:
+        report_path = report_within(args.report, Path.cwd())
+    except ValueError as refusal:
+        parser.error(str(refusal))
+    text = report_path.read_text(encoding="utf-8")
+    report = cobertura_metrics(text) if args.cobertura else json.loads(text)
     failures = floor_failures(
         report,
         min_files=args.min_files,

@@ -23,10 +23,12 @@ import tracked
 REPO = Path(__file__).resolve().parents[1]
 
 
-def _run(script: str, *args: str) -> subprocess.CompletedProcess[str]:
+def _run(script: str, *args: str, cwd: Path = REPO) -> subprocess.CompletedProcess[str]:
+    # `cwd` matters to scan_floors: it reads a report only from under the
+    # directory it was invoked in, so a test writing one to tmp_path runs there.
     return subprocess.run(
         [sys.executable, str(REPO / "scripts" / script), *args],
-        cwd=REPO,
+        cwd=cwd,
         capture_output=True,
         text=True,
         check=False,
@@ -45,7 +47,11 @@ def _report(tmp_path: Path, *, files: list[str], errors: list[str]) -> str:
 
 def test_scan_floor_refuses_a_report_that_covered_no_files(tmp_path: Path) -> None:
     result = _run(
-        "scan_floors.py", _report(tmp_path, files=[], errors=[]), "--min-files", "1"
+        "scan_floors.py",
+        _report(tmp_path, files=[], errors=[]),
+        "--min-files",
+        "1",
+        cwd=tmp_path,
     )
     assert result.returncode != 0
     assert "0 files" in result.stdout + result.stderr
@@ -53,14 +59,18 @@ def test_scan_floor_refuses_a_report_that_covered_no_files(tmp_path: Path) -> No
 
 def test_scan_floor_refuses_a_report_with_parse_errors(tmp_path: Path) -> None:
     report = _report(tmp_path, files=["server/api.py"], errors=["syntax error"])
-    result = _run("scan_floors.py", report, "--min-files", "1", "--no-parse-errors")
+    result = _run(
+        "scan_floors.py", report, "--min-files", "1", "--no-parse-errors", cwd=tmp_path
+    )
     assert result.returncode != 0
     assert "parse error" in result.stdout + result.stderr
 
 
 def test_scan_floor_accepts_a_report_that_covered_a_file(tmp_path: Path) -> None:
     report = _report(tmp_path, files=["server/api.py"], errors=[])
-    result = _run("scan_floors.py", report, "--min-files", "1", "--no-parse-errors")
+    result = _run(
+        "scan_floors.py", report, "--min-files", "1", "--no-parse-errors", cwd=tmp_path
+    )
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -289,7 +299,7 @@ def test_scan_floor_refuses_a_report_that_skipped_a_file_it_should_have_covered(
     skipped = expected[0]
     report = _report(tmp_path, files=expected[1:], errors=[])
 
-    result = _run("scan_floors.py", report, "--cover", "scripts")
+    result = _run("scan_floors.py", report, "--cover", "scripts", cwd=tmp_path)
 
     assert result.returncode != 0
     assert skipped in result.stdout + result.stderr
@@ -300,7 +310,15 @@ def test_scan_floor_accepts_a_report_that_covered_every_file_it_should_have(
 ) -> None:
     covered = ["scripts", "server", "methodology"]
     report = _report(tmp_path, files=_tracked_under(*covered), errors=[])
-    result = _run("scan_floors.py", report, "--cover", *covered, "--unscanned", "tests")
+    result = _run(
+        "scan_floors.py",
+        report,
+        "--cover",
+        *covered,
+        "--unscanned",
+        "tests",
+        cwd=tmp_path,
+    )
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -313,7 +331,7 @@ def test_scan_floor_refuses_a_tracked_file_that_no_target_accounts_for(
     # pointed the scanner at -- `models/` in Phase 7, and Python either way.
     report = _report(tmp_path, files=_tracked_under("scripts"), errors=[])
 
-    result = _run("scan_floors.py", report, "--cover", "scripts")
+    result = _run("scan_floors.py", report, "--cover", "scripts", cwd=tmp_path)
 
     assert result.returncode != 0
     output = result.stdout + result.stderr
@@ -339,6 +357,173 @@ def test_scan_floor_refuses_a_target_directory_that_holds_no_tracked_file(
     # A mistyped --cover would expect nothing, and expecting nothing is the
     # vacuous floor this flag replaced. It has to fail closed on its own typo.
     report = _report(tmp_path, files=_tracked_under("scripts"), errors=[])
-    result = _run("scan_floors.py", report, "--cover", "srcipts")
+    result = _run("scan_floors.py", report, "--cover", "srcipts", cwd=tmp_path)
     assert result.returncode != 0
     assert "srcipts" in result.stdout + result.stderr
+
+
+def test_scan_floor_refuses_a_report_outside_the_directory_it_was_invoked_from(
+    tmp_path: Path,
+) -> None:
+    """The report path is the one argument that reaches the filesystem.
+
+    The third reviewer traced `parse_args` to `read_text` and called it path
+    traversal, and for a script an agent invokes it is: nothing stopped
+    `scan_floors.py ../../etc/passwd --cobertura` from reading it and then
+    reporting on it. A scanner report is a build output of the tree being
+    scanned, so the one place it may be read from is under the directory the
+    gate was run in -- which is the repository root in the Makefile and in CI.
+    """
+    inside = tmp_path / "inside"
+    inside.mkdir()
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"metrics": {"server/api.py": {}}}', encoding="utf-8")
+
+    result = _run("scan_floors.py", str(outside), "--min-files", "1", cwd=inside)
+
+    # The report would pass every floor if it were read, so a non-zero exit is
+    # the refusal itself and not a floor it fell through.
+    assert result.returncode != 0
+    assert "outside" in result.stderr
+
+
+def test_report_within_refuses_a_path_that_escapes_the_base(tmp_path: Path) -> None:
+    """Three ways out, and the third is the one a prefix check misses.
+
+    `"/data/resources-secret".startswith("/data/resources")` is true, so a
+    containment check has to compare against the directory *with* its trailing
+    separator or a sibling whose name merely begins with the base walks through
+    it. The rule's own guidance names this pitfall; the sibling case here is what
+    makes the separator in `report_within` load-bearing rather than decorative.
+    """
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "coverage.xml").write_text("", encoding="utf-8")
+    (tmp_path / "escaped.xml").write_text("", encoding="utf-8")
+    sibling = tmp_path / "base-secret"
+    sibling.mkdir()
+    (sibling / "coverage.xml").write_text("", encoding="utf-8")
+
+    assert (
+        scan_floors.report_within(base / "coverage.xml", base)
+        == (base / "coverage.xml").resolve()
+    )
+    for escaping in (
+        tmp_path / "escaped.xml",
+        base / ".." / "escaped.xml",
+        sibling / "coverage.xml",
+    ):
+        with pytest.raises(ValueError, match="outside"):
+            scan_floors.report_within(escaping, base)
+
+
+def _coverage_report(tmp_path: Path, *, files: list[str]) -> str:
+    """A Cobertura report shaped as coverage.py writes one, measuring `files`."""
+    classes = "".join(
+        f'<class name="{Path(name).name}" filename="{name}"/>' for name in files
+    )
+    path = tmp_path / "coverage.xml"
+    path.write_text(
+        '<?xml version="1.0" ?><coverage line-rate="0.5"><sources><source>.'
+        f"</source></sources><packages><package><classes>{classes}"
+        "</classes></package></packages></coverage>",
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def test_main_reads_a_report_in_process_and_returns_its_verdict(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The entry point, called rather than spawned.
+
+    Every other test here drives the script as a child process, which is what
+    the gate does -- and coverage.py measures the parent, so `main` reads as
+    unmeasured however often it runs. The analysis caught that as 66.7% on new
+    code. An entry point nothing calls directly is worth not having either way.
+    """
+    monkeypatch.chdir(tmp_path)
+    assert (
+        scan_floors.main([_coverage_report(tmp_path, files=["a.py"]), "--cobertura"])
+        == 0
+    )
+    assert scan_floors.main([_coverage_report(tmp_path, files=[]), "--cobertura"]) == 1
+
+    outside = tmp_path.parent / "outside.xml"
+    outside.write_text("<coverage/>", encoding="utf-8")
+    with pytest.raises(SystemExit) as refused:
+        scan_floors.main([str(outside), "--cobertura"])
+    assert refused.value.code == 2
+
+
+def test_cobertura_metrics_names_the_files_the_coverage_run_measured() -> None:
+    """The floors read one shape; only where the two formats say it differs."""
+    report = (
+        '<coverage><packages><package><classes><class filename="server/api.py"/>'
+        "</classes></package></packages></coverage>"
+    )
+    assert scan_floors.covered_files(scan_floors.cobertura_metrics(report)) == [
+        "server/api.py"
+    ]
+
+
+def test_the_coverage_floor_refuses_a_report_that_measured_nothing(
+    tmp_path: Path,
+) -> None:
+    """A coverage report is a scanner report: one that scanned nothing fails.
+
+    SonarQube reads this file and reports whatever it finds. A run that wrote an
+    empty report imports as no coverage rather than as an error, which is the
+    same silent pass `--min-files` exists to refuse for bandit.
+    """
+    result = _run(
+        "scan_floors.py",
+        _coverage_report(tmp_path, files=[]),
+        "--cobertura",
+        cwd=tmp_path,
+    )
+    assert result.returncode != 0
+    assert "0 files" in result.stdout + result.stderr
+
+
+def test_the_coverage_floor_refuses_a_report_that_left_out_a_tracked_file(
+    tmp_path: Path,
+) -> None:
+    """Partial, not total, is the shape this catches.
+
+    A module no test imports is the one coverage.py would leave out of the
+    report entirely, and a file absent from the report is not a file at zero
+    per cent -- it raises the percentage of everything else instead.
+    """
+    expected = _tracked_under("scripts")
+    left_out = expected[0]
+
+    result = _run(
+        "scan_floors.py",
+        _coverage_report(tmp_path, files=expected[1:]),
+        "--cobertura",
+        "--cover",
+        "scripts",
+        cwd=tmp_path,
+    )
+
+    assert result.returncode != 0
+    assert left_out in result.stdout + result.stderr
+
+
+def test_the_coverage_floor_accepts_a_report_that_measured_every_tracked_file(
+    tmp_path: Path,
+) -> None:
+    covered = ["scripts", "server", "methodology"]
+    report = _coverage_report(tmp_path, files=_tracked_under(*covered))
+    result = _run(
+        "scan_floors.py",
+        report,
+        "--cobertura",
+        "--cover",
+        *covered,
+        "--unscanned",
+        "tests",
+        cwd=tmp_path,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

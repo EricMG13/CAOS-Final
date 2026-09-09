@@ -31,8 +31,8 @@ def test_get_returns_exactly_what_was_put(tmp_path: Path) -> None:
 
 def test_putting_the_same_bytes_twice_writes_one_blob(tmp_path: Path) -> None:
     store = BlobStore(tmp_path)
-    assert store.put(PAYLOAD) == store.put(PAYLOAD)
-    assert len(list(tmp_path.rglob("*"))) == len(list(tmp_path.rglob("*")))
+    first, second = store.put(PAYLOAD), store.put(PAYLOAD)
+    assert first == second == DIGEST
     assert sum(1 for path in tmp_path.rglob("*") if path.is_file()) == 1
 
 
