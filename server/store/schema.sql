@@ -68,14 +68,25 @@ CREATE TABLE IF NOT EXISTS budget_ledger (
     at        timestamptz NOT NULL DEFAULT now()
 );
 
--- One user-provided document admitted into a case.
+-- One user-provided document admitted into a case. Withdrawal is a timestamp,
+-- never a deletion: the pinned sets that name the source are immutable, and an
+-- already-executed run was pinned to it. What a withdrawn source loses is every
+-- use from then on -- read_evidence, pin_source_set and the plan gate each
+-- check the column live (invariant 1) -- and the store refuses to take it back
+-- (sources_withdrawal_is_final), so a refusal can always be explained later.
 CREATE TABLE IF NOT EXISTS sources (
-    source_id   uuid PRIMARY KEY,
-    case_id     text NOT NULL REFERENCES cases (case_id),
-    sha256      text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
-    created_at  timestamptz NOT NULL DEFAULT now(),
-    UNIQUE (case_id, sha256)
+    source_id     uuid PRIMARY KEY,
+    case_id       text NOT NULL REFERENCES cases (case_id),
+    sha256        text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+    created_at    timestamptz NOT NULL DEFAULT now(),
+    withdrawn_at  timestamptz
 );
+
+-- One live admission per document per case. Partial, so a withdrawn source
+-- keeps its row and its history while the same bytes come back as a new
+-- source: withdrawal is final for the source, not for the document.
+CREATE UNIQUE INDEX IF NOT EXISTS sources_admitted_once
+    ON sources (case_id, sha256) WHERE withdrawn_at IS NULL;
 
 -- The coordinate index behind invariant 11: one row per extracted text run with
 -- its page and rectangle. Tokens are never returned to a module; they exist so
@@ -211,6 +222,23 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER run_events_append_only
     BEFORE UPDATE OR DELETE ON run_events
     FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+-- Withdrawal is final. A withdrawn source that a raw UPDATE could reinstate is
+-- a source whose refusals nobody can explain afterwards; re-admitting is a new
+-- source. Only the reversal is refused -- the column moving from set to unset,
+-- or to another moment -- so `withdraw_source`'s own write is untouched.
+CREATE OR REPLACE FUNCTION refuse_reinstatement() RETURNS trigger AS $$
+BEGIN
+    RAISE EXCEPTION 'WITHDRAWAL_IS_FINAL';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE TRIGGER sources_withdrawal_is_final
+    BEFORE UPDATE OF withdrawn_at ON sources
+    FOR EACH ROW
+    WHEN (OLD.withdrawn_at IS NOT NULL
+          AND NEW.withdrawn_at IS DISTINCT FROM OLD.withdrawn_at)
+    EXECUTE FUNCTION refuse_reinstatement();
 
 -- A pinned source set is what a run's evidence means. Editing one would change
 -- what an already-executed run was pinned to.

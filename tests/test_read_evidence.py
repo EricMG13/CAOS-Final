@@ -68,7 +68,13 @@ REFUSED: dict[str, list[object]] = {
     "block_id": [-1, 99, 2**31],
     "source_set_version": [0, -1, 999],
     "case_id": [BoundaryText.of("rival"), BoundaryText.of("nobody")],
-    "run_id": ["00000000-0000-0000-0000-000000000000", "not-a-uuid"],
+    "run_id": [
+        "00000000-0000-0000-0000-000000000000",
+        "not-a-uuid",
+        # Parses in Python, not in PostgreSQL: a driver error, not a refusal,
+        # until the id was canonicalised at the boundary.
+        "urn:uuid:00000000-0000-0000-0000-000000000000",
+    ],
 }
 
 

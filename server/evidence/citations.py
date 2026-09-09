@@ -108,11 +108,16 @@ def _locate(tokens: list[Token], matched_text: str) -> list[list[Token]]:
 def _page_tokens(
     store: Store, *, case_id: BoundaryText, document_sha256: str, page: int
 ) -> list[Token]:
-    # Scoped to the case. The same document in two cases is ordinary, and each
-    # case holds its own copy: an unscoped lookup would return an arbitrary one.
+    # Scoped to the case, and to the live admission. The same document in two
+    # cases is ordinary and each case holds its own copy, so an unscoped lookup
+    # would return an arbitrary one. A withdrawn source is not anchored in --
+    # this is a use, and invariant 1 checks it here as at the read -- and once
+    # the same bytes are re-admitted the digest names two rows in the case, of
+    # which only the live one is meant.
     with store.transaction():
         found = store.execute(
-            "SELECT source_id FROM sources WHERE case_id = %s AND sha256 = %s",
+            "SELECT source_id FROM sources"
+            " WHERE case_id = %s AND sha256 = %s AND withdrawn_at IS NULL",
             (case_id.value, checked_digest(document_sha256)),
         ).fetchone()
         if found is None:

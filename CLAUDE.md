@@ -301,14 +301,22 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   those choices and does not make them, and `plan_preview` returns text rather
   than anything a person would read on a screen. *Upgrade:* the run surface,
   which is the first caller with an analyst in front of it.
-- **The plan gate binds a source set nothing checks for withdrawal.** Invariant
-  1 says withdrawal is checked live at every use, and the plan preview is a use:
-  it shows a person the documents a run will read. Nothing implements withdrawal
-  anywhere -- there is no column, no check in `read_evidence`, and no path that
-  sets one -- so this is inherited rather than created here, and it is named
-  here because this is the first surface that puts a document list in front of
-  someone. *Upgrade:* the slice that adds withdrawal, which has to reach the
-  plan gate and `read_evidence` together.
+- **Withdrawal reaches the four uses, and nothing watches for it.** A
+  withdrawn source is refused by `read_evidence`, by citation anchoring, by
+  `pin_source_set` and by the plan gate's member list, and `withdraw_source`
+  itself needs writer standing on the case (`docs/DECISIONS.md` §40) -- but
+  no path notices a withdrawal on its own: an undecided gate moves onto the
+  remaining documents only when `open_plan_gate` is replayed, and a decided
+  one replays as decided while the run's reads refuse; re-pinning is a new
+  run. A withdrawal that commits between `approve_plan`'s member read and its
+  release binds a plan the run will refuse to read in full, by that same
+  fail-closed read. Who withdrew is not recorded: `withdrawn_at` says when,
+  and the actor is the audit chain's, owed by this phase. The blocks and
+  tokens stay in the store -- withdrawal means no further use, not purge, and
+  whether it should ever mean purge is a decision nobody has made.
+  *Upgrade:* the run surface, which is the first caller that both re-derives
+  a plan for an analyst and can say why a node refused; `audit_events` for
+  the actor.
 - **The `RESEARCH_PLAN` gate has no caller.** `GateKind` declares it and
   `docs/REBUILD_PLAN.md` Phase 6 names research-plan approval beside source-set
   pinning; CP-DR's brief has no gate, so only `SOURCE_SET` is ever opened.

@@ -109,6 +109,20 @@ def test_pinning_the_same_source_twice_pins_it_once(store: Store) -> None:
     assert members == (1,)
 
 
+@pytest.mark.parametrize("source_id", ["not-a-uuid", "urn:uuid:" + "0" * 32])
+def test_a_source_id_that_is_no_id_is_refused_by_code(
+    store: Store, source_id: str
+) -> None:
+    # `ANY(%s)` against a uuid column would otherwise hand the driver's own
+    # complaint -- type, column, vendor -- to whoever pinned with a bad id.
+    _document("a" * 64)
+    admit_pack(store, case_id=CASE, documents=(_document("a" * 64),))
+    with pytest.raises(Refusal) as caught:
+        pin_source_set(store, case_id=CASE, source_ids=(source_id,))
+    assert caught.value.code is RefusalCode.SOURCE_NOT_IN_CASE
+    assert caught.value.__context__ is None
+
+
 def test_pinning_into_an_unknown_case_is_refused(store: Store) -> None:
     (admitted,) = admit_pack(store, case_id=CASE, documents=(_document("a" * 64),))
     with pytest.raises(Refusal) as caught:
