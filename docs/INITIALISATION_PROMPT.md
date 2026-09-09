@@ -11,7 +11,10 @@ You are building CAOS from a complete specification and no application code.
 
 Read first, in this order, in full:
   CLAUDE.md, CONTEXT.md, docs/REBUILD_PLAN.md, docs/SYSTEM_SPEC.md,
-  docs/AI_CODE_QUALITY.md
+  docs/DECISIONS.md, docs/AI_CODE_QUALITY.md
+DECISIONS.md is binding: later entries override earlier ones, and an entry
+that overrides the plan or the spec is also written back into them. One that
+was not is a defect; report it.
 Then, when the phase reaches them: docs/IA_SPEC.md, docs/MODEL_BUILDER_SPEC.md,
 DESIGN.md.
 
@@ -30,15 +33,9 @@ phase whose exit test does not pass. For each phase:
   5. Run `make check`. Open a PR with one concern in it.
   6. Stop and report. Do not begin the next phase without me.
 
-Non-negotiable while you work:
-  - Test first. The failing test names the invariant it protects.
-  - Decimal on every money path. Never float.
-  - Typed refusals only. No bare except, no str(exc) in a log or a response.
-  - Never log document-derived text.
-  - No new dependency without a dated docs/DECISIONS.md entry.
-  - Any accepted limitation gets a CLAUDE.md known-gaps entry in the same PR
-    that creates it.
-  - A scanner that scanned nothing is a failure, not a pass.
+Non-negotiable while you work: the eleven invariants and the rules of work in
+CLAUDE.md, which you have read. They are not restated here, so that there is
+one version of them.
 
 If the spec is wrong, say so and stop. Do not build around it, and do not
 weaken an invariant to make a test pass. The specs are the product of a long
@@ -60,7 +57,7 @@ what the code does.
 **"One concern in it."** AI PRs carry ~1.7× the issues of human PRs, and issue
 density rises with diff size. The cap is the cheapest control available.
 
-**"Stop and report."** Ten phases executed without a checkpoint is one long
+**"Stop and report."** Eleven phases executed without a checkpoint is one long
 uninterrupted opportunity to drift from the spec.
 
 **"If the spec is wrong, say so and stop."** The predecessor's most expensive

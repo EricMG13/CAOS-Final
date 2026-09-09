@@ -138,7 +138,7 @@ export (Phase 9).
 ## Running
 
 - `make venv` — the two toolchains. `make lock` — recompile every lock.
-- `make dev` — fails until the first HTTP route exists (Phase 1).
+- `make dev` — fails until the first HTTP route exists (Phase 6).
 - `make test` — the suite. `make test-model` additionally requires LibreOffice.
 - `make check` — lint, types, tests, security, in that order.
 - The model job needs `soffice` on PATH. Without it the workbook build fails
@@ -150,6 +150,11 @@ export (Phase 9).
 Every accepted limitation gets an entry here with its reason and its upgrade
 path, in the same breath as the code that creates it. An empty ledger on a
 system this size means nobody looked.
+
+An entry that defers to *a slice* — the extraction slice, the ingestion slice,
+the run surface, the API layer — defers to the current phase, the lowest whose
+exit test does not pass. `docs/REBUILD_PLAN.md` lists under that phase what the
+exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §36).
 
 **Phase 0.**
 
@@ -275,6 +280,13 @@ system this size means nobody looked.
 
 **Phase 6.**
 
+- **`test_every_exit_test_of_an_exited_phase_exists` checks that a plan-named
+  test was written, not that it passes.** Passing is the suite's job, and a
+  named test that skips — `test_the_live_provider_returns_a_completion` without
+  a credential — counts as written. It refuses the failure three phases had, a
+  phase exited on a test nobody wrote; it cannot refuse a phase exited on a
+  test that skips. *Upgrade:* refuse a skipped exit test, the day CI holds a
+  credential to run the live one.
 - **No node is BLOCKED on a gate.** The plan gate opens one and releases one,
   so `open_gate` and `approve_gate` now have a real caller -- but `node_states`
   never consults `gate_released`, so `SYSTEM_SPEC.md` §4's "BLOCKED on a host

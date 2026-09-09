@@ -18,11 +18,11 @@ a tool, not by intention. A control nobody runs is not a control.
 | **Logic & correctness** | +75 % | Test-first for every calculator, state transition and money path. A failing test exists before the implementation. | `superpowers:test-driven-development`; CI refuses a PR whose new public function has no test |
 | **Readability** | 3× | Function length and complexity ceilings; a rewrite pass on non-trivial functions before commit | `ruff` (C901, PLR0912/0913/0915); `rewrite-tournament` skill post-edit |
 | **Error handling** | ~2× | Typed refusals only. No bare `except`, no `except Exception` without re-raise, no `str(exc)` reaching a log or a wire response | `ruff` (BLE, TRY); the observability test that drives a sentinel document through real ingestion |
-| **Security** | 2.74× | Static analysis, dependency audit, image scan, and a route-level actor matrix that drives every endpoint as nine different actors | `bandit` (pinned 3.12 — see §4), `pip-audit`, Trivy, `run_sec_audit.py`, `gitleaks` |
-| **Formatting** | 2.66× | Formatter runs on write, not on review | `ruff format` + `prettier` in a `PostToolUse` hook and in CI |
+| **Security** | 2.74× | Static analysis with a scan floor, dependency audit, secret scan. An image scan and a route-level actor matrix that drives every endpoint as nine different actors arrive with the Dockerfile and the first HTTP route | `bandit` (pinned 3.12 — see §4) + `scan_floors.py`, `pip-audit`, `gitleaks`; Trivy and the actor-matrix test are owed by `REBUILD_PLAN.md` Phases 7 and 6 |
+| **Formatting** | 2.66× | Formatter runs on write, not on review | `ruff format` in a `PostToolUse` hook and in CI; `prettier` in the hook, and in CI with the frontend (Phase 9) |
 | **Naming inconsistency** | ~2× | One glossary. Every domain term in `CONTEXT.md`; a check that new identifiers do not introduce a synonym for an existing term | `CONTEXT.md` + `scripts/check_vocabulary.py` |
-| **Concurrency & dependencies** | ~2× | No new dependency without a dated decision entry. Fully pinned, hashed locks. Every governed race proven on two independent Postgres connections | `test_dependency_pins.py`, `--require-hashes`, `test_postgres_races.py` |
-| **Performance — excessive I/O** | **~8×** | A declared I/O budget per request path, asserted in tests. N+1 detection on every list endpoint | `scripts/io_budget.py` + `test_io_budget.py` |
+| **Concurrency & dependencies** | ~2× | No new dependency without a dated decision entry. Fully pinned, hashed locks. Every governed race proven on two independent Postgres connections | `--require-hashes` in CI and the image, `pip-audit`, `test_postgres_races.py` |
+| **Performance — excessive I/O** | **~8×** | A declared I/O budget per request path, asserted in tests. N+1 detection on every list endpoint | `scripts/io_budget.py --assert` + `test_io_budget_read_evidence` |
 | **Critical/major severity** | 1.4–1.7× | Two independent review passes before merge: self-doubt enumeration, then hostile review. The hostile pass is the gate — it must find something, and each finding is either fixed or entered in the known-gaps ledger | `confidence-review` then `adversarial-reviewer`, both before the PR is opened; `SonarCloud Code Analysis` on every PR (§2) |
 | **Overall volume** | 1.7× | Small PRs. One concern per PR, hard cap on changed lines | CI size gate |
 
@@ -43,8 +43,10 @@ budget test is what stops it coming back.
   Python, `prettier` for TS/CSS. Formatting never reaches review.
 - **`PreToolUse` on Bash** → refuse `git push --force`, `git commit --no-verify`,
   and any `pip install` outside the hashed lock.
-- **`Stop`** → run the changed-file test selection; a red suite blocks the turn
-  from ending silently.
+
+No `Stop` hook. An earlier draft described one that ran the changed-file tests;
+it was never written, and a control this document names is one a reader
+believes exists.
 
 ### Pre-commit
 
@@ -53,10 +55,11 @@ budget test is what stops it coming back.
 
 ### CI jobs
 
-`lint` · `types` · `test` · `postgres` (two-connection races) · `model`
-(LibreOffice recalculation — `MODEL_BUILDER_SPEC.md` §8) · `security`
-(bandit + pip-audit + gitleaks) · `image` (Trivy, fixable HIGH/CRITICAL) ·
-`frontend` (lint, tsc, unit, build, a11y, workbench smoke).
+Running: `lint` · `types` · `test` · `postgres` (two-connection races) ·
+`security` (bandit + pip-audit + gitleaks) · `size`. Arriving with their
+subjects (`docs/DECISIONS.md` §11): `model` (LibreOffice recalculation —
+`MODEL_BUILDER_SPEC.md` §8) and `image` (Trivy, fixable HIGH/CRITICAL) in
+Phase 7, `frontend` (lint, tsc, unit, build, a11y, workbench smoke) in Phase 9.
 
 The third reviewer is deliberately **not** among them: `SonarCloud Code
 Analysis` is posted by SonarQube Cloud itself, and a CI job that analysed the
