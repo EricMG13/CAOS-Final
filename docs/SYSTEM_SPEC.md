@@ -14,9 +14,9 @@ workspace and its sections live in `docs/IA_SPEC.md`.
                           │      API (FastAPI)   │  strict named wire models
                           └──────────┬───────────┘
         ┌──────────────────┬─────────┼──────────┬──────────────────┐
-   ingestion          route          │      model build      publication
-   + citation       resolution    execution     (CP-MODEL)     (CP-MEMO)
-   anchoring        + pinning       loop            │              │
+   ingestion          route          │       forecast        deliverable
+   + citation       resolution    execution     (CP-CF)       rendering
+   anchoring        + pinning       loop            │          + filing
         └──────────────────┴─────────┼──────────────┴──────────────┘
                           ┌──────────┴───────────┐        ┌─────────────┐
                           │    PostgreSQL 16     │        │  blob store │
@@ -29,10 +29,12 @@ workspace and its sections live in `docs/IA_SPEC.md`.
                           └──────────────────────┘
 ```
 
-Two processes: `api` and `worker`. One instance of each. The worker polls for
-queued model builds and publication jobs; nothing else is asynchronous.
+One process, `api`, one instance (`docs/DECISIONS.md` §48). The run loop is the
+only long-running work and it runs there; the deliverable renders in the
+request. The worker went with the model builds and publication jobs it existed
+to poll for.
 
-No checkpointer, no second database, no message broker.
+No worker, no checkpointer, no second database, no message broker.
 
 ---
 
@@ -47,8 +49,7 @@ blob store keyed by `sha256`; the database holds the digest, never the bytes.
 | Evidence | `sources` (read through the `live_sources` view, `docs/DECISIONS.md` §45), `source_sets`, `source_set_members`, `source_blocks`, `source_tokens` |
 | Runs | `runs`, `run_routes`, `run_nodes`, `run_attempts`, `run_events`, `budget_ledger` |
 | Artifacts | `artifacts`, `snapshots`, `snapshot_members` |
-| Model | `model_builds`, `model_revisions`, `assumptions`, `calculations` |
-| Publication | `deliverable_drafts`, `deliverable_opinions`, `deliverable_publications`, `publication_jobs` |
+| Deliverable | `deliverable_drafts`, `deliverable_opinions`, `deliverable_publications` |
 | Audit | `audit_events`, `audit_chain_heads` |
 
 The target set. `server/store/schema.sql` is what exists; a table arrives there
@@ -65,7 +66,7 @@ Rules that do not bend:
   events exactly-once.
 - **`run_events.seq`** is per-run monotonic, allocated under the run row lock.
 - **Append-only** means append-only: `run_events`, `run_attempts`,
-  `deliverable_opinions`, `model_revisions`, `audit_events` have no UPDATE path.
+  `deliverable_opinions`, `audit_events` have no UPDATE path.
 - **`BoundaryText`** on every string that can reach pinned state, a revision, a
   frozen payload or an audit event. NFC-normalised before the length bound;
   rejects lone surrogates, Unicode Cc controls except CR/LF/TAB, and
@@ -200,32 +201,15 @@ actually delivered to that node.
 
 ---
 
-## 6. Model
+## 6. Forecast
 
-One model effect per pathway. Full Credit builds the complete model from the six
-canonical artifacts. Every other pathway resolves through the nearest validated
-Full Credit ancestor: its build re-verified by recomputation, the accepted run's
-calculation records re-executed, one `pathway_effects` entry on a byte-identical
-copy of the base model-table payloads under the overlay's own input fingerprint.
-This reuses validated data, not workbook sheets or a prior `.xlsx`. Every
-workbook is rendered from the resulting typed IR and recalculated and validated
-afresh, as required by `MODEL_BUILDER_SPEC.md` §§4–5.
-
-- Calculation is pure and finite. Non-finite values and zero denominators are
-  refused before use.
-- Every build carries `source_lineage`: one row per pinned source with intake
-  disposition, consumers, citing artifacts, model tables and binding. A `used`
-  relevant document bound to nothing is `MODEL_SOURCE_LINEAGE_INCOMPLETE` and
-  never READY.
-- The expression language ported from the AI Studio build (`docs/DECISIONS.md` §8)
-  is a registry calculator. It parses `$M`, `x`, `%`, `bps`, `IF/THEN/ELSE`,
-  `MIN`/`MAX`/`SUM`/`HAIRCUT`, evaluates against pinned artifacts server-side,
-  and attaches the lineage of every operand to the result. It never evaluates in
-  the browser and never reads anything but the pinned snapshot.
-
-Builds are claimed CAS-bound; a `BUILDING` row a dead worker left behind is
-requeued at the next worker start. Exports take the same claim — one worker
-today, but the claim is not optional.
+The forward model is CP-CF's accepted artifact: a projection the host computes
+from module-authored drivers, read in the Model section (`IA_SPEC.md` §4.6).
+The workbook build that stood here — one model effect per pathway, overlays,
+`source_lineage`, the expression-language calculator — went with CP-MODEL
+(`docs/DECISIONS.md` §48; archived in `docs/archive/MODEL_BUILDER_SPEC.md`).
+Calculation is pure and finite: non-finite values
+and zero denominators are refused before use.
 
 ### 6.1 `cash_flow_forecast` — the deterministic forecast calculator
 
@@ -260,7 +244,7 @@ taxes, distributions, issuance, contractual and optional repayment), `fcf`,
 (opening, closing, accessible), `residual`, `metrics` (gross and net leverage,
 interest coverage, fcf_to_debt, liquidity_runway_periods), and
 `unavailable_reason`. Plus a `checks[]` list of `SemanticCheck` records in the
-same shape CP-MODEL already emits.
+shape `cp_model_v3/calculations.py` defines.
 
 **The two identities it computes**, taken verbatim from CP-2G's calculation
 controls:
@@ -353,35 +337,32 @@ period per case.
 
 **Route placement without editing the catalog.** Reuse the mechanism legacy
 already has for CP-DR: a host-declared model extension, mirroring
-`profile["research_extension"]`, appends CP-CF at stage 100 and CP-MODEL at
-101 — CP-MODEL is route-eligible but in no pathway's node list, so the
-extension is the only thing that can place it (`docs/DECISIONS.md` §23) — with
-synthesised `REQUIRED` edges `CP-1 → CP-CF`, `CP-2G → CP-CF`,
-`CP-4 → CP-CF` and `CP-CF → CP-MODEL`. These name every artifact owner CP-CF
-reads, including the covenant terms; CP-2G completing alone does not release
-CP-CF. An extended route missing a required owner is refused during resolution,
-before pinning, rather than dropping the edge or running with missing inputs.
-No upstream pathway node list is edited, and the extension is part of the
-resolved route that gets pinned at the gate (§4), so replay is unaffected.
+`profile["research_extension"]`, appends CP-CF at stage 100 with synthesised
+`REQUIRED` edges `CP-1 → CP-CF`, `CP-2G → CP-CF` and `CP-4 → CP-CF`. These
+name every artifact owner CP-CF reads, including the covenant terms; CP-2G
+completing alone does not release CP-CF. An extended route missing a required
+owner is refused during resolution, before pinning, rather than dropping the
+edge or running with missing inputs. No upstream pathway node list is edited,
+and the extension is part of the resolved route that gets pinned at the gate
+(§4), so replay is unaffected. `docs/DECISIONS.md` §23 had the extension place
+CP-MODEL at 101 as well; §48 does not place it.
 
 ---
 
-## 7. Publication
+## 7. Deliverable
 
-The legacy CP-MEMO contract, unchanged (`IA_SPEC.md` §4.8 for the surface):
+The host renders the deliverable from the frozen snapshot (`IA_SPEC.md` §4.8
+for the surface; `docs/DECISIONS.md` §48 for why it is not CP-MEMO's `.docx`,
+whose contract is archived in `docs/archive/REPORT_BUILDER_SPEC.md`):
 
-- Exactly one `.docx`, `[IssuerID]_CP-MEMO_[YYYYMMDD].docx`, never overwriting.
-  No PDF, deck, dashboard or workbook deliverable; the PDF and page images are
-  QA material.
-- Ten fixed sections, in order, from cover to module provenance index.
-- CP-MEMO originates nothing. It may select, reorder, shorten, deduplicate and
-  faithfully restate. It may not calculate, infer, fill a gap, resolve a
-  disagreement, change confidence or taxonomy, rank findings, or author a
-  recommendation.
-- Both sides of an unresolved conflict are preserved. `Restricted` and
-  `SCREENING_ONLY` qualifications survive into the report.
-- Publication gate: inventory → draft → every page inspected at 100 % → publish.
-  Any defect stops publication.
+- Exactly one HTML file, never overwriting. It prints to paper (`DESIGN.md`);
+  no PDF, deck, dashboard or workbook deliverable.
+- The accepted artifacts in route order, every figure carrying its citation
+  (§5), then the analyst's narrative and the module provenance index.
+- The render originates nothing, structurally: it is a function of frozen
+  bytes, so there is no editorial boundary to police. Both sides of an
+  unresolved conflict, `Restricted` and `SCREENING_ONLY` qualifications reach
+  the page as the artifacts carry them.
 
 Around it, the host's own chain: the analyst signs an opinion on the exact saved
 revision (expected-head CAS); freeze refuses without a current sign-off and
@@ -410,9 +391,9 @@ the export from the frozen payload.
 
 Every JSON success serves a *named* model. `extra="forbid"` both directions.
 New field means a model change plus an updated pinned key set in the contract
-test. Two carve-outs only: SSE and binary downloads are not JSON; and the
-service-owned envelopes whose payload shape belongs to the model or publication
-service rather than the wire.
+test. One carve-out only: SSE and binary downloads are not JSON. A first draft
+also carved out service-owned envelopes for the model and publication services;
+they went with those services (`docs/DECISIONS.md` §48).
 
 One document per section, not per widget — the per-widget query pattern is what
 produced the open-envelope carve-outs in the current tree.
@@ -429,8 +410,8 @@ a refetch.
 
 Structured JSON on stdout, standard library only. Run and node transitions
 (all of them through one emitter), typed refusals, provider call start and
-finish, budget reserve and reconcile, gate interrupts, startup recovery, worker
-job failures, intake dispositions.
+finish, budget reserve and reconcile, gate interrupts, startup recovery,
+intake dispositions.
 
 **Never log source text, evidence block text, module output, prompts, or
 anything a document produced.** Log the typed code, never the exception string.
@@ -443,12 +424,12 @@ arrives with the first logger (`docs/DECISIONS.md` §45).
 
 ## 11. Deployment and failure
 
-Single instance of `api`, single instance of `worker`, one PostgreSQL, one blob
-store, one reverse proxy. Request ceilings are per instance and the instance
-ceiling is enforced, not assumed.
+Single instance of `api`, one PostgreSQL, one blob store, one reverse proxy.
+Request ceilings are per instance and the instance ceiling is enforced, not
+assumed.
 
 `GET /api/health` serves liveness and readiness on one strict model — store,
-bundle, blob store, worker heartbeat — 200 when all hold, 503 otherwise. The
+bundle, blob store — 200 when all hold, 503 otherwise. The
 probes really run, at most once per TTL, on a shared background task with a
 deadline. The route skips auth and the rate ceiling.
 

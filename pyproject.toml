@@ -42,7 +42,6 @@ pythonpath = [".", "scripts"]
 # a bare `pytest` write the same coverage.xml.
 addopts = "-q --cov --cov-report=xml --cov-report=term:skip-covered"
 markers = [
-  "model_parity: requires LibreOffice (docs/MODEL_BUILDER_SPEC.md section 8)",
   "live_provider: spends money; needs an Anthropic credential (server/provider.py)",
 ]
 

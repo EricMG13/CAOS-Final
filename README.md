@@ -12,9 +12,9 @@ a page of a pinned document, not a text match.
 |---|---|
 | [`CLAUDE.md`](CLAUDE.md) | the engineering contract and the eleven invariants |
 | [`docs/REBUILD_PLAN.md`](docs/REBUILD_PLAN.md) | what gets built, in what order, and what "done" means per phase |
-| [`docs/SYSTEM_SPEC.md`](docs/SYSTEM_SPEC.md) | components, data model, route resolution, publication |
+| [`docs/SYSTEM_SPEC.md`](docs/SYSTEM_SPEC.md) | components, data model, route resolution, the deliverable |
 | [`docs/IA_SPEC.md`](docs/IA_SPEC.md) | one workspace, nine sections, and their contracts |
-| [`docs/MODEL_BUILDER_SPEC.md`](docs/MODEL_BUILDER_SPEC.md) | workbook parity with legacy CP-MODEL v3 |
+| [`docs/archive/`](docs/archive/) | the workbook and publication contracts `docs/DECISIONS.md` §48 set aside, verbatim, for a build that brings them back |
 | [`docs/AI_CODE_QUALITY.md`](docs/AI_CODE_QUALITY.md) | what agent-written code costs, and the control for each failure mode |
 | [`DESIGN.md`](DESIGN.md) · [`CONTEXT.md`](CONTEXT.md) | visual language · vocabulary |
 | [`docs/DECISIONS.md`](docs/DECISIONS.md) | the binding record; later entries override earlier |

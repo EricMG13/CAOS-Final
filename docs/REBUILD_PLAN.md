@@ -127,45 +127,37 @@ Plus the three the provider-call contract owes (`docs/DECISIONS.md` §21):
 `test_membership_revocation_refuses_commit`;
 `test_sse_closes_after_terminal_delivery`; and the five owed above.
 
-## Phase 7 — Model build and the workbook
+## Phase 7 — The forecast and the image
 
-`docs/MODEL_BUILDER_SPEC.md` in full. This is the phase where "looks like
-legacy" is either true or not.
+The workbook build that stood here went with CP-MODEL (`docs/DECISIONS.md`
+§48). What remains is the arithmetic the host owns and the image it ships in.
 
-- Typed IR from the six canonical artifacts; overlay resolution for the other
-  pathways; `source_lineage` per pinned source.
-- Renderer: seven sheets in order, four hidden, real formulas, every formula
-  tracked by a `FormulaExpectation`, provenance comments on source cells.
-- Recalculate through soffice; validate registry, inventory and every computed
-  value; publish exclusively.
 - `cash_flow_forecast` calculator and CP-CF (`SYSTEM_SPEC.md` §6.1–6.2).
-- The `worker` process, its Dockerfile with soffice in it, and the `image` job
-  with its scan floor (`docs/DECISIONS.md` §11).
-- A per-calculator dependency set: `-S` holds for the stdlib calculators and
-  not for `cp_model_v3` or `cp_memo` —
-  `test_a_calculator_sees_only_its_declared_dependencies`.
+- The model extension appends CP-CF alone: `MODEL_EXTENSION` drops CP-MODEL
+  and the two tests that placed it, in this slice.
+- The Dockerfile — one process, standard-library calculators, no LibreOffice —
+  and the `image` job with its scan floor (`docs/DECISIONS.md` §11).
 
-**Exit:** the ten parity tests in `MODEL_BUILDER_SPEC.md` §8, with LibreOffice
-present. `test_recalc_unavailable_fails_closed` proves the suite is not vacuous.
-`test_forecast_complete_requires_every_requested_period` refuses a missing,
-duplicate, extra or unavailable case-period; a full horizon with an explicitly
-unavailable zero-denominator ratio remains valid. An independently wrong
-residual and forward propagation are exercised by
+**Exit:** `test_forecast_complete_requires_every_requested_period` refuses a
+missing, duplicate, extra or unavailable case-period; a full horizon with an
+explicitly unavailable zero-denominator ratio remains valid. An independently
+wrong residual and forward propagation are exercised by
 `test_forecast_residual_is_not_forced_to_zero` and
 `test_forecast_unavailability_propagates`.
-`test_overlay_renders_from_ir_without_reusing_a_workbook` protects the overlay
-boundary in `SYSTEM_SPEC.md` §6.
+`test_the_extension_appends_cp_cf_alone` pins the route the plan gate digests.
 
-## Phase 8 — Publication
+## Phase 8 — The deliverable and its filing
 
-- CP-MEMO: ten fixed sections, editorial boundary enforced, conflicts preserved,
-  one `.docx`, never overwriting.
-- Publication gate: inventory → draft → per-page visual QA → publish.
+- The deliverable, rendered by the host from the frozen snapshot: the accepted
+  artifacts in route order, every figure with its citation, one HTML file that
+  prints to paper and is never overwritten (`SYSTEM_SPEC.md` §7;
+  `docs/DECISIONS.md` §48).
 - Opinion on the exact revision; freeze; filing refusing the signer and the
   freezer; detached receipt; the verifiable package over the audit chain
   Phase 6 started.
 
-**Exit:** `test_publish_refused_until_every_page_passes`;
+**Exit:** `test_the_deliverable_renders_from_the_frozen_payload_alone` — the
+same frozen payload renders byte-identically with the store closed;
 `test_filing_refuses_the_opinion_signer`;
 `test_audit_package_verifies_with_stdlib_alone`.
 
@@ -175,8 +167,8 @@ boundary in `SYSTEM_SPEC.md` §6.
 
 - The four chrome bands on every section; the nine-section rail with counts and
   one-line state; served role read-only beside it.
-- Analysis, Book (metric passport, ten fields), Model (projection with the
-  residual column), Committee (CP-MEMO and its gate).
+- Analysis, Book (metric passport, ten fields), Model (the projection with the
+  residual column), Committee (the deliverable and its filing).
 - Every decision state rendered distinctly.
 
 **Exit:** `npm run a11y` and `npm run test:workbench` green on three engines;

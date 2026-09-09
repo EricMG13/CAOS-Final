@@ -15,8 +15,7 @@ Read first, in this order, in full:
 DECISIONS.md is binding: later entries override earlier ones, and an entry
 that overrides the plan or the spec is also written back into them. One that
 was not is a defect; report it.
-Then, when the phase reaches them: docs/IA_SPEC.md, docs/MODEL_BUILDER_SPEC.md,
-DESIGN.md.
+Then, when the phase reaches them: docs/IA_SPEC.md, DESIGN.md.
 
 The methodology bundle is vendored, read-only, and authoritative. Never edit a
 file that exists upstream; additions go in new skill folders.

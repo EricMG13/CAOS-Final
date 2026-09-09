@@ -3,8 +3,8 @@
 CAOS turns governed source documents into committee-ready credit conclusions.
 This file is the contract. `docs/DECISIONS.md` is the binding record (later
 entries override earlier). `docs/SYSTEM_SPEC.md` is the structure,
-`docs/IA_SPEC.md` the workspace, `docs/MODEL_BUILDER_SPEC.md` the workbook,
-`DESIGN.md` the visual language, `CONTEXT.md` the vocabulary.
+`docs/IA_SPEC.md` the workspace, `DESIGN.md` the visual language, `CONTEXT.md`
+the vocabulary.
 
 Most of this repository is written by an agent. `docs/AI_CODE_QUALITY.md` says
 what that costs and which tool stops each failure mode. Read it before your
@@ -119,9 +119,8 @@ directory the repository does not have costs more than no map.
   (`docs/DECISIONS.md` §6). The gates do not scan it.
 - `scripts/` — the five gates `make check` runs.
 
-Arriving with their phase, and not yet present: `models/` — the build and the
-workbook renderer (Phase 7); `frontend/` — one workspace, nine sections, static
-export (Phase 9).
+Arriving with their phase, and not yet present: `frontend/` — one workspace,
+nine sections, static export (Phase 9).
 
 ## Rules of work
 
@@ -146,11 +145,8 @@ export (Phase 9).
 
 - `make venv` — the two toolchains. `make lock` — recompile every lock.
 - `make dev` — fails until the first HTTP route exists (Phase 6).
-- `make test` — the suite. `make test-model` additionally requires LibreOffice.
+- `make test` — the suite.
 - `make check` — lint, types, tests, security, in that order.
-- The model job needs `soffice` on PATH. Without it the workbook build fails
-  closed by design (`MODEL_BUILDER_SPEC.md` §5) — a green model suite with
-  soffice absent is a vacuous pass.
 
 ## Known gaps (honest ledger)
 
@@ -210,8 +206,8 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 - **`check_tested.py` sees module-level definitions only.** A method is covered
   through the class that holds it. *Upgrade:* descend into classes when a
   governed path first puts logic on a method.
-- **`check_vocabulary.py` enforces 9 of the 33 synonyms `CONTEXT.md` lists.**
-  The other 24 carry an ordinary technical meaning here — `file`, `state`,
+- **`check_vocabulary.py` enforces 9 of the 32 synonyms `CONTEXT.md` lists.**
+  The other 23 carry an ordinary technical meaning here — `file`, `state`,
   `version`, `response` — and each is exempt with a stated reason in
   `NOT_ENFORCED`. The check refuses to run if `CONTEXT.md` and that list drift
   apart. *Upgrade:* enforce an exempt synonym the day it is actually misused.
@@ -222,7 +218,7 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   a store module has no request path and no round-trip budget to declare.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
-- **`make dev` fails.** There is no API or worker until the first HTTP route.
+- **`make dev` fails.** There is no API until the first HTTP route.
 - **The third reviewer's scope is now editable by the agent it reviews.**
   `docs/DECISIONS.md` §41 moved the analysis from SonarQube Cloud's own side
   into the `sonarqube` CI job, because automatic analysis imports no coverage
@@ -650,12 +646,6 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   the standard library. The mitigation is that the code is pinned, read-only and
   digest-checked at use. *Upgrade:* a real jail, if a calculator ever runs
   anything but bundle-resident code.
-- **`-S` will not survive Phase 7.** It works because every calculator declared
-  today is standard-library only. The bundle ships `scripts/requirements.txt`
-  and `CP-MEMO_requirements.txt`, so `cp_model_v3` and `cp_memo` have
-  third-party dependencies and will need site-packages the host chooses.
-  *Upgrade:* a per-calculator dependency set, resolved by the phase that first
-  declares one.
 - **Existing calculators take JSON floats.** Invariant 7 wants Decimal on any
   money path; `credit_metrics` computes in float, as `SYSTEM_SPEC.md` §6.1
   records deliberately. The host refuses non-finite input via `allow_nan=False`
@@ -708,8 +698,8 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   the `cash_flow_forecast` work in `docs/DECISIONS.md` §8.
 - **The model extension is bound but still not chosen.** `Plan.route` carries
   whatever `resolve_route(..., model_extension=...)` produced, and the plan gate
-  digests it, so approving a plan without the model effect cannot release a run
-  that builds one -- `test_the_model_extension_is_part_of_what_is_approved`.
+  digests it, so approving a plan without the forecast cannot release a run
+  that carries one -- `test_the_model_extension_is_part_of_what_is_approved`.
   What is still missing is anything that *decides* the flag: every caller is a
   test. *Upgrade:* the run surface, with the rest of plan construction.
 
@@ -765,8 +755,9 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 - **Two processes applying the schema at once can refuse each other.** The
   comparison reads the live schema while another instance may be half way
   through applying the same file, and a partial read is drift. `SYSTEM_SPEC.md`
-  §11 runs one `api` and one `worker`, which is two processes. *Upgrade:* a
-  `pg_advisory_xact_lock` around the apply, in the phase that first starts both.
+  §11 runs one process (`docs/DECISIONS.md` §48), so nothing races it today.
+  *Upgrade:* a `pg_advisory_xact_lock` around the apply, the day a second
+  process starts.
 
 - **Append-only is enforced on the tables that exist.** `run_events`,
   `source_sets`, `source_set_members`, `delivered_evidence`, `run_attempts`,

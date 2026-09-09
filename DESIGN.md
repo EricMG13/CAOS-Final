@@ -5,7 +5,7 @@ buy-side credit analysts. Calm enough for committee work, live enough for desk
 posture, exact enough that every number reads as traceable rather than
 decorative.
 
-Dark, dense, single mode. Report and workbook output inverts to paper — ink on
+Dark, dense, single mode. Filed output inverts to paper — ink on
 cream — because filed output is a different object from the live surface.
 
 Rejected outright: friendly consumer SaaS, marketing dashboards, pastel cards,
@@ -44,8 +44,8 @@ are mono and tabular so columns scan and decimals align.
 triangle, critical a rounded square, idle a flat dot. Colour alone never carries
 status.
 
-**Paper is for filed output only.** Ink on cream inside the deliverable and the
-workbook preview. It must not leak into navigation, buttons, panel headers or
+**Paper is for filed output only.** Ink on cream inside the deliverable. It
+must not leak into navigation, buttons, panel headers or
 analytical tables.
 
 **Motion only for live state.** No entrance animation, no hover flourish.

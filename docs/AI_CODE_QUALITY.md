@@ -57,9 +57,9 @@ believes exists.
 
 Running: `lint` · `types` · `test` · `postgres` (two-connection races) ·
 `security` (bandit + pip-audit + gitleaks) · `size` · `sonarqube`. Arriving with
-their subjects (`docs/DECISIONS.md` §11): `model` (LibreOffice recalculation —
-`MODEL_BUILDER_SPEC.md` §8) and `image` (Trivy, fixable HIGH/CRITICAL) in
-Phase 7, `frontend` (lint, tsc, unit, build, a11y, workbench smoke) in Phase 9.
+their subjects (`docs/DECISIONS.md` §11): `image` (Trivy, fixable
+HIGH/CRITICAL) in Phase 7, `frontend` (lint, tsc, unit, build, a11y, workbench
+smoke) in Phase 9.
 
 `sonarqube` is the third reviewer, and it is the one job that does not decide
 its own verdict: it submits the analysis, and `SonarCloud Code Analysis` —
