@@ -7,6 +7,11 @@ SEC := .venv-security/bin
 # one for what it deliberately does not (see the known-gaps ledger in CLAUDE.md).
 SEC_TARGETS := scripts server methodology
 SEC_UNSCANNED := tests
+# The same two lists for the coverage report, held to sonar.sources and
+# sonar.tests rather than to the SAST lists: what the analysis reads is what its
+# coverage has to account for, and the two only happen to coincide today.
+COV_TARGETS := scripts server methodology
+COV_UNSCANNED := tests
 
 .PHONY: venv lock lint types test test-model security check pg merge dev
 
@@ -32,6 +37,8 @@ types:
 
 test:  # CAOS_TEST_POSTGRES_URL must be set; a skipped store suite is not a pass
 	CAOS_REQUIRE_POSTGRES=1 $(PYTEST)
+	$(PY) scripts/scan_floors.py coverage.xml --cobertura \
+		--cover $(COV_TARGETS) --unscanned $(COV_UNSCANNED)
 	$(PY) scripts/io_budget.py --assert
 
 test-model:  ## needs soffice on PATH; a green model suite without it is vacuous

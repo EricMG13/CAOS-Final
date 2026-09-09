@@ -342,3 +342,84 @@ def test_scan_floor_refuses_a_target_directory_that_holds_no_tracked_file(
     result = _run("scan_floors.py", report, "--cover", "srcipts")
     assert result.returncode != 0
     assert "srcipts" in result.stdout + result.stderr
+
+
+def _coverage_report(tmp_path: Path, *, files: list[str]) -> str:
+    """A Cobertura report shaped as coverage.py writes one, measuring `files`."""
+    classes = "".join(
+        f'<class name="{Path(name).name}" filename="{name}"/>' for name in files
+    )
+    path = tmp_path / "coverage.xml"
+    path.write_text(
+        '<?xml version="1.0" ?><coverage line-rate="0.5"><sources><source>.'
+        f"</source></sources><packages><package><classes>{classes}"
+        "</classes></package></packages></coverage>",
+        encoding="utf-8",
+    )
+    return str(path)
+
+
+def test_cobertura_metrics_names_the_files_the_coverage_run_measured() -> None:
+    """The floors read one shape; only where the two formats say it differs."""
+    report = (
+        '<coverage><packages><package><classes><class filename="server/api.py"/>'
+        "</classes></package></packages></coverage>"
+    )
+    assert scan_floors.covered_files(scan_floors.cobertura_metrics(report)) == [
+        "server/api.py"
+    ]
+
+
+def test_the_coverage_floor_refuses_a_report_that_measured_nothing(
+    tmp_path: Path,
+) -> None:
+    """A coverage report is a scanner report: one that scanned nothing fails.
+
+    SonarQube reads this file and reports whatever it finds. A run that wrote an
+    empty report imports as no coverage rather than as an error, which is the
+    same silent pass `--min-files` exists to refuse for bandit.
+    """
+    result = _run("scan_floors.py", _coverage_report(tmp_path, files=[]), "--cobertura")
+    assert result.returncode != 0
+    assert "0 files" in result.stdout + result.stderr
+
+
+def test_the_coverage_floor_refuses_a_report_that_left_out_a_tracked_file(
+    tmp_path: Path,
+) -> None:
+    """Partial, not total, is the shape this catches.
+
+    A module no test imports is the one coverage.py would leave out of the
+    report entirely, and a file absent from the report is not a file at zero
+    per cent -- it raises the percentage of everything else instead.
+    """
+    expected = _tracked_under("scripts")
+    left_out = expected[0]
+
+    result = _run(
+        "scan_floors.py",
+        _coverage_report(tmp_path, files=expected[1:]),
+        "--cobertura",
+        "--cover",
+        "scripts",
+    )
+
+    assert result.returncode != 0
+    assert left_out in result.stdout + result.stderr
+
+
+def test_the_coverage_floor_accepts_a_report_that_measured_every_tracked_file(
+    tmp_path: Path,
+) -> None:
+    covered = ["scripts", "server", "methodology"]
+    report = _coverage_report(tmp_path, files=_tracked_under(*covered))
+    result = _run(
+        "scan_floors.py",
+        report,
+        "--cobertura",
+        "--cover",
+        *covered,
+        "--unscanned",
+        "tests",
+    )
+    assert result.returncode == 0, result.stdout + result.stderr

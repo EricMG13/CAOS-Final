@@ -878,3 +878,64 @@ phase.
 agent must read that names something the repository does not have. The plan is
 the one document that decides what gets built next, so it is where drift costs
 most. Overrides §20's "left alone".
+
+## 2026-09-09 §39 — Coverage moves the analysis into CI, and §31's independence is spent
+
+`.sonarcloud.properties` is deleted and `sonar-project.properties` takes its
+place. A `sonarqube` job submits the analysis with `SONAR_TOKEN`; `pytest-cov`
+writes `coverage.xml` from the suite; `sonar.python.coverage.reportPaths` is what
+the scanner reads it by. Overrides §31.
+
+**Reason.** SonarQube Cloud's automatic analysis imports no coverage report. The
+quality gate has had a coverage condition with no metric to evaluate since the
+day it was enabled -- the check on PR #41 passed reading 0.0% on new code, and
+the CLAUDE.md ledger has carried that as a known gap ever since. There is no
+setting that fixes it: coverage reaches a SonarQube Cloud project through a
+scanner or it does not reach it at all, and a scanner cannot run against a
+project under automatic analysis (§31 established that the hard way). So the
+choice was coverage or automatic analysis, not both.
+
+**What it costs, stated plainly.** §31's argument was that an analysis
+unreachable from a commit cannot be narrowed by the agent whose code it reads,
+and that argument is now spent. `sonar.sources`, `sonar.exclusions` and the
+coverage path sit in the tree, in the same pull request they judge, editable by
+their author -- exactly the property §31 declined. The quality gate's conditions
+remain in SonarQube Cloud, so what moved is scope, not verdict.
+
+Three things are put in the way of a narrowed scope, and none of them is the
+platform:
+
+- `test_the_analysis_claims_every_tracked_python_file` already refused a source
+  list that dropped a package; it now reads this file instead of the old one.
+- `scan_floors.py --cobertura` refuses a coverage report that measured nothing
+  or that left out a tracked file under its targets. A file absent from the
+  report is not a file at zero per cent -- it raises the percentage of
+  everything else, which is the one way a coverage number lies rather than
+  simply being low. `test_the_coverage_floor_measures_what_the_analysis_reads`
+  holds its target list to `sonar.sources`.
+- `test_exactly_one_job_submits_the_analysis` keeps the count at one, which is
+  what §31's mutual exclusion becomes once the scanner is the analysis.
+
+That is weaker than an analysis nobody here can reach, and it is what buys a
+coverage metric. The honest summary is that this repository traded an
+independent scope for a measured one.
+
+**The dependency.** `pytest-cov==7.1.0`, and `coverage==7.16.0` beneath it, into
+`requirements-dev.in` and the hashed lock. It is a development dependency: no
+runtime path imports it, and `requirements.in` is untouched.
+
+**The secret exemption.** `gitleaks` reads `sonar.projectKey=EricMG13_CAOS-Final`
+as a generic API key -- entropy 4.14, measured on 8.24.3 -- and failed the
+`security` gate on it once already (§31). `.gitleaks.toml` exempts that exact
+string, by `regexTarget = "match"` and not by path, so the file it sits in is
+still scanned for everything else. A project key is in the query string of every
+dashboard URL the check posts; the credential is `SONAR_TOKEN`, which is a
+repository secret and is exempted nowhere.
+
+**What this entry does not settle.** Whether SonarQube Cloud posts the same
+`SonarCloud Code Analysis` check under CI analysis as it did under automatic
+analysis. That check is required on `main` (§34), so if the name changes, the
+required check stops reporting and blocks every merge until the ruleset follows
+-- §14's hazard, arriving from the direction §34 did not cover. Nothing in this
+repository can read the ruleset or the check name, so this is verified by
+watching the first analysis on `main` and not before. The ledger carries it.

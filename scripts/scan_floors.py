@@ -23,6 +23,11 @@ import sys
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
+# B405 and B314 below: bandit reads anything after the test id as another test
+# id, so the reason is here. It is in `cobertura_metrics`, which is the only
+# caller.
+from xml.etree import ElementTree  # nosec B405
+
 from tracked import tracked_python
 
 REPO = Path(__file__).resolve().parents[1]
@@ -34,6 +39,25 @@ def covered_files(report: Mapping[str, object]) -> list[str]:
     if not isinstance(metrics, dict):
         return []
     return [name for name in metrics if name != "_totals"]
+
+
+def cobertura_metrics(report: str) -> Mapping[str, object]:
+    """A Cobertura coverage report in the shape the floors already read.
+
+    A coverage report is a scanner report, and it falls through the same floors:
+    one that measured nothing, or that left out a file it was pointed at, is a
+    report SonarQube imports as a number rather than as an error. Both formats
+    state which files were measured and only where they state it differs, so
+    this normalises rather than growing a second set of floors.
+
+    The report is written by coverage.py in the same job that reads it, so the
+    entity attacks B314 is about would have to come from a run that already had
+    the machine. `ElementTree` over `defusedxml` for that reason: the dependency
+    would buy nothing here and needs a decision entry of its own.
+    """
+    root = ElementTree.fromstring(report)  # nosec B314
+    measured = (element.get("filename") for element in root.iter("class"))
+    return {"metrics": {name: {} for name in measured if name is not None}}
 
 
 def expected_files(repo: Path, directory: str) -> list[str]:
@@ -130,9 +154,15 @@ def main(argv: list[str] | None = None) -> int:
         metavar="DIR",
         help="directories deliberately left out; each needs a ledger entry",
     )
+    parser.add_argument(
+        "--cobertura",
+        action="store_true",
+        help="read a Cobertura coverage report rather than a bandit JSON one",
+    )
     args = parser.parse_args(argv)
 
-    report = json.loads(args.report.read_text(encoding="utf-8"))
+    text = args.report.read_text(encoding="utf-8")
+    report = cobertura_metrics(text) if args.cobertura else json.loads(text)
     failures = floor_failures(
         report,
         min_files=args.min_files,

@@ -13,4 +13,9 @@ frontend/.next/
 .DS_Store
 .env
 bandit.json
+# A scanner report is a build output, not a source. The suite writes coverage.xml
+# for the analysis to import and .coverage as its own working file; the report
+# reaching the `sonarqube` job is the one CI just produced, never a committed one.
+coverage.xml
+.coverage
 uv.lock
