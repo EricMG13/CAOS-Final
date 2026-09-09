@@ -81,6 +81,9 @@ jobs:
     runs-on: ubuntu-latest
     # gitleaks-action lists a pull request's commits; the default token cannot.
     permissions: {contents: read, pull-requests: read}
+    # One list, so what bandit scans and what the floor expects cannot drift, and
+    # one for what it deliberately does not (see the ledger in CLAUDE.md).
+    env: {SEC_TARGETS: scripts server methodology, SEC_UNSCANNED: tests}
     steps:
       # gitleaks scans a commit range; a depth-1 clone has no range to scan.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -89,10 +92,12 @@ jobs:
         with: {python-version: "3.12"}
       - run: pip install --require-hashes -r requirements-security.txt
       # `|| true` so the floor check, not bandit's exit code, is the verdict:
-      # a report that parsed nothing must fail even when it found nothing.
-      - run: bandit -r scripts server methodology -f json -o bandit.json || true
-      - run: python scripts/scan_floors.py bandit.json --min-files 1 --no-parse-errors
-      - run: bandit -r scripts server methodology
+      # a report that skipped a file must fail even when it found nothing.
+      - run: bandit -r $SEC_TARGETS -f json -o bandit.json || true
+      - run: |
+          python scripts/scan_floors.py bandit.json --no-parse-errors \
+                 --cover $SEC_TARGETS --unscanned $SEC_UNSCANNED
+      - run: bandit -r $SEC_TARGETS
       - run: |
           pip-audit --require-hashes -r requirements.txt \
                     -r requirements-dev.txt -r requirements-security.txt
