@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import sys
 from collections.abc import Mapping, Sequence
@@ -59,6 +60,35 @@ def cobertura_metrics(report: str) -> Mapping[str, object]:
     would name a measured file as unmeasured, which fails closed.
     """
     return {"metrics": {name: {} for name in MEASURED.findall(report)}}
+
+
+def report_within(path: Path, base: Path) -> Path:
+    """`path` resolved, provided it lies under `base`; refused otherwise.
+
+    The report argument is the one piece of caller input that reaches the
+    filesystem. The third reviewer traced it from `parse_args` to `read_text`
+    and called it path traversal, and for a gate an agent invokes it is: nothing
+    stopped `scan_floors.py ../../etc/passwd` from reading the file and then
+    reporting on it. A scanner report is a build output of the tree being
+    scanned, so the one place it is read from is under the directory the gate
+    was run in -- the repository root, in the Makefile and in CI. Refused before
+    anything is read, so no floor is ever evaluated on a file that was not one.
+
+    `os.path.realpath` and `startswith` rather than `Path.resolve` and
+    `is_relative_to`, which say the same thing. This is the sanitizer shape the
+    rule's own documentation gives, and whether the analyzer recognises the
+    pathlib spelling is not known here; three analyses have already failed on
+    this file, and a check the reviewer cannot see is a check it keeps failing.
+    """
+    resolved = os.path.realpath(path)
+    root = os.path.realpath(base)
+    if not resolved.startswith(root + os.sep):
+        message = (
+            f"{path} is outside {base}; a scanner report is read only from under "
+            "the directory the gate was invoked in"
+        )
+        raise ValueError(message)
+    return Path(resolved)
 
 
 def expected_files(repo: Path, directory: str) -> list[str]:
@@ -162,7 +192,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    text = args.report.read_text(encoding="utf-8")
+    try:
+        report_path = report_within(args.report, Path.cwd())
+    except ValueError as refusal:
+        parser.error(str(refusal))
+    text = report_path.read_text(encoding="utf-8")
     report = cobertura_metrics(text) if args.cobertura else json.loads(text)
     failures = floor_failures(
         report,

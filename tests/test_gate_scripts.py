@@ -23,10 +23,13 @@ import tracked
 REPO = Path(__file__).resolve().parents[1]
 
 
-def _run(script: str, *args: str) -> subprocess.CompletedProcess[str]:
+def _run(script: str, *args: str, cwd: Path = REPO) -> subprocess.CompletedProcess[str]:
+    # `cwd` matters to scan_floors: it reads a report only from under the
+    # directory it was invoked in, so a test that writes one to tmp_path runs
+    # the script from there. What it holds the report *to* is REPO regardless.
     return subprocess.run(
         [sys.executable, str(REPO / "scripts" / script), *args],
-        cwd=REPO,
+        cwd=cwd,
         capture_output=True,
         text=True,
         check=False,
@@ -45,7 +48,11 @@ def _report(tmp_path: Path, *, files: list[str], errors: list[str]) -> str:
 
 def test_scan_floor_refuses_a_report_that_covered_no_files(tmp_path: Path) -> None:
     result = _run(
-        "scan_floors.py", _report(tmp_path, files=[], errors=[]), "--min-files", "1"
+        "scan_floors.py",
+        _report(tmp_path, files=[], errors=[]),
+        "--min-files",
+        "1",
+        cwd=tmp_path,
     )
     assert result.returncode != 0
     assert "0 files" in result.stdout + result.stderr
@@ -53,14 +60,18 @@ def test_scan_floor_refuses_a_report_that_covered_no_files(tmp_path: Path) -> No
 
 def test_scan_floor_refuses_a_report_with_parse_errors(tmp_path: Path) -> None:
     report = _report(tmp_path, files=["server/api.py"], errors=["syntax error"])
-    result = _run("scan_floors.py", report, "--min-files", "1", "--no-parse-errors")
+    result = _run(
+        "scan_floors.py", report, "--min-files", "1", "--no-parse-errors", cwd=tmp_path
+    )
     assert result.returncode != 0
     assert "parse error" in result.stdout + result.stderr
 
 
 def test_scan_floor_accepts_a_report_that_covered_a_file(tmp_path: Path) -> None:
     report = _report(tmp_path, files=["server/api.py"], errors=[])
-    result = _run("scan_floors.py", report, "--min-files", "1", "--no-parse-errors")
+    result = _run(
+        "scan_floors.py", report, "--min-files", "1", "--no-parse-errors", cwd=tmp_path
+    )
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -289,7 +300,7 @@ def test_scan_floor_refuses_a_report_that_skipped_a_file_it_should_have_covered(
     skipped = expected[0]
     report = _report(tmp_path, files=expected[1:], errors=[])
 
-    result = _run("scan_floors.py", report, "--cover", "scripts")
+    result = _run("scan_floors.py", report, "--cover", "scripts", cwd=tmp_path)
 
     assert result.returncode != 0
     assert skipped in result.stdout + result.stderr
@@ -300,7 +311,15 @@ def test_scan_floor_accepts_a_report_that_covered_every_file_it_should_have(
 ) -> None:
     covered = ["scripts", "server", "methodology"]
     report = _report(tmp_path, files=_tracked_under(*covered), errors=[])
-    result = _run("scan_floors.py", report, "--cover", *covered, "--unscanned", "tests")
+    result = _run(
+        "scan_floors.py",
+        report,
+        "--cover",
+        *covered,
+        "--unscanned",
+        "tests",
+        cwd=tmp_path,
+    )
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -313,7 +332,7 @@ def test_scan_floor_refuses_a_tracked_file_that_no_target_accounts_for(
     # pointed the scanner at -- `models/` in Phase 7, and Python either way.
     report = _report(tmp_path, files=_tracked_under("scripts"), errors=[])
 
-    result = _run("scan_floors.py", report, "--cover", "scripts")
+    result = _run("scan_floors.py", report, "--cover", "scripts", cwd=tmp_path)
 
     assert result.returncode != 0
     output = result.stdout + result.stderr
@@ -339,9 +358,49 @@ def test_scan_floor_refuses_a_target_directory_that_holds_no_tracked_file(
     # A mistyped --cover would expect nothing, and expecting nothing is the
     # vacuous floor this flag replaced. It has to fail closed on its own typo.
     report = _report(tmp_path, files=_tracked_under("scripts"), errors=[])
-    result = _run("scan_floors.py", report, "--cover", "srcipts")
+    result = _run("scan_floors.py", report, "--cover", "srcipts", cwd=tmp_path)
     assert result.returncode != 0
     assert "srcipts" in result.stdout + result.stderr
+
+
+def test_scan_floor_refuses_a_report_outside_the_directory_it_was_invoked_from(
+    tmp_path: Path,
+) -> None:
+    """The report path is the one argument that reaches the filesystem.
+
+    The third reviewer traced `parse_args` to `read_text` and called it path
+    traversal, and for a script an agent invokes it is: nothing stopped
+    `scan_floors.py ../../etc/passwd --cobertura` from reading it and then
+    reporting on it. A scanner report is a build output of the tree being
+    scanned, so the one place it may be read from is under the directory the
+    gate was run in -- which is the repository root in the Makefile and in CI.
+    """
+    inside = tmp_path / "inside"
+    inside.mkdir()
+    outside = tmp_path / "outside.json"
+    outside.write_text('{"metrics": {"server/api.py": {}}}', encoding="utf-8")
+
+    result = _run("scan_floors.py", str(outside), "--min-files", "1", cwd=inside)
+
+    # The report would pass every floor if it were read, so a non-zero exit is
+    # the refusal itself and not a floor it fell through.
+    assert result.returncode != 0
+    assert "outside" in result.stderr
+
+
+def test_report_within_refuses_a_path_that_escapes_the_base(tmp_path: Path) -> None:
+    base = tmp_path / "base"
+    base.mkdir()
+    (base / "coverage.xml").write_text("", encoding="utf-8")
+    (tmp_path / "escaped.xml").write_text("", encoding="utf-8")
+
+    assert (
+        scan_floors.report_within(base / "coverage.xml", base)
+        == (base / "coverage.xml").resolve()
+    )
+    for escaping in (tmp_path / "escaped.xml", base / ".." / "escaped.xml"):
+        with pytest.raises(ValueError, match="outside"):
+            scan_floors.report_within(escaping, base)
 
 
 def _coverage_report(tmp_path: Path, *, files: list[str]) -> str:
@@ -379,7 +438,12 @@ def test_the_coverage_floor_refuses_a_report_that_measured_nothing(
     empty report imports as no coverage rather than as an error, which is the
     same silent pass `--min-files` exists to refuse for bandit.
     """
-    result = _run("scan_floors.py", _coverage_report(tmp_path, files=[]), "--cobertura")
+    result = _run(
+        "scan_floors.py",
+        _coverage_report(tmp_path, files=[]),
+        "--cobertura",
+        cwd=tmp_path,
+    )
     assert result.returncode != 0
     assert "0 files" in result.stdout + result.stderr
 
@@ -402,6 +466,7 @@ def test_the_coverage_floor_refuses_a_report_that_left_out_a_tracked_file(
         "--cobertura",
         "--cover",
         "scripts",
+        cwd=tmp_path,
     )
 
     assert result.returncode != 0
@@ -421,5 +486,6 @@ def test_the_coverage_floor_accepts_a_report_that_measured_every_tracked_file(
         *covered,
         "--unscanned",
         "tests",
+        cwd=tmp_path,
     )
     assert result.returncode == 0, result.stdout + result.stderr
