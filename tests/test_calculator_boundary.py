@@ -245,3 +245,16 @@ def test_a_calculator_that_leaves_a_read_only_directory_still_returns() -> None:
         'print(json.dumps({"ok": True}))\n'
     )
     assert _execute({"litter.py": litter}, "litter.py", "{}") == {"ok": True}
+
+
+def test_a_pathologically_nested_output_is_refused_not_crashed(tmp_path: Path) -> None:
+    # The envelope's RecursionError, on the calculator side: `json.loads` past
+    # its depth raises a RuntimeError that `except ValueError` never caught.
+    # Kept under the size ceiling on purpose, so what is refused is the depth.
+    from methodology.calculators import _parse
+
+    deep = tmp_path / "out.json"
+    deep.write_text("[" * 300_000 + "]" * 300_000, encoding="utf-8")
+    with pytest.raises(Refusal) as caught:
+        _parse(deep)
+    assert caught.value.code is RefusalCode.METHODOLOGY_CALCULATION_FAILED

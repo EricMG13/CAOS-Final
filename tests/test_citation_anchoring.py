@@ -94,6 +94,22 @@ def _anchor(store: Store, quote: str, page: int = 3) -> Citation:
     )
 
 
+def test_an_empty_token_does_not_split_a_quote(store: Store) -> None:
+    # An extractor can emit a run with no text -- a stray artifact between two
+    # words. Joining tokens with one space each turned it into a double space
+    # that no collapsed quote could equal, so a quote a person would call exact
+    # was refused as unlocatable. A token with nothing in it is nothing to match
+    # and nothing to box.
+    tokens = [
+        _token((1, 1, 0), "Total", (72, 700)),
+        _token((1, 1, 1), "", (100, 700)),
+        _token((1, 1, 2), "Assets", (104, 700)),
+    ]
+    _admit(store, CASE, DIGEST, tokens)
+    citation = _anchor(store, "Total Assets")
+    assert citation.bboxes == ((Decimal(72), Decimal(700), Decimal(128), Decimal(712)),)
+
+
 def test_uncitable_quote_is_refused_before_artifact(store: Store, source: None) -> None:
     with pytest.raises(Refusal) as caught:
         _anchor(store, "Net leverage was 3.1x")

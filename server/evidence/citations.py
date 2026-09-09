@@ -68,7 +68,12 @@ def _token_runs(members: list[Token], quote: str) -> list[list[Token]]:
     match "4.2x" inside "14.2x" and box the whole token, a rectangle enclosing
     a digit the quote does not contain. A quote either is a run of tokens as the
     extractor cut them, or it is not on the page.
+
+    A token with no text -- an extractor artifact between two words -- is
+    nothing to match and nothing to box, and is dropped before the join rather
+    than joined as a doubled space no collapsed quote can equal.
     """
+    members = [token for token in members if _collapse(token.text)]
     words = [_collapse(token.text) for token in members]
     runs = []
     for start in range(len(words)):

@@ -17,7 +17,10 @@ import pytest
 from server.boundary_text import BoundaryText
 from server.refusals import Refusal, RefusalCode
 
-# LRE, RLE, PDF, LRO, RLO, and the isolates LRI, RLI, FSI, PDI.
+# LRE, RLE, PDF, LRO, RLO, the isolates LRI, RLI, FSI, PDI, and the marks LRM,
+# RLM, ALM -- Unicode's twelve Bidi_Control characters. The marks are Cf, not
+# overrides, and passed until an audit noticed: an RLM between two digits makes
+# the number a person reads differ from the bytes the store hashed.
 BIDI_CONTROLS = [
     "\u202a",
     "\u202b",
@@ -28,6 +31,9 @@ BIDI_CONTROLS = [
     "\u2067",
     "\u2068",
     "\u2069",
+    "\u200e",
+    "\u200f",
+    "\u061c",
 ]
 
 

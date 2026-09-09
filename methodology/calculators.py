@@ -229,7 +229,9 @@ def _parse(output: Path) -> dict[str, Any]:
         raise Refusal(RefusalCode.METHODOLOGY_CALCULATION_FAILED)
     try:
         result = json.loads(output.read_text(encoding="utf-8"))
-    except (ValueError, UnicodeDecodeError):
+    except (RecursionError, UnicodeDecodeError, ValueError):
+        # RecursionError is not a ValueError: output nested past the parser's
+        # stack is a failed calculation, not a crashed host.
         result = None
     if not isinstance(result, dict):
         raise Refusal(RefusalCode.METHODOLOGY_CALCULATION_FAILED)

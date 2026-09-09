@@ -8,6 +8,7 @@ against the contents, so tampering is caught rather than served.
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import uuid
 from dataclasses import dataclass
@@ -19,42 +20,56 @@ from server.refusals import Refusal, RefusalCode
 
 @dataclass(frozen=True, slots=True)
 class BlobStore:
-    """A content-addressed store rooted at a directory."""
+    """A content-addressed store rooted at a directory.
+
+    Every OSError is caught and answered with a typed code, raised clear of the
+    handler: an OSError carries the path in `.filename`, and the blob root is
+    the one thing a refusal here must not name. Only `FileNotFoundError` was
+    caught at first, so an unreadable blob escaped with it.
+    """
 
     root: Path
 
     def put(self, payload: bytes) -> str:
-        """Store bytes and return their digest. Storing them again changes nothing."""
+        """Store bytes under their digest; the same bytes again change nothing.
+
+        Written to a unique temporary name and renamed into place, so a reader
+        never sees a half-written blob and two writers of the same bytes never
+        share a file to truncate. Unique also means a failed write leaks a
+        file rather than reusing one, so the partial is always removed -- in
+        `finally`, so an interrupt leaves none behind either.
+        """
         digest = hashlib.sha256(payload).hexdigest()
         blob = self._path(digest)
-        if not blob.exists():
+        if blob.exists():
+            return digest
+        partial = blob.with_name(f"{digest}.{uuid.uuid4().hex}.partial")
+        failed = False
+        try:
             blob.parent.mkdir(parents=True, exist_ok=True)
-            # Write then rename: a reader never sees a half-written blob. The
-            # temporary name is unique, so two writers of the same bytes cannot
-            # interleave into one file and publish it under a digest it no
-            # longer matches. Unique also means a failed write leaks a file
-            # rather than reusing one, so the failure path removes it.
-            partial = blob.with_name(f"{digest}.{uuid.uuid4().hex}.partial")
-            try:
-                partial.write_bytes(payload)
-                partial.replace(blob)
-            finally:
+            partial.write_bytes(payload)
+            partial.replace(blob)
+        except OSError:
+            failed = True
+        finally:
+            with contextlib.suppress(OSError):
                 partial.unlink(missing_ok=True)
+        if failed:
+            raise Refusal(RefusalCode.BLOB_IO_FAILED)
         return digest
 
     def get(self, digest: str) -> bytes:
-        """Return the bytes, or refuse: unknown, not a digest, or not matching."""
+        """Return the bytes, or refuse: unknown, unreadable, no digest, no match."""
         blob = self._path(checked_digest(digest))
+        failure: RefusalCode | None = None
         try:
             payload = blob.read_bytes()
         except FileNotFoundError:
-            missing = True
-        else:
-            missing = False
-        # Raised outside the handler: an OSError carries the path in .filename
-        # and would ride along as __context__.
-        if missing:
-            raise Refusal(RefusalCode.BLOB_NOT_FOUND)
+            failure = RefusalCode.BLOB_NOT_FOUND
+        except OSError:
+            failure = RefusalCode.BLOB_IO_FAILED
+        if failure is not None:
+            raise Refusal(failure)
         if hashlib.sha256(payload).hexdigest() != digest:
             raise Refusal(RefusalCode.BLOB_DIGEST_MISMATCH)
         return payload

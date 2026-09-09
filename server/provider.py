@@ -178,7 +178,19 @@ def _complete(client: anthropic.Anthropic, call: ProviderCall) -> Completion:
             messages=[{"role": "user", "content": call.prompt}],
         ) as streamed:
             answer = streamed.get_final_message()
-    except (anthropic.BadRequestError, anthropic.NotFoundError):
+    except (
+        anthropic.AuthenticationError,
+        anthropic.BadRequestError,
+        anthropic.ConflictError,
+        anthropic.NotFoundError,
+        anthropic.PermissionDeniedError,
+        anthropic.RequestTooLargeError,
+        anthropic.UnprocessableEntityError,
+    ):
+        # Permanent: the call itself is wrong -- a bad key, a prompt the API
+        # will not take -- and no retry mends it. PROVIDER_UNAVAILABLE is the
+        # retry-worthy code (§37); a retry policy fed these under it would
+        # spend a reservation on every attempt and never succeed.
         failure = RefusalCode.PROVIDER_CALL_INVALID
     except (anthropic.APIStatusError, anthropic.APIConnectionError):
         failure = RefusalCode.PROVIDER_UNAVAILABLE
@@ -188,6 +200,11 @@ def _complete(client: anthropic.Anthropic, call: ProviderCall) -> Completion:
         raise Refusal(failure)
     if answer.stop_reason == "refusal":
         raise Refusal(RefusalCode.PROVIDER_REFUSED)
+    if answer.stop_reason == "max_tokens":
+        # HTTP 200, a full charge, and no answer: the ceiling failed, not the
+        # module. Typed so the remedy reads as "raise max_output_tokens" rather
+        # than the ENVELOPE_INVALID a stopped-mid-object answer would earn.
+        raise Refusal(RefusalCode.PROVIDER_OUTPUT_TRUNCATED)
     return Completion(
         text="".join(b.text for b in answer.content if b.type == "text"),
         model=answer.model,

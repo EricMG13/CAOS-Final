@@ -53,9 +53,13 @@ def parse_envelope(bundle: Bundle, text: str) -> dict[str, Any]:
         parsed: object = json.loads(
             text, parse_float=_finite, parse_int=_finite, parse_constant=_refuse
         )
-    except ValueError:
+    except (RecursionError, ValueError):
+        # RecursionError is a RuntimeError, not a ValueError: an answer nested
+        # past the parser's stack is module-authored text like any other
+        # malformed one, and depth is the one shape no size bound counts.
         parsed = None
     valid = False
+    bundle_invalid = False
     if isinstance(parsed, dict):
         try:
             jsonschema.validate(parsed, envelope_schema(bundle))
@@ -64,23 +68,34 @@ def parse_envelope(bundle: Bundle, text: str) -> dict[str, Any]:
             # The schema, not the module. A bundle whose own payload schema is
             # malformed is unexecutable, and saying ENVELOPE_INVALID would blame
             # whichever module happened to run first.
-            raise Refusal(RefusalCode.METHODOLOGY_BUNDLE_INVALID) from None
+            bundle_invalid = True
         except jsonschema.ValidationError:
             valid = False
+    # Both raised clear of the handlers: a ValidationError quotes the offending
+    # instance, which is module-authored text, and a SchemaError quotes the
+    # schema. `raise ... from None` inside a handler hides the cause from the
+    # printer and leaves it on `__context__` for anything that reads it.
+    if bundle_invalid:
+        raise Refusal(RefusalCode.METHODOLOGY_BUNDLE_INVALID)
     if not isinstance(parsed, dict) or not valid:
-        # Raised clear of the handler: a ValidationError quotes the offending
-        # instance, which is module-authored text.
         raise Refusal(RefusalCode.ENVELOPE_INVALID)
     payload: dict[str, Any] = parsed
     return payload
 
 
 def _finite(literal: str) -> float | int:
-    """Reject a numeric literal that is not finite, before it becomes a value."""
+    """Reject a numeric literal that is not finite, before it becomes a value.
+
+    An integer literal is exact and finite however long, so it is parsed as
+    one; only a float literal can overflow. Casting every integer through
+    `float()` first refused a 400-digit integer as infinity, which it is not.
+    """
+    if literal.lstrip("-").isdigit():
+        return int(literal)
     number = float(literal)
     if not math.isfinite(number):
         raise ValueError
-    return int(literal) if literal.lstrip("-").isdigit() else number
+    return number
 
 
 def _refuse(literal: str) -> float:
