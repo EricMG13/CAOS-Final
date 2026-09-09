@@ -167,3 +167,140 @@ vendored and pinned (W2), route bootstrap was settled by the bundle's own anchor
 contract (W1), provider-call recovery was given a contract (C1), and the
 forecast residual was given an independently derived side (C2). Each carries a
 status line above and a dated entry in `docs/DECISIONS.md`.
+
+---
+
+# Review 2 — the build plan against the tree
+
+Date: 2026-09-09. Skill: `adversarial-reviewer`, then `confidence-review`.
+
+**Scope:** `docs/REBUILD_PLAN.md`, `docs/SYSTEM_SPEC.md`, `docs/DECISIONS.md`
+§1–34, `docs/AI_CODE_QUALITY.md`, `docs/INITIALISATION_PROMPT.md`,
+`docs/IA_SPEC.md`, `docs/MODEL_BUILDER_SPEC.md`, this file, `README.md`,
+`CONTEXT.md` and `DESIGN.md` — each read in full and checked against the tree
+on `main` at `01884c7`: 32 modules, 31 test files, the CI workflow, the hooks
+and the pre-commit configuration. Every claim below was verified by reading the
+code or by grep, not inferred from the documents. The first review read
+specifications with no code to hold them to; this one had six phases of code.
+
+**Verdict: BLOCK** on the plan as it stood. Three findings were promoted to
+critical by being caught from two postures. Every finding below carries a
+status line; all were addressed on 2026-09-09 in the same branch, and the
+verdict is left as written for the same reason as the first.
+
+## Critical findings — all resolved
+
+### C1. SDK-internal retries are provider calls without a reservation
+
+**Location:** `server/provider.py`, `docs/DECISIONS.md` §21 and §28.
+**Personas:** Saboteur + Security Auditor; WARNING → CRITICAL.
+**Status:** fixed. `live_client()` builds the client with `max_retries=0`,
+`test_the_live_client_never_retries_on_its_own` reads it back, and
+`docs/DECISIONS.md` §37 reconciles §21 with §28.
+
+`live_provider_or_none` built `anthropic.Anthropic()` with the SDK default of
+two retries (read from the locked 1.4.0, not recalled). On a 408, 409, 429, 5xx
+or connection error the SDK re-sent the request under the one attempt row and
+the one reservation — the failure §21 closed, reintroduced inside one call. The
+provider suite disables SDK retries on its mock client, so the path production
+ran was the one path no test ran.
+
+### C2. Withdrawal — half of invariant 1 — had no phase
+
+**Location:** `docs/REBUILD_PLAN.md`; `IA_SPEC.md` §4.2; `docs/DECISIONS.md` §18.
+**Personas:** Security Auditor + Saboteur; promoted.
+**Status:** scheduled, not built. Phase 6 owes
+`test_a_withdrawn_source_refuses_the_read_and_reopens_the_gate`; the column,
+the `read_evidence` predicate and the plan-gate re-open are Phase 6 work under
+`docs/DECISIONS.md` §38.
+
+No phase bullet named it, no column existed, and `grep withdraw` found comments
+only, while Phase 2 — the `read_evidence` phase — was exited. A source admitted
+in error stayed readable by every future run of a set that pinned it, and the
+pin is immutable by design.
+
+### C3. The mandatory reading order carried overridden contracts
+
+**Location:** `docs/INITIALISATION_PROMPT.md`; `docs/REBUILD_PLAN.md` Phases
+0, 3, 5; `docs/SYSTEM_SPEC.md` §2, §3, §4, §6.1, §6.2; `README.md`.
+**Personas:** New Hire + Saboteur; promoted.
+**Status:** fixed. The prompt reads `docs/DECISIONS.md`; every overridden line
+named below is corrected in place with a citation; `docs/DECISIONS.md` §38
+reverses §20's "left alone"; `test_every_exit_test_of_an_exited_phase_exists`
+holds the plan to the standard `test_the_map_is_true.py` held `CLAUDE.md` to.
+
+The prompt read five files "in full" and never the binding record, while §20
+said the plan was deliberately left stale. A session following it would have
+built: `active_incoming` and `expected_upstream_digests` (never existed);
+`_ALIASES` (code is `_CARVE_OUTS`, §24); an `image` job (§11);
+`node_states(route, attempts, source_readiness)` (§18 removed the parameter);
+`ModuleSpec.calculators` (§25: no such field); a `_CALCULATORS` table (§25
+replaced it with a rule); §6.2 without CP-MODEL's placement (§23); a README
+saying no application code existed. Correcting §6.1 surfaced one more: it bound
+`cash_flow_forecast` to CP-2G as well as CP-CF, which §25 makes impossible
+without editing an upstream folder. CP-CF is now its only caller.
+
+## Warnings — all resolved
+
+| Finding | Personas | Status |
+|---|---|---|
+| **W1.** Exit tests passed without the phase's deliverable — Phase 2 had no extractor, Phase 4 a stub executor at a flat price, Phase 5 a recorded provider — and the ledger deferred each gap to a "slice" the plan never named, so "start at the lowest phase whose exit test does not pass" walked past all three. | Saboteur | Rule added to the plan and to `docs/DECISIONS.md` §38: the current phase owes what an exited phase did not ship, listed under it with the test it owes. Phase 6 lists the five. The ledger's "slice" is defined as that phase. The map test refuses a later phase starting before an earlier one's tests exist. |
+| **W2.** The audit chain was Phase 8, after six phases of governed writes; `audit_events` did not exist, and a plan approval — a human decision — committed without one. | Security Auditor | Phase 6 owes `audit_events`, `audit_chain_heads` and `test_a_governed_write_commits_its_audit_event_or_nothing`; Phase 8 builds the package over the chain rather than the chain. |
+| **W3.** Commit-time authority was bound to "the first HTTP route", but the commit is `approve_gate`, which exists and checks nothing about the approver. A check at the request is what §8 says is not enough. | Security Auditor | Standing rule rewritten: the phase that first commits a human decision ships the standing check inside the store call; the HTTP phase ships identity derivation. `test_membership_revocation_refuses_commit` and `case_members` are Phase 6's. |
+| **W4.** Phase 10 had no runnable exit test, and `ORCHESTRATION_PROOF` appeared nowhere else — not in any document, not in the bundle. | Saboteur | Both words defined in the plan; two named exit tests. |
+| **W5.** `AI_CODE_QUALITY.md` named controls that did not exist: a `Stop` hook, `run_sec_audit.py`, `test_dependency_pins.py`, `test_io_budget.py`, Trivy in CI, `prettier` in CI. | New Hire | Each struck or bound to the phase that owes it; the CI job list says which jobs run and which arrive. |
+| **W6.** No phase owned the `worker` process, the Dockerfile, the `image` job, or the per-calculator dependency set the ledger says `-S` cannot survive in Phase 7. | New Hire | Phase 7 bullets, with `test_a_calculator_sees_only_its_declared_dependencies`. |
+
+## Notes — all resolved
+
+- `docs/INITIALISATION_PROMPT.md` said "ten phases" of eleven, and restated
+  seven rules under a rationale that said it would restate none — one of which,
+  "never float", contradicted §6.1's deliberate float in existing calculators.
+  It now defers to `CLAUDE.md` for all of them.
+- Plan Phase 6 listed `/run/` rendering, a Phase 9 section. Reworded.
+- `server/provider.py`'s price constants carried no source or date. Annotated:
+  first-party list price for `claude-opus-5`, published 2026-06-24.
+
+## Confidence review and verification
+
+Least confident about: whether disabling SDK retries loses a retry the host
+needed; whether the plan rule for owed work can be satisfied by writing the
+test's name and never the test; whether any corrected line still disagrees
+with the code.
+
+1. **Retries:** measured rather than recalled. The real SDK from the lock,
+   driven through `provider_using` at a mock wire answering 500: three
+   requests under the default, one under `max_retries=0`. Nothing in the loop
+   relied on the SDK retrying, because the loop has never called the SDK. A
+   second seam surfaced while checking: `live_client` was public and skipped
+   the credential guard, so a direct caller would have let the SDK read an
+   `ant` profile from disk. The guard moved into `live_client`, and the
+   credential test now asserts on both.
+2. **A named test is not a written test:** `_owed` counts a test as written
+   when `def test_…` exists, so a name alone satisfies nothing; and a test that
+   is written but skips does satisfy it — entered in the `CLAUDE.md` ledger
+   under Phase 6 with its upgrade.
+3. **Corrected lines against the code:** `node_states(route, accepted)` and
+   `frontier(route, accepted)` are the signatures in `server/engine/route.py`;
+   `_CARVE_OUTS` is the name in `methodology/registry.py`; `route_digest` and
+   `dependency_order` exist and `active_incoming` does not; no `_CALCULATORS`
+   table exists; the CI workflow defines `lint`, `types`, `test`, `postgres`,
+   `security` and `size` and nothing else; `.claude/settings.json` has no
+   `Stop` hook.
+4. **The synthetic map test** fails when a lower phase's test is missing and
+   passes when only the current phase's is, so the rule is the one intended
+   rather than the one that happens to pass today.
+5. **Rewrite tournament:** skipped. The code changed is two test helpers and a
+   one-line client factory, which the skill excludes.
+6. **Gates:** `make lint`, `make types`, `make test` against the local store
+   (361 passed, the live-provider test skipped), `make security`, and
+   `test_decision_record` over §37–§38 — all green.
+
+## Summary
+
+The plan's phase-exit discipline is real and the first review's findings were
+closed properly, but §28 undid C1 in code the suite deliberately did not
+exercise, and withdrawal, the audit chain and commit-time authority had no
+phase because the plan and the ledger used different units of work. The retry
+is closed in code; the rest is scheduled under Phase 6 by a rule that stops it
+being walked past again.

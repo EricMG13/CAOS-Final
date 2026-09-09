@@ -846,3 +846,35 @@ the SDK read an `ant` profile from disk (§28).
 **Consequence.** A 429 or a 5xx is `PROVIDER_UNAVAILABLE` on the first try,
 and the attempt is INDETERMINATE with its reservation kept, as §21 says. When a
 retry is worth having, it is the loop's, reserved as a new attempt.
+
+## 2026-09-09 §38 — The plan is kept true, and the current phase owes what exited phases did not ship
+
+Two findings of the second adversarial review (`docs/ADVERSARIAL_REVIEW.md`),
+both in the documents rather than the code.
+
+**Overridden text is corrected in place.** §20 left `docs/REBUILD_PLAN.md`
+untouched as "the plan of record" and let the entry override it. As a policy
+that produced a plan naming two functions that never existed
+(`active_incoming`, `expected_upstream_digests`), a registry table by a name
+§24 had replaced, a CI job §11 had deferred, a spec whose `node_states`
+signature §18 had changed and whose calculator table §25 had replaced -- and
+`docs/INITIALISATION_PROMPT.md` did not have this record in its reading order
+at all. A session following that prompt would build what a decision had
+removed. From here an entry that overrides the plan or a spec is written back
+into them with a citation, the prompt reads this record, and
+`test_every_exit_test_of_an_exited_phase_exists` holds the plan to the standard
+`test_the_map_is_true.py` already held `CLAUDE.md` to.
+
+**The current phase owes what an exited phase did not ship.** Phase 2 was
+exited without an extractor, Phase 4 without a priced provider call, Phase 5
+without a live one, and each ledger entry deferred the gap to "a slice" the
+plan never names -- so "start at the lowest phase whose exit test does not
+pass" walked past all three. An exited phase is not reopened. Its unshipped
+deliverable is listed under the current phase with the test it owes, and that
+test is part of the current phase's exit. The ledger's "slice" means that
+phase.
+
+**Reason.** Both are the defect the map test was written for: a document an
+agent must read that names something the repository does not have. The plan is
+the one document that decides what gets built next, so it is where drift costs
+most. Overrides §20's "left alone".

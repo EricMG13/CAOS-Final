@@ -23,6 +23,8 @@ Starting the build: [`docs/INITIALISATION_PROMPT.md`](docs/INITIALISATION_PROMPT
 
 ## Status
 
-Pre-implementation. The specification is complete; no application code exists
-yet. This is deliberate — the predecessor tree reached 29k lines of server code
-before its route resolution was found to be reading the wrong table.
+Under construction, phase by phase. `docs/REBUILD_PLAN.md` says what done means
+for each phase, `git log` says what has landed, and the known-gaps ledger in
+`CLAUDE.md` says what an exited phase still owes. The order is deliberate: the
+predecessor tree reached 29k lines of server code before its route resolution
+was found to be reading the wrong table.

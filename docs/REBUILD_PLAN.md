@@ -17,8 +17,9 @@ exist before the code they govern.
 
 - `pyproject.toml` with hashed, fully pinned locks; `Makefile`;
   `.claude/settings.json` with the format and guard hooks.
-- CI: `lint · types · test · security · image`. Pre-commit with ruff, gitleaks,
-  the vocabulary check.
+- CI: `lint · types · test · security · size`. `image` waits for the Dockerfile
+  (`docs/DECISIONS.md` §11). Pre-commit with ruff, gitleaks, the vocabulary
+  check.
 - SonarQube Cloud bound to the repository (DECISIONS.md §31).
 - `scripts/check_vocabulary.py`, `scripts/io_budget.py`, `scripts/scan_floors.py`.
 
@@ -56,8 +57,9 @@ row fetch, not a whole-source parse).
 
 The phase the predecessor got wrong. Build it before anything depends on it.
 
-- Read `profile["edges"]`. Implement `dependency_order`, `active_incoming`,
-  `node_states`, `frontier`, `expected_upstream_digests`.
+- Read `profile["edges"]`. Implement `dependency_order`, `node_states`,
+  `frontier`, `route_digest`. Readiness is read from the accepted CP-0
+  artifact, never passed in (`docs/DECISIONS.md` §18).
 - Soft edges harden when the source is READY.
 - Research and model route extensions, host-declared, no catalog edit.
 - `resolve_route` pure; `pin_route` at the gate.
@@ -87,7 +89,8 @@ Plus the three the provider-call contract owes (`docs/DECISIONS.md` §21):
 
 - Bundle verification on the bytes at use; `assemble_authority` **without**
   SKILL.md slicing; per-module `authority_digest`.
-- Registry with `_ALIASES`, including the CP-PARSE carve-out and its wiring test.
+- Registry with `_CARVE_OUTS`, the host's one declaration: CP-PARSE and its
+  wiring test (`docs/DECISIONS.md` §24).
 - Calculator execution boundary with host-owned selection and work factors.
 - CP-1 running against a real provider, producing a canonical envelope.
 
@@ -99,11 +102,29 @@ Plus the three the provider-call contract owes (`docs/DECISIONS.md` §21):
 - Digest-bound interrupts: source-set pinning, research-plan approval.
 - Acceptance as a CAS transaction.
 - SSE tail with `Last-Event-ID`; membership rechecked per event.
-- `/run/` renders node states with their reasons, and the one QA_GATE reads as
-  a gate.
+- The run endpoint serves node states with their reasons, and the one QA_GATE
+  reads as a gate; `/run/` draws it in Phase 9.
+- Commit-time authority on the store call that releases a gate: `case_members`,
+  and standing rechecked inside `approve_plan`, not only at the request.
+
+**Owed by exited phases**, and exited here (`docs/DECISIONS.md` §38):
+
+- Withdrawal, the second half of invariant 1: a `withdrawn_at` on `sources`,
+  refused by `read_evidence` at every use and re-opening the plan gate —
+  `test_a_withdrawn_source_refuses_the_read_and_reopens_the_gate`.
+- Extraction (Phase 2): a real PDF fixture through a real extractor, tokens
+  carrying region and line — `test_citations_anchor_in_an_extracted_pdf`.
+- The loop meets `execute_module` and charges what the provider reported
+  (Phase 4) — `test_the_loop_charges_what_the_provider_reported`.
+- One live run of `test_the_live_provider_returns_a_completion` (Phase 5), its
+  `request_id` recorded in a decision entry.
+- `audit_events` and `audit_chain_heads` (Phase 1): a governed write commits
+  its audit event or nothing —
+  `test_a_governed_write_commits_its_audit_event_or_nothing`.
 
 **Exit:** `test_approval_binds_the_exact_reviewed_content`;
-`test_sse_closes_after_terminal_delivery`.
+`test_membership_revocation_refuses_commit`;
+`test_sse_closes_after_terminal_delivery`; and the five owed above.
 
 ## Phase 7 — Model build and the workbook
 
@@ -117,6 +138,11 @@ legacy" is either true or not.
 - Recalculate through soffice; validate registry, inventory and every computed
   value; publish exclusively.
 - `cash_flow_forecast` calculator and CP-CF (`SYSTEM_SPEC.md` §6.1–6.2).
+- The `worker` process, its Dockerfile with soffice in it, and the `image` job
+  with its scan floor (`docs/DECISIONS.md` §11).
+- A per-calculator dependency set: `-S` holds for the stdlib calculators and
+  not for `cp_model_v3` or `cp_memo` —
+  `test_a_calculator_sees_only_its_declared_dependencies`.
 
 **Exit:** the ten parity tests in `MODEL_BUILDER_SPEC.md` §8, with LibreOffice
 present. `test_recalc_unavailable_fails_closed` proves the suite is not vacuous.
@@ -135,7 +161,8 @@ boundary in `SYSTEM_SPEC.md` §6.
   one `.docx`, never overwriting.
 - Publication gate: inventory → draft → per-page visual QA → publish.
 - Opinion on the exact revision; freeze; filing refusing the signer and the
-  freezer; detached receipt; hash-chained audit; verifiable package.
+  freezer; detached receipt; the verifiable package over the audit chain
+  Phase 6 started.
 
 **Exit:** `test_publish_refused_until_every_page_passes`;
 `test_filing_refuses_the_opinion_signer`;
@@ -163,9 +190,16 @@ refuses a late response carrying a different snapshot for either one.
 - A verdict is bound to provider identity, corpus digest, build, date, expiry
   and reviewer.
 
-**Exit:** a host-control binding reads `ORCHESTRATION_PROOF`, never `QUALIFIED`.
-Live qualification remains an external input until the credential and the
-analyst approvals exist.
+Two words, defined here because nothing else defines them. `ORCHESTRATION_PROOF`
+is what the host can assert on its own: the pinned methodology ran as pinned,
+against the pinned sources, and every citation re-located. `QUALIFIED` is a
+reviewer's signature that the outputs met the answer keys, and it remains an
+external input until the credential and the analyst approvals exist.
+
+**Exit:** `test_a_verdict_binds_provider_corpus_build_date_expiry_and_reviewer`
+refuses a verdict missing any of the six or past its expiry;
+`test_a_host_control_reads_orchestration_proof_never_qualified` — no code path
+in this repository can mint `QUALIFIED`.
 
 ---
 
@@ -177,12 +211,22 @@ analyst approvals exist.
   creates it.
 - No new dependency without a dated `DECISIONS.md` entry.
 - Never edit an upstream bundle file.
-- The first phase exposing an HTTP route also ships the actor matrix for that
-  route. `test_production_never_trusts_role_header`,
-  `test_unauthorised_case_is_private_404` and
-  `test_membership_revocation_refuses_commit` enforce `SYSTEM_SPEC.md` §8;
-  production identity and commit-time authority checks do not wait for the
-  workspace or qualification phases.
+- Authority is checked where the commit is. The phase that first commits a
+  human decision ships the standing check inside the store call
+  (`test_membership_revocation_refuses_commit`, Phase 6); the first phase
+  exposing an HTTP route ships identity derivation and the actor matrix for
+  that route (`test_production_never_trusts_role_header`,
+  `test_unauthorised_case_is_private_404`). `SYSTEM_SPEC.md` §8 says commit
+  time, and a check at the request is not that.
+- A phase is exited by its named tests, and
+  `test_every_exit_test_of_an_exited_phase_exists` refuses a later phase
+  starting before they are written. A deliverable an exited phase did not ship
+  is owed by the current phase, listed under it with the test it owes — never
+  added back to the exited phase.
+- When a decision entry overrides this plan or a spec, the overridden text is
+  corrected in place and cites the entry (`docs/DECISIONS.md` §38). A reader
+  must not have to know which of thirty entries rewrote the page in front of
+  them.
 
 ## What is deliberately not in the plan
 

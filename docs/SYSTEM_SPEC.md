@@ -51,6 +51,10 @@ blob store keyed by `sha256`; the database holds the digest, never the bytes.
 | Publication | `deliverable_drafts`, `deliverable_opinions`, `deliverable_publications`, `publication_jobs` |
 | Audit | `audit_events`, `audit_chain_heads` |
 
+The target set. `server/store/schema.sql` is what exists; a table arrives there
+in the phase that first writes it, and the tables of phases not yet reached are
+not there.
+
 Rules that do not bend:
 
 - **Transactional pairing.** A governed write commits state and its audit event
@@ -87,9 +91,11 @@ verified on the bytes at use, not at startup only.
 
 - **Registry** (`methodology/registry.py`) is the only seam. One `ModuleSpec` per
   live module: `module_id`, execution mode, `skill_slug`, `reference_files`,
-  `max_output_tokens`, `calculators`, `derived_projections`, `source_mode`,
-  `plan_approval`. Plus `_ALIASES` for superseded ids and host carve-outs
-  (CP-PARSE — see `docs/DECISIONS.md` §5).
+  `max_output_tokens`, `derived_projections`, `source_mode`, `plan_approval`.
+  The live set and each module's files are derived from the catalog and the
+  manifest, never written out (`docs/DECISIONS.md` §24); which calculator a
+  module may select is a rule, not a field (§25). The host's one declaration
+  is `_CARVE_OUTS`: CP-PARSE (§5).
 - **Calculators** are host-owned. Only a `(module_id, calculator_id)` pair the
   host declares can select code; the calculator and its helper module are read
   through no-follow file handles and digest-checked; work factors are bounded
@@ -120,11 +126,15 @@ resolve_route(catalog, profile_id, selection_id, *,
 # pinning — at the plan gate, once
 pin_route(run_id, resolved) -> route_digest      # row in run_routes, digest in run_events
 
-# state — recomputed from accepted attempts, never stored
-node_states(route, attempts, source_readiness) -> {route_node_id: COMPLETE|BLOCKED|RESTRICTED|RUNNABLE}
-frontier(route, attempts, source_readiness)    -> [route_node_id]   # RUNNABLE + RESTRICTED
-expected_upstream_digests(route, node, accepted) -> {route_node_id: sha256}
+# state — recomputed from accepted attempts, never stored; readiness is read
+# from the accepted CP-0 artifact, never passed in (docs/DECISIONS.md §18)
+node_states(route, accepted) -> {route_node_id: COMPLETE|BLOCKED|RESTRICTED|RUNNABLE}
+frontier(route, accepted)    -> [route_node_id]   # RUNNABLE + RESTRICTED
 ```
+
+An `expected_upstream_digests` in the first draft of this block had no consumer
+and was never built; it is dropped rather than left as a promise
+(`docs/DECISIONS.md` §38).
 
 Edge types and their meaning are the bundle's, read from `profile["edges"]`:
 `REQUIRED`, `CONDITIONAL`, `QA_GATE` block; `OPTIONAL`, `ADVISORY` degrade to
@@ -225,15 +235,12 @@ are recomputed deterministically *over* arithmetic the model performed. This
 calculator moves the arithmetic to the host and leaves CP-2G doing what needs a
 model — choosing drivers, with rationale and evidence.
 
-**Binding.** A new `(module_id, calculator_id)` pair in `_CALCULATORS`, code in
-a host-added skill folder. Never inside an upstream folder (§6.2).
-
-```python
-("CP-2G",  "cash_flow_forecast"): _CalculatorSpec(
-    "cp-cf-cash-flow-engine", "scripts/cash_flow_forecast.py"),
-("CP-CF", "cash_flow_forecast"): _CalculatorSpec(
-    "cp-cf-cash-flow-engine", "scripts/cash_flow_forecast.py"),
-```
+**Binding.** `cash_flow_forecast` is declared once, with its helper set and its
+work factor, and its code ships in `scripts/` of the host-added CP-CF folder.
+Under `docs/DECISIONS.md` §25 a module selects a calculator only when its own
+folder ships the script, so CP-CF is the only caller: CP-2G's folder is upstream
+and gains no file (§6.2). An earlier draft bound the pair to CP-2G as well,
+which §25 makes impossible without an upstream edit.
 
 **Inputs** (model-authored, host-validated before any code is selected):
 
@@ -346,7 +353,9 @@ period per case.
 
 **Route placement without editing the catalog.** Reuse the mechanism legacy
 already has for CP-DR: a host-declared model extension, mirroring
-`profile["research_extension"]`, appends CP-CF at its own stage with
+`profile["research_extension"]`, appends CP-CF at stage 100 and CP-MODEL at
+101 — CP-MODEL is route-eligible but in no pathway's node list, so the
+extension is the only thing that can place it (`docs/DECISIONS.md` §23) — with
 synthesised `REQUIRED` edges `CP-1 → CP-CF`, `CP-2G → CP-CF`,
 `CP-4 → CP-CF` and `CP-CF → CP-MODEL`. These name every artifact owner CP-CF
 reads, including the covenant terms; CP-2G completing alone does not release
