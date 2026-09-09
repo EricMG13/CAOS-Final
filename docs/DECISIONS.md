@@ -991,3 +991,138 @@ is unchanged and `test_a_non_finite_number_never_reaches_the_artifact` still
 covers all four literals. Worth noting because the reviewer was right for the
 wrong reason: it flagged `number != number` as a suspicious self-comparison
 when it is the NaN idiom, and the correct answer was still to delete it.
+
+## 2026-09-09 §41 — Coverage moves the analysis into CI, and §31's independence is spent
+
+`sonar-project.properties` is added and a `sonarqube` job submits the analysis
+with `SONAR_TOKEN`; `pytest-cov` writes `coverage.xml` from the suite, and
+`sonar.python.coverage.reportPaths` is what the scanner reads it by. Overrides
+§31.
+
+**`.sonarcloud.properties` stays until the switch-over is done, and that is not
+a hedge.** The first version of this change deleted it in the same commit, on
+the reasoning that a file automatic analysis reads is dead once the analysis is
+CI-based. It is not dead until somebody turns automatic analysis off in
+SonarQube Cloud's settings, which no commit can do — so between the merge and
+that click, deleting it does not remove a configuration nobody reads. It removes
+the only configuration anybody is reading, leaving the live analysis with no
+`vendor/**` exclusion, no test classification and no Python version, judging 147
+vendored files no pull request is allowed to fix. Both files therefore exist for
+one transition, saying the same thing, held together by
+`test_both_analysis_configurations_declare_the_same_scope`, and the second is
+deleted by the commit that confirms the `sonarqube` job is posting the check.
+
+**Reason.** SonarQube Cloud's automatic analysis imports no coverage report. The
+quality gate has had a coverage condition with no metric to evaluate since the
+day it was enabled -- the check on PR #41 passed reading 0.0% on new code, and
+the CLAUDE.md ledger has carried that as a known gap ever since. There is no
+setting that fixes it: coverage reaches a SonarQube Cloud project through a
+scanner or it does not reach it at all, and a scanner cannot run against a
+project under automatic analysis (§31 established that the hard way). So the
+choice was coverage or automatic analysis, not both.
+
+**What it costs, stated plainly.** §31's argument was that an analysis
+unreachable from a commit cannot be narrowed by the agent whose code it reads,
+and that argument is now spent. `sonar.sources`, `sonar.exclusions` and the
+coverage path sit in the tree, in the same pull request they judge, editable by
+their author -- exactly the property §31 declined. The quality gate's conditions
+remain in SonarQube Cloud, so what moved is scope, not verdict.
+
+Three things are put in the way of a narrowed scope, and none of them is the
+platform:
+
+- `test_the_analysis_claims_every_tracked_python_file` already refused a source
+  list that dropped a package; it now reads this file instead of the old one.
+- `scan_floors.py --cobertura` refuses a coverage report that measured nothing
+  or that left out a tracked file under its targets. A file absent from the
+  report is not a file at zero per cent -- it raises the percentage of
+  everything else, which is the one way a coverage number lies rather than
+  simply being low. `test_the_coverage_floor_measures_what_the_analysis_reads`
+  holds its target list to `sonar.sources`.
+- `test_exactly_one_job_submits_the_analysis` keeps the count at one, which is
+  what §31's mutual exclusion becomes once the scanner is the analysis.
+
+**The third reviewer's first finding was on the floor itself, and it took three
+analyses to read.** The quality gate on the pull request that introduced this
+entry failed on *C Security Rating on New Code*, and the analysis is on a host
+the environment that wrote this could not reach, so the finding was guessed at
+twice before a person opened the dashboard. Both guesses were wrong, and both
+changes stayed:
+
+- `cobertura_metrics` had used `xml.etree.ElementTree.fromstring` under a
+  `# nosec B314`, on the reasoning that coverage.py writes the file one step
+  earlier. The guess was that SonarPython's S2755 had said the same as bandit.
+  It had not, but a suppression that only one scanner honours is not worth
+  carrying: Cobertura puts `filename` on `<class>` and on no other element, so
+  the floor reads the report as text with one regex, and a regex that misread it
+  would name a measured file as unmeasured, which fails closed. No parser, no
+  suppression, no `defusedxml`.
+- `.sonarcloud.properties` had been deleted; the guess was that the analysis,
+  left without its `vendor/**` exclusion, was judging the bundle. It was not the
+  finding either, but it was a real regression for the whole transition, and
+  the paragraph above is the result.
+
+The finding was path traversal: `parse_args` to `args.report` to
+`args.report.read_text`, a CLI argument reaching the filesystem with no
+containment. The sink pre-dated this change — `main` had read the report that
+way since the gate was written — and this change touched the line, which moved
+a latent finding into new code. That is how a new-code gate works and it is not
+a complaint: a line you rewrite is yours. `report_within` now resolves the path
+and refuses one that does not lie under the directory the gate was invoked in,
+before anything is read. A scanner report is a build output of the tree being
+scanned, so that is the only place one is ever read from, and the Makefile and
+CI both run the gate from the repository root. The check is spelled
+`os.path.realpath` and `startswith` rather than `Path.resolve` and
+`is_relative_to` because that is the sanitizer shape the rule documents, and
+whether the analyzer recognises the pathlib spelling is not known here.
+
+What this cost is a lesson worth the entry: an analysis this repository cannot
+read is an analysis it cannot fix without a person in the loop. Two cycles
+were spent on inference, and the finding was on the dashboard the whole time.
+
+**A draft pull request keeps its analysis, which took declaring the activity
+types.** Automatic analysis ran from SonarQube Cloud's side and did not know
+whether a pull request was a draft; it posted on this repository's drafts,
+including the one carrying this entry. A CI analysis inherits GitHub's rules
+instead, and the pull request that made this change produced no `pull_request`
+workflow run at all while it was a draft — five pushes, `sonarqube` skipped
+every time — so moving the analysis into CI would have left a hole the size of
+"the work was done on a draft", which is most of it. Marking a draft ready does
+not close that either: `ready_for_review` is not one of the activity types
+`pull_request` runs on by default. So `ci.yml` declares its types rather than
+taking the default set, and
+`test_the_analysis_runs_when_a_draft_is_marked_ready` holds it there.
+
+One more, found while pinning the fix. The mutation checks that backed this
+change's tests were first run under `pytest -q` on top of the `-q` already in
+`addopts`, and `-qq` prints no `N passed` line — so a harness that grepped for
+one reported every mutation as caught, whether it was or not. "A scanner that
+scanned nothing is a failure" applies to the scaffolding around a test as much
+as to the gates; the checks were redone keyed on the exit code, with the
+unmutated tree proven green first, and the separator in `report_within` was
+the case that showed it: `"/base-secret/x".startswith("/base")` is true, and
+only a sibling-directory input makes the trailing separator load-bearing.
+
+That is weaker than an analysis nobody here can reach, and it is what buys a
+coverage metric. The honest summary is that this repository traded an
+independent scope for a measured one.
+
+**The dependency.** `pytest-cov==7.1.0`, and `coverage==7.16.0` beneath it, into
+`requirements-dev.in` and the hashed lock. It is a development dependency: no
+runtime path imports it, and `requirements.in` is untouched.
+
+**The secret exemption.** `gitleaks` reads `sonar.projectKey=EricMG13_CAOS-Final`
+as a generic API key -- entropy 4.14, measured on 8.24.3 -- and failed the
+`security` gate on it once already (§31). `.gitleaks.toml` exempts that exact
+string, by `regexTarget = "match"` and not by path, so the file it sits in is
+still scanned for everything else. A project key is in the query string of every
+dashboard URL the check posts; the credential is `SONAR_TOKEN`, which is a
+repository secret and is exempted nowhere.
+
+**What this entry does not settle.** Whether SonarQube Cloud posts the same
+`SonarCloud Code Analysis` check under CI analysis as it did under automatic
+analysis. That check is required on `main` (§34), so if the name changes, the
+required check stops reporting and blocks every merge until the ruleset follows
+-- §14's hazard, arriving from the direction §34 did not cover. Nothing in this
+repository can read the ruleset or the check name, so this is verified by
+watching the first analysis on `main` and not before. The ledger carries it.

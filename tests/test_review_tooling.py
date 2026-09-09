@@ -6,11 +6,18 @@ postures, so the third is the only one that brings different weights. CodeRabbit
 could not be that here: it declined every pull request in this repository, for
 one reason or another, and the ask could not be automated.
 
-SonarQube Cloud analyses this repository automatically, from its own side of the
-GitHub App, and posts the `SonarCloud Code Analysis` check. None of that lives in
-this tree, so what these tests can hold is the shape of the tree around it -- and
-the one way to break it from here, which is to commit the scanner configuration
-that automatic analysis forbids. See `docs/DECISIONS.md` section 31.
+SonarQube Cloud is the third, and as of `docs/DECISIONS.md` section 41 it is
+submitted from CI rather than read from SonarQube Cloud's own side. Section 31
+chose the opposite and gave a good reason -- an analysis unreachable from a
+commit cannot be narrowed by the agent whose code it reads. What overrode it is
+that automatic analysis imports no coverage report, so the coverage the quality
+gate judges could not exist under it at all.
+
+That trade is the subject of most of this file. The configuration is now in the
+tree and therefore editable in the same pull request it reviews, so what these
+tests hold is the scope: every tracked file claimed, the bundle excluded, the
+coverage report accounted for, and the secret exemption beside it scoped to one
+string rather than to the file it sits in.
 
 Invariant protected: the review control in `docs/AI_CODE_QUALITY.md` section 2
 is enforced by a tool rather than by whoever remembers to ask for it.
@@ -19,12 +26,14 @@ is enforced by a tool rather than by whoever remembers to ask for it.
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 from tracked import tracked_python
 
 REPO = Path(__file__).resolve().parents[1]
-PROPERTIES = REPO / ".sonarcloud.properties"
+PROPERTIES = REPO / "sonar-project.properties"
+GITLEAKS = REPO / ".gitleaks.toml"
 MAKEFILE = (REPO / "Makefile").read_text(encoding="utf-8")
 PYPROJECT = (REPO / "pyproject.toml").read_text(encoding="utf-8")
 DEFINITIONS = sorted((REPO / ".github" / "workflows").glob("*.yml"))
@@ -36,34 +45,35 @@ USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)", re.M)
 # `owner/name@<40 hex>` is the only pinned form: a tag moves, a digest does not.
 PINNED = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 
-# Every way this repository could start a scanner of its own. Any one of them
-# turns the analysis that currently runs into a failing build -- see
-# `test_nothing_here_starts_a_scanner_of_its_own` for why.
 # The Actions jobs the `main gates` ruleset requires (docs/DECISIONS.md §34).
 # A required check is matched by name: rename the job and it never reports, and
 # a check that never reports blocks every merge -- §14's own hazard, from the
-# other end. `SonarCloud Code Analysis` is absent because no job posts it.
+# other end. `SonarCloud Code Analysis` is absent because no job posts it: the
+# `sonarqube` job submits the analysis, and SonarQube Cloud's GitHub App posts
+# the check that carries the verdict. `sonarqube` itself is absent because the
+# ruleset does not require it yet (§41), and this list states the ruleset.
 REQUIRED_JOBS = frozenset({"lint", "types", "test", "postgres", "security", "size"})
 
-SCANNER = (
-    "sonarqube-scan-action",
-    "sonarcloud-github-action",
-    "sonar-scanner",
-    "sonarsource/sonarqube-quality-gate-action",
-    "SONAR_TOKEN",
-)
+# The action that submits the analysis. `sonarcloud-github-action` is its
+# predecessor under the old branding and is not what this repository runs.
+SCAN_ACTION = "sonarsource/sonarqube-scan-action"
 
 
-def analysis_properties() -> dict[str, str]:
-    """`.sonarcloud.properties` as a mapping, comments and blanks dropped."""
+def _properties(path: Path) -> dict[str, str]:
+    """A java-properties file as a mapping, comments and blanks dropped."""
     values: dict[str, str] = {}
-    for line in PROPERTIES.read_text(encoding="utf-8").splitlines():
+    for line in path.read_text(encoding="utf-8").splitlines():
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
             continue
         key, _, value = stripped.partition("=")
         values[key.strip()] = value.strip()
     return values
+
+
+def analysis_properties() -> dict[str, str]:
+    """`sonar-project.properties`, which is what the scanner reads."""
+    return _properties(PROPERTIES)
 
 
 def declared(key: str) -> set[str]:
@@ -83,31 +93,134 @@ def test_the_repository_carries_no_coderabbit_configuration() -> None:
     assert not (REPO / ".coderabbit.yaml").exists()
 
 
-def test_nothing_here_starts_a_scanner_of_its_own() -> None:
-    """Automatic analysis and a CI scanner are mutually exclusive.
+def test_exactly_one_job_submits_the_analysis() -> None:
+    """Two scanners against one project is the failure §31 recorded, inverted.
 
-    With automatic analysis on -- which is how this repository is analysed --
-    running a scanner against the same project fails, and fails the build with
-    it. So a `sonarqube` job is not a stronger gate than the analysis already
-    running; it is the one commit that would stop it. `sonar-project.properties`
-    is the scanner's own configuration file and is ignored by automatic
-    analysis, so it too is a file that does nothing except invite the job.
+    Automatic analysis and a CI scanner are mutually exclusive, and so are two
+    CI scanners on the same commit: the second run fails and fails the build
+    with it. Under §31 the safe count was zero, because the analysis came from
+    SonarQube Cloud's side. Under §41 it is exactly one, and the file that
+    configures it has to exist rather than be refused.
     """
-    assert not (REPO / "sonar-project.properties").exists(), (
-        "sonar-project.properties configures the scanner CLI, which cannot run "
-        "against a project under automatic analysis; see DECISIONS.md section 31"
+    assert PROPERTIES.exists(), (
+        "sonar-project.properties is what the scanner reads; without it the "
+        "analysis has no project key, no sources and no coverage report"
     )
-    found = sorted(token for token in SCANNER if token.lower() in CI.lower())
-    assert found == [], (
-        f"a CI job would start a second analysis ({found}), which fails against "
-        "a project under automatic analysis; see DECISIONS.md section 31"
+    submissions = CI.lower().count(SCAN_ACTION)
+    assert submissions == 1, (
+        f"{submissions} jobs submit an analysis; one project takes one scan per "
+        "commit, and a second run fails and fails the build with it"
     )
+
+
+def test_the_analysis_runs_when_a_draft_is_marked_ready() -> None:
+    """A draft pull request got an analysis before §41 and must still get one.
+
+    Automatic analysis did not know whether a pull request was a draft. A CI
+    analysis does: no `pull_request` run was created for the draft that carried
+    §41, over five pushes, so `sonarqube` was skipped every time -- and marking
+    it ready does not start one either, because `ready_for_review` is not a
+    default activity type. Hence declared rather than defaulted.
+    """
+    triggers = re.search(r"^on:\n(?:  .*\n|    .*\n|      .*\n)+", CI, re.M)
+    assert triggers is not None, "the workflow no longer declares `on:` as a block"
+    assert "ready_for_review" in triggers.group(0), (
+        "converting a draft to ready posts no analysis: `ready_for_review` is "
+        "not a default pull_request activity type, and a draft gets no run"
+    )
+
+
+def test_both_analysis_configurations_declare_the_same_scope() -> None:
+    """Two files describe one analysis until the switch-over is done.
+
+    `.sonarcloud.properties` is read by automatic analysis and
+    `sonar-project.properties` by the scanner, and which of them is authoritative
+    is a setting in SonarQube Cloud rather than anything this tree can see. So
+    for as long as both exist they have to agree: a `vendor/` exclusion in one
+    and not the other is an analysis that judges the bundle, which is what
+    deleting the first one in the same commit as adding the second one caused.
+
+    The coverage path is deliberately not compared -- automatic analysis imports
+    no coverage report, which is the whole reason for §41.
+    """
+    automatic = REPO / ".sonarcloud.properties"
+    if not automatic.exists():
+        return  # the switch-over is done and this file has been removed
+    inherited = _properties(automatic)
+    for key in (
+        "sonar.sources",
+        "sonar.tests",
+        "sonar.python.version",
+        "sonar.exclusions",
+    ):
+        assert inherited.get(key) == analysis_properties().get(key), (
+            f"{key} differs between the two analysis configurations; whichever "
+            "one SonarQube Cloud is reading, the other is a lie about the scope"
+        )
+
+
+def test_the_analysis_imports_the_coverage_report_the_suite_writes() -> None:
+    """The whole reason the analysis moved into CI (§41).
+
+    Two ways this silently becomes a no-op: the scanner is told a path the suite
+    does not write, or the suite stops writing one. Neither is visible in the
+    check, which reports missing coverage as 0.0% rather than as an error, so
+    the two declarations are pinned to each other here.
+    """
+    declared_path = analysis_properties()["sonar.python.coverage.reportPaths"]
+    written = re.search(r'^output = "([^"]+)"$', PYPROJECT, re.M)
+    assert written is not None, "pyproject.toml no longer sets a coverage xml output"
+    assert declared_path == written.group(1), (
+        f"the analysis reads {declared_path}; the suite writes {written.group(1)}"
+    )
+    assert "--cov" in PYPROJECT, (
+        "the coverage flags live in addopts so that a local run and the CI run "
+        "produce the same report; without them the job uploads nothing"
+    )
+
+
+def test_the_coverage_floor_measures_what_the_analysis_reads() -> None:
+    """A report that skipped a file raises the percentage of everything else.
+
+    `scan_floors.py --cobertura` refuses that, and it can only refuse it against
+    the right list: the directories the analysis reads, not the ones the SAST
+    gate happens to share with them today.
+    """
+    assert make_variable("COV_TARGETS") == declared("sonar.sources")
+    assert make_variable("COV_UNSCANNED") == declared("sonar.tests")
+    assert "--cobertura" in CI, "the CI run does not apply the coverage floor"
+
+
+def test_the_secret_exemption_names_a_string_rather_than_a_file() -> None:
+    """gitleaks reads `sonar.projectKey` as a credential; it is an identifier.
+
+    The exemption that says so is the one place in this repository where a
+    scanner is told to ignore something, so its scope is the whole question. A
+    `paths` or `files` clause would stop gitleaks reading
+    sonar-project.properties at all, and a real credential pasted into that file
+    later would be the one thing nothing here scans.
+
+    The expected value is read from the properties file rather than written out
+    here, for the reason this test is about: spelling the key in this file makes
+    *this* file the thing gitleaks flags, and exempting it too would spread the
+    exemption rather than hold it.
+    """
+    allowlist = tomllib.loads(GITLEAKS.read_text(encoding="utf-8"))["allowlist"]
+    assert set(allowlist) & {"paths", "files", "commits"} == set(), (
+        f"the exemption is scoped by {sorted(allowlist)}; scoping it by path "
+        "exempts every future secret in that file too"
+    )
+    key = analysis_properties()["sonar.projectKey"]
+    assert allowlist["regexes"] == [rf"sonar\.projectKey={key}"], (
+        "the exemption does not name the project key this analysis declares, so "
+        "either it exempts something else or the gate is red on the real one"
+    )
+    assert allowlist["regexTarget"] == "match"
 
 
 def test_the_vendored_bundle_is_excluded_from_the_analysis() -> None:
     """A finding under `vendor/` names something no pull request may fix (6)."""
-    declared = (REPO / ".sonarcloud.properties").read_text(encoding="utf-8")
-    assert "sonar.exclusions=vendor/**" in declared
+    assert "sonar.exclusions=vendor/**" in PROPERTIES.read_text(encoding="utf-8")
     assert next(REPO.glob("vendor/**/*.py"), None) is not None
 
 

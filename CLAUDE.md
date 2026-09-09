@@ -217,52 +217,68 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **The third reviewer's configuration is not in this tree, and that is half
-  deliberate.** SonarQube Cloud analyses this repository automatically and posts
-  `SonarCloud Code Analysis` (`docs/DECISIONS.md` §31), which is the property
-  CodeRabbit never had: it runs without anyone asking. What follows the
-  repository is one line — `.sonarcloud.properties` excluding `vendor/`. The
-  quality gate's conditions, the rule set, and whether automatic analysis stays
-  enabled are settings in SonarQube Cloud that no test here can read. The first
-  draft of this entry recorded that as a flat cost, which was half the picture:
-  **the agent that writes this repository cannot weaken the reviewer that reads
-  it.** A CI scanner would hand that back — its `sonar.sources`, its exclusions
-  and its gate would sit in the same diff as the code under review, editable by
-  the author. §14 made the same move for the other gates, off `make merge` and
-  onto a platform ruleset, for the same reason.
-  **Turning it off is no longer silent.** `SonarCloud Code Analysis` is a
-  required check on `main`, bound to the SonarQubeCloud app rather than *Any
-  source* (`docs/DECISIONS.md` §34), so an analysis that stops running stops
-  reporting, and a required check that never reports blocks every merge.
-  What stays uncovered is one case: a gate *loosened* rather than turned off. A
-  relaxed condition still reports green and nothing here would notice.
-  `test_nothing_here_starts_a_scanner_of_its_own` covers the one failure a
-  commit can cause: a CI scanner job, which would fail against a project under
-  automatic analysis and take the build with it.
-  *Upgrade:* none for the loosened-gate case while the gate lives in a UI, and
-  reverting to a CI scanner trades it for a configuration the author of the code
-  can edit, which is the worse end for a repository written by an agent. The
-  honest position is that this control is trusted at one point — the gate's own
-  conditions — in exchange for being unreachable from a commit everywhere else.
-- **`.sonarcloud.properties` is verified by the project's analysis warnings,
-  and by nothing in this tree.** The first version of this file declared only
-  `sonar.exclusions`, and SonarQube Cloud's *Analysis warnings* said what that
-  cost: `sonar.tests` unset, so SonarPython found test-shaped files and ran
-  production rules on none of them — 29 files under neither rule set; and
-  `sonar.python.version` unset, so every rule was evaluated against all of
-  Python 3 at once. Both are now declared, and the warnings are the only place
+- **The third reviewer's scope is now editable by the agent it reviews.**
+  `docs/DECISIONS.md` §41 moved the analysis from SonarQube Cloud's own side
+  into the `sonarqube` CI job, because automatic analysis imports no coverage
+  report and there is no setting that changes that. §31's property is spent:
+  `sonar.sources`, `sonar.exclusions` and the coverage path are in
+  `sonar-project.properties`, in the same pull request they judge. An agent that
+  wanted a clean analysis could narrow the source list in the diff under review.
+  What still stands: the quality gate's conditions remain in SonarQube Cloud, so
+  the *verdict* is not in the tree even though the *scope* is; and three tests
+  hold the scope — `test_the_analysis_claims_every_tracked_python_file`,
+  `test_the_coverage_floor_measures_what_the_analysis_reads`, and
+  `test_exactly_one_job_submits_the_analysis`. Each of those a determined author
+  could edit in the same diff, which is the difference between a control and a
+  speed bump, and is why this is a ledger entry rather than a footnote.
+  *Upgrade:* none available in this repository. A scope that the code's author
+  cannot edit means a scanner nobody here configures, and that is the
+  arrangement §41 gave up to obtain a coverage metric. The alternative worth
+  having is a branch ruleset condition on the analysis' own reported scope,
+  which SonarQube Cloud does not offer today.
+- **Two analysis configurations exist, and which one is live is not readable
+  from here.** `.sonarcloud.properties` is automatic analysis' and
+  `sonar-project.properties` is the scanner's; the switch between them is a
+  setting in SonarQube Cloud (`docs/DECISIONS.md` §41). While both exist,
+  `test_both_analysis_configurations_declare_the_same_scope` keeps their sources,
+  tests, Python version and exclusions identical, so whichever is being read says
+  the same thing. What no test here can tell is *which*, so a coverage report is
+  either imported or silently absent depending on a setting this tree cannot see.
+  *Upgrade:* delete `.sonarcloud.properties` in the commit that confirms the
+  `sonarqube` job is posting the check — which is a person reading the checks on
+  a pull request, not a test.
+- **The check name under CI analysis is unverified.** `SonarCloud Code Analysis`
+  is a required check on `main`, bound to the SonarQubeCloud app
+  (`docs/DECISIONS.md` §34), and it was the name posted under *automatic*
+  analysis. Nothing in this repository can read the ruleset or the check name,
+  and nothing tried the CI-submitted path before §41, so whether the app posts
+  the same name is not known here. If it does not, the required check never
+  reports and blocks every merge — §14's hazard, from the direction §34 did not
+  cover — until someone edits the ruleset to the new name.
+  *Upgrade:* read the checks on the first pull request that runs the
+  `sonarqube` job, and the first analysis on `main` after it merges. This is
+  the one entry in this ledger with a deadline rather than a phase.
+- **`sonar-project.properties` is verified by the project's analysis warnings,
+  and by nothing in this tree.** An earlier version of the analysis config
+  declared only `sonar.exclusions`, and SonarQube Cloud's *Analysis warnings*
+  said what that cost: `sonar.tests` unset, so SonarPython found test-shaped
+  files and ran production rules on none of them — 29 files under neither rule
+  set; and `sonar.python.version` unset, so every rule was evaluated against all
+  of Python 3 at once. Both are declared, and the warnings are the only place
   either could have been noticed: a pull-request analysis reports on the diff,
   so a rule that never ran shows up as nothing rather than as a finding.
   The same holds for the `vendor/` exclusion, which no test here can prove took
   effect. What the suite pins is that the *file* says the right thing —
-  `sonar.sources` and `sonar.tests` between them claim every tracked .py, and
-  `sonar.python.version` matches the type gate's interpreter. Whether SonarQube
-  read it is a question only SonarQube answers.
-  *Upgrade:* read the analysis warnings once a change to this file has reached
-  `main` — automatic analysis reads it from the default branch, so the pull
-  request that edits it cannot show whether the edit took, and an ignored key
-  is still listed there afterwards. The authoritative equivalent, if the file
-  is ever ignored wholesale, is the project's Analysis Scope settings.
+  `sonar.sources` and `sonar.tests` between them claim every tracked .py,
+  `sonar.python.version` matches the type gate's interpreter, and the coverage
+  path matches what the suite writes. Whether SonarQube read it is a question
+  only SonarQube answers. Under §41 a pull request's own analysis does read this
+  file, which is one thing automatic analysis could not do — the scanner runs
+  from the branch, so an ignored key shows up on the pull request that
+  introduced it rather than only after merge.
+  *Upgrade:* read the analysis warnings on the first pull request that runs the
+  `sonarqube` job. The authoritative equivalent, if the file is ever ignored
+  wholesale, is the project's Analysis Scope settings.
 - **Nothing replaces `.coderabbit.yaml`'s `path_instructions`.** They asked a
   reviewer to flag a float on a money path, a `str(exc)` on a wire response, a
   model without `extra="forbid"`, a synonym for a `CONTEXT.md` term. SonarQube
@@ -272,12 +288,32 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   Invariant-level review is still one model reading its own work.
   *Upgrade:* a custom rule set, or a lint rule per invariant, the day one of
   these is missed in review rather than caught by a test.
-- **No coverage reaches the analysis.** Nothing emits a coverage report and
-  automatic analysis imports none, so the quality gate's coverage condition has
-  no metric to evaluate; the `SonarCloud Code Analysis` check on PR #41 passed
-  reading 0.0% on new code. Adding coverage is a new dependency and therefore a
-  decision entry and a lock recompile, which is a different concern from this
-  one. *Upgrade:* the slice that first wants a coverage floor.
+- **Coverage is measured and imported; no percentage is enforced here.**
+  `docs/DECISIONS.md` §41 closed the gap that said no coverage reached the
+  analysis at all. What replaced it is narrower: `scan_floors.py --cobertura`
+  refuses a report that measured nothing or that left out a tracked file, which
+  is a floor on the report's *completeness* and not on its *number*. Nothing in
+  this tree fails a build at 12% — the only condition that does is the quality
+  gate's, in SonarQube Cloud, where it applies to new code and where this
+  repository cannot read it. So a change that lowers overall coverage merges
+  green as long as the lines it adds are covered.
+  *Upgrade:* `--cov-fail-under` with a number, the day somebody is prepared to
+  defend one. It is deliberately not set to today's figure: a floor picked to
+  match what happens to pass is a floor that has never refused anything.
+- **Coverage counts the tests that ran, and CI runs the suite twice.** The
+  `test` job writes the report and the `postgres` job re-runs part of the suite
+  without writing one, so a race proven only in the second job counts as
+  uncovered. Harmless to the number's direction — it understates rather than
+  overstates — but it means the figure is not "what this suite exercises".
+  *Upgrade:* combine the two reports with `coverage combine`, if the second job
+  ever holds a path the first does not.
+- **A fork's pull request cannot run the analysis.** `SONAR_TOKEN` is a
+  repository secret and is not exposed to workflows from forked repositories, so
+  the `sonarqube` job fails there and the required check never reports. Every
+  pull request in this repository to date is from a branch in the repository
+  itself, so this has never happened. *Upgrade:* a `pull_request_target` split,
+  the day an outside contributor opens one — which is a change to how untrusted
+  code is run in CI and needs its own decision entry.
 
 **Phase 6.**
 
