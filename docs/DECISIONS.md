@@ -823,3 +823,26 @@ the schema file is not JSON Schema and cannot be validated against.
 **Consequence.** `run_route` and `accepted_attempts` take a `BlobStore`. The
 frontier is still recomputation and nothing else: on restart the loop reads the
 artifact CP-0 actually produced.
+
+## 2026-09-09 §37 — Host retries are the only retries
+
+The live client is built with `max_retries=0`. The SDK's default is 2, and it
+retries a 408, 409, 429, 5xx or connection error by re-sending the request.
+
+**Reason.** §21 rules that a retry is a new attempt with its own reservation
+and that no provider idempotency is assumed. §28 listed "the SDK owns retry and
+backoff on 429 and 5xx" among the reasons to take the SDK, and never reconciled
+the two: an SDK retry is a second provider call under the one attempt row and
+the one reservation, invisible to the ledger -- C1 of
+`docs/ADVERSARIAL_REVIEW.md`, reintroduced one layer below the fix. The
+provider suite disables SDK retries on its mock client and so never ran the
+path production ran. Measured on the locked SDK against a mock wire: one 500
+on a streamed call is three requests under the default and one under zero.
+`test_the_live_client_never_retries_on_its_own` reads the setting back from
+the client the host builds, and `live_client` is also where the credential
+guard now lives, so a caller reaching past `live_provider_or_none` cannot let
+the SDK read an `ant` profile from disk (§28).
+
+**Consequence.** A 429 or a 5xx is `PROVIDER_UNAVAILABLE` on the first try,
+and the attempt is INDETERMINATE with its reservation kept, as §21 says. When a
+retry is worth having, it is the loop's, reserved as a new attempt.

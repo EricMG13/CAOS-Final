@@ -4,7 +4,7 @@
 provider reported using rather than from a flat guess -- which is what lets the
 budget ledger record a call instead of an estimate.
 
-Two deliberate departures from the Anthropic SDK's own defaults:
+Three deliberate departures from the Anthropic SDK's own defaults:
 
 **No server-side `fallbacks`.** The SDK recommends enabling them so a policy
 refusal is retried on another model. A run here is bound to a provider identity
@@ -15,6 +15,10 @@ refusal.
 **A credential means an environment variable.** The SDK would also resolve an
 `ant` profile from disk, which would let a developer's machine spend money in a
 suite that is meant to be free. See the known-gaps ledger.
+
+**No SDK retries.** The default is two, each a fresh provider call under the
+same attempt row and reservation -- the crash-after-billing case `DECISIONS.md`
+§21 closed, reopened inside one call. Host retries are the only retries (§37).
 """
 
 from __future__ import annotations
@@ -31,8 +35,9 @@ from server.refusals import Refusal, RefusalCode
 # Pinned, and not a dated snapshot: the id is complete as it stands.
 MODEL = "claude-opus-5"
 
-# Anthropic list price per million tokens. The ledger is Decimal on every money
-# path (invariant 7); these never become floats.
+# Anthropic first-party list price per million tokens for `claude-opus-5`, as
+# checked 2026-06-24. A price change here is a charge change everywhere; the
+# ledger is Decimal on every money path (invariant 7) and these never float.
 INPUT_PER_MTOK = Decimal("5.00")
 OUTPUT_PER_MTOK = Decimal("25.00")
 _PER_MTOK = Decimal(1_000_000)
@@ -106,9 +111,21 @@ def live_provider_or_none() -> Provider | None:
     None rather than a provider that fails at call time, so a suite without a
     credential skips visibly instead of failing deep inside a node.
     """
+    client = live_client()
+    return None if client is None else provider_using(client)
+
+
+def live_client() -> anthropic.Anthropic | None:
+    """The client the host calls with, or None when no credential is configured.
+
+    A credential means an environment variable: the SDK would also read an
+    `ant` profile from disk, and this is the one place that refuses it. No
+    retries: a retry is a provider call, and a provider call needs a
+    reservation of its own (`DECISIONS.md` §21, §37).
+    """
     if not any(os.environ.get(name) for name in _CREDENTIAL_VARIABLES):
         return None
-    return provider_using(anthropic.Anthropic())
+    return anthropic.Anthropic(max_retries=0)
 
 
 def _complete(client: anthropic.Anthropic, call: ProviderCall) -> Completion:
