@@ -45,6 +45,7 @@ CATALOG = json.loads(
 )
 CASE = BoundaryText.of("acme")
 ANA = BoundaryText.of("ana")
+PM = BoundaryText.of("pm")
 GATE = (GateKind.SOURCE_SET, "a" * 64, "b" * 64)
 
 
@@ -53,7 +54,11 @@ def _gate(run_id: str) -> Gate:
 
 
 def _grant(store: Store, standing: Standing, member: BoundaryText = ANA) -> None:
-    grant_membership(store, case_id=CASE, member_id=member, standing=standing)
+    grant_membership(store, case_id=CASE, member_id=member, standing=standing, actor=PM)
+
+
+def _revoke(store: Store) -> bool:
+    return revoke_membership(store, case_id=CASE, member_id=ANA, actor=PM)
 
 
 def _opened(store: Store, standing: Standing | None = Standing.APPROVER) -> Gate:
@@ -110,7 +115,7 @@ def test_membership_revocation_refuses_commit(store: Store) -> None:
     _grant(store, Standing.APPROVER)
     open_plan_gate(store, run_id=run_id, plan=plan)
 
-    assert revoke_membership(store, case_id=CASE, member_id=ANA) is True
+    assert _revoke(store) is True
     with pytest.raises(Refusal) as caught:
         approve_plan(store, run_id=run_id, plan=plan, approver=ANA)
     assert caught.value.code is RefusalCode.STANDING_INSUFFICIENT
@@ -155,7 +160,7 @@ def test_a_replayed_release_stands_after_the_approver_is_revoked(store: Store) -
     # rather than be refused for a release that is durably there.
     gate = _opened(store)
     assert approve_gate(store, gate, approver=ANA) is True
-    revoke_membership(store, case_id=CASE, member_id=ANA)
+    _revoke(store)
     assert approve_gate(store, gate, approver=ANA) is False
 
 
@@ -177,10 +182,6 @@ def test_standing_is_checked_before_the_content(store: Store) -> None:
         "decided, and private"
     )
     assert approve_gate(store, gate, approver=ANA) is False, "the exact replay"
-
-
-def _revoke(store: Store) -> None:
-    revoke_membership(store, case_id=CASE, member_id=ANA)
 
 
 def _demote(store: Store) -> None:
@@ -310,7 +311,7 @@ def test_a_grant_on_a_case_that_does_not_exist_is_refused_by_code(store: Store) 
 
 def test_revoking_a_member_who_is_not_one_removes_nothing(store: Store) -> None:
     start_run(store, case_id=CASE)
-    assert revoke_membership(store, case_id=CASE, member_id=ANA) is False
+    assert _revoke(store) is False
 
 
 def test_standing_is_one_of_the_four_the_spec_names(store: Store) -> None:

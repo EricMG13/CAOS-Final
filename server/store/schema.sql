@@ -225,6 +225,36 @@ CREATE TABLE IF NOT EXISTS run_gate_approvals (
     FOREIGN KEY (run_id, kind) REFERENCES run_gates (run_id, kind)
 );
 
+-- The audit chain (SYSTEM_SPEC 2): one row per governed write, hash-chained
+-- per case. `sha256` is over the row's own fields and `prev_sha256`, so a row
+-- rewritten with its triggers disabled no longer matches the head, and a
+-- chain cut short no longer matches it either. Every string here crossed the
+-- boundary as BoundaryText. `at` is written by the emitter rather than
+-- defaulted, because it is inside the digest.
+CREATE TABLE IF NOT EXISTS audit_events (
+    case_id      text NOT NULL REFERENCES cases (case_id),
+    seq          integer NOT NULL CHECK (seq > 0),
+    prev_sha256  text NOT NULL CHECK (prev_sha256 ~ '^[0-9a-f]{64}$'),
+    sha256       text NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+    kind         text NOT NULL,
+    actor        text NOT NULL,
+    subject      text NOT NULL,
+    detail       text,
+    at           timestamptz NOT NULL,
+    PRIMARY KEY (case_id, seq)
+);
+
+-- The lock row and the live head. Taken FOR UPDATE by every append, so two
+-- governed writes on one case allocate two seqs; what a retained package
+-- compares its own head against. It keeps its UPDATE path -- the head moves
+-- with every event -- and loses its DELETE: a chain whose head row is gone
+-- would be re-minted at genesis over its own history.
+CREATE TABLE IF NOT EXISTS audit_chain_heads (
+    case_id  text PRIMARY KEY REFERENCES cases (case_id),
+    seq      integer NOT NULL CHECK (seq >= 0),
+    head     text NOT NULL CHECK (head ~ '^[0-9a-f]{64}$')
+);
+
 -- Append-only means append-only. Enforced by the store, not by convention:
 -- a UPDATE or DELETE path that exists is a path that gets used.
 CREATE OR REPLACE FUNCTION refuse_rewrite() RETURNS trigger AS $$
@@ -279,6 +309,15 @@ CREATE OR REPLACE TRIGGER run_gate_approvals_append_only
     BEFORE UPDATE OR DELETE ON run_gate_approvals
     FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
 
+CREATE OR REPLACE TRIGGER audit_events_append_only
+    BEFORE UPDATE OR DELETE ON audit_events
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
+-- DELETE only: the head row is moved by every append and removed by nothing.
+CREATE OR REPLACE TRIGGER audit_chain_heads_no_delete
+    BEFORE DELETE ON audit_chain_heads
+    FOR EACH ROW EXECUTE FUNCTION refuse_rewrite();
+
 -- TRUNCATE empties a table without producing a row, so a row-level trigger
 -- never fires on it. Statement-level is the only guard that sees the one
 -- statement that erases a whole ledger at once.
@@ -315,4 +354,12 @@ CREATE OR REPLACE TRIGGER run_routes_append_only
 
 CREATE OR REPLACE TRIGGER run_routes_no_truncate
     BEFORE TRUNCATE ON run_routes
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER audit_events_no_truncate
+    BEFORE TRUNCATE ON audit_events
+    FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();
+
+CREATE OR REPLACE TRIGGER audit_chain_heads_no_truncate
+    BEFORE TRUNCATE ON audit_chain_heads
     FOR EACH STATEMENT EXECUTE FUNCTION refuse_rewrite();

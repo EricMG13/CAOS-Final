@@ -1456,3 +1456,127 @@ multi-word synonym as a substring, so `already_set` was refused as
 but can make two strings render alike -- ZWJ, ZWNJ, WJ, BOM, the soft hyphen
 -- are not refused, and nobody has ruled that they should be; the ledger
 carries it.
+
+## 2026-09-09 §47 — A governed write carries its audit event, and the chain refuses to grow over a rewrite
+
+**Decided.** `audit_events` and `audit_chain_heads` exist, and two governed
+writes are bound to them: `withdraw_source`, which already carried an actor
+and now records it, and `grant_membership` and `revoke_membership`, which gain
+one. Each records inside the transaction that commits its state, through
+`record` in `server/store/audit.py`, so the write commits with its event or
+not at all -- `test_a_governed_write_commits_its_audit_event_or_nothing`, the
+Phase 6 exit test the plan lists under what exited phases still owe. Closes
+the Phase 1 ledger entry that said `audit_events` was not created, and the
+two Phase 6 entries that deferred who-withdrew and who-granted to the chain.
+
+**Case-scoped, where a run's writes are run-scoped.** A run's writes
+serialise on the run row (`lock_run`). A membership change and a withdrawal
+belong to a case and to no run, so their seam is the case's chain: `record`
+takes the head row where a run's write takes the run row, and the two never
+meet -- a chain write holds no run lock and a run write holds no head.
+
+**The chain is per case, and the head row is the lock.** `audit_chain_heads`
+holds one row per case, `(seq, head)`, taken `FOR UPDATE` by every append --
+minted at `(0, genesis)` on the first, by an insert whose conflict clause is
+a no-op update, which is what locks the row and hands it back in one
+statement. Two writes on one case therefore allocate two seqs
+(`test_concurrent_governed_writes_chain_in_sequence`, six connections);
+without the lock both read seq 0 and the loser hits `audit_events_pkey`, a
+constraint name escaping a governed write. The case is selected rather than
+named, so a case that does not exist is `CASE_NOT_FOUND` and not the head
+table's foreign key. The lock order is the membership row, then the subject
+row, then the head; nothing takes them in another order, so there is no cycle.
+
+**The digest is over the row, and recomputable with the standard library.**
+`sha256` of `[case_id, seq, prev_sha256, kind, actor, subject, detail, at]`
+as compact JSON -- a list, so there is no key order to agree on -- with `at`
+in UTC to the microsecond, which is the column's own precision. `at` is
+`clock_timestamp()` read in the statement that takes the head lock, and
+written explicitly rather than defaulted by the column, because a value
+inside the digest has to be the value stored. Not `now()`: that is the
+transaction's start, so a write that waited on the lock would carry a time
+earlier than the event it waited on, and two events in one transaction would
+carry the same one. Read under the lock, the clock is read in seq order, so
+`at` increases with `seq`;
+`test_a_chain_is_per_case_and_names_only_a_case_that_exists` records twice
+in one transaction and asserts it. Genesis is sixty-four zeros.
+`test_every_event_is_the_digest_of_its_row_and_the_one_before` recomputes
+every digest from the rows with `hashlib` and `json` and no help from the
+module, which is the property Phase 8's package test will need.
+
+**The emitter checks the last link before adding one.** `SYSTEM_SPEC.md` §2
+says the chain has no external anchor and that a rewrite is detected by
+comparing a retained head with the live one. That detection needs a retained
+head and a reader; this adds one that needs neither. `record` reads the last
+event, recomputes its digest from the row as it stands now, and refuses
+`AUDIT_CHAIN_BROKEN` unless `(seq, digest)` is what the head row says. A head
+moved by a raw UPDATE, a head wound back to genesis, an event rewritten with
+its triggers disabled and an event removed the same way are each caught
+before another event is chained onto them
+(`test_a_rewritten_chain_refuses_the_next_governed_write`, all four) -- and
+the governed write is refused with the event. That is the other direction of
+"or nothing": the state change is undone because its event could not be
+written. One link deep on purpose. Recomputing the whole chain is O(n) per
+governed write and is the package verifier's job; what the append check buys
+is that the chain never grows over the rewrite, so the verifier finds the
+break where it happened rather than under twenty honest events.
+
+What it cannot catch is a coherent rewrite. The table owner, with triggers
+disabled, can rewrite a row, recompute its digest with this public formula
+and move the head to match, and the live check passes -- as would a full
+recompute, because the chain has no anchor. That is `SYSTEM_SPEC.md` §2 read
+plainly: a rewrite is detected by comparing a *retained* head with the live
+one, and nothing retains one yet. The append check catches the incomplete
+rewrite, which is the accident and the hurried one; the retained head is
+Phase 8's package, and the ledger says so in those words.
+
+**`AuditEvent` is a dataclass** because `record` with the six things an event
+needs is a PLR0913 violation, which is the reason `TerminalCommit` and
+`EvidenceRequest` are dataclasses too. The event is what happened -- kind,
+actor, subject, an optional detail such as the standing granted -- and every
+string on it is `BoundaryText`, as §2 requires of anything reaching an audit
+event. The store's own values (`case_id` read back under a lock) are the one
+exception, and the same exception `require_standing` already makes.
+
+**What is on the chain, and what is not.** Three kinds: `MEMBERSHIP_GRANTED`,
+`MEMBERSHIP_REVOKED`, `SOURCE_WITHDRAWN`. A grant records only a change of
+standing -- a retried grant of the standing already held moves nothing and
+records nothing, as a repeated withdrawal does, and `grant_membership` now
+says which with a bool -- and a revocation carries the standing it removed
+in `detail`, so the ledger says what was taken and not only from whom. A
+gate's release stays in
+`run_gate_approvals`, which already records who, what digests and when in an
+append-only ledger of its own; a pin is a run event; admission and
+`start_run` are not governed writes yet, because intake authority is
+undecided (Phase 1 ledger). Whether the package Phase 8 verifies needs any of
+them on the chain is that phase's question, and the chain gains a kind by
+adding one to `AuditKind` -- `kind` is not CHECKed in the store, for the
+reason `run_events.kind` is not.
+
+**The head row is not append-only, and its DELETE is refused.** The head
+moves with every event, so the table needs its UPDATE path, as `run_gates`
+does. DELETE and TRUNCATE go through `refuse_rewrite` -- the same function,
+so the table stays inside
+`test_every_table_that_refuses_a_rewrite_also_refuses_a_truncate`'s view,
+whose floor moves from six tables to eight -- because a head row that is
+gone would be re-minted at genesis over its own history, and the link check
+would then refuse every write on the case forever. A raw UPDATE on the head
+is refused by nothing in the store and by the next write's link check.
+
+**The actor is the name the caller gave.** No served identity exists, so
+`record` writes what it is handed. `withdraw_source` has checked that name
+holds standing on the case; `grant_membership` and `revoke_membership` have
+not, and the Phase 6 ledger entry saying so stands unchanged. Recording a
+claim is not authority. It is also not nothing: the row now says who the
+caller said acted, which is more than the row said before, and it is what the
+first HTTP route will be handed to bind to a person.
+
+**Reviewed adversarially, three fixed and one ledgered.** `now()` for `at`,
+the event a repeated grant wrote for a standing that had not moved, and the
+revocation that did not say what it removed were each found by the review
+and fixed above. What is ledgered is `record` on an autocommit connection:
+the head lock goes with the statement that took it, and the loser of a race
+then meets `audit_events_pkey` rather than a refusal. Two reviewers flagged
+it. It is the shape `emit`, `lock_run`, `require_standing`, `commit_terminal`
+and `apply_schema` already carry, every caller opens a transaction, and it is
+deferred with them to the API layer rather than closed for one emitter alone.

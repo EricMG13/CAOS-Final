@@ -52,6 +52,7 @@ CASE = BoundaryText.of("acme")
 RIVAL = BoundaryText.of("rival")
 NODE = BoundaryText.of("CP-1")
 ANA = BoundaryText.of("ana")
+PM = BoundaryText.of("pm")
 A, B = "a" * 64, "b" * 64
 SECRET = "Net leverage was 4.2x and the covenant is 4.50x"
 
@@ -82,7 +83,7 @@ def _admit(
 
 def _writer(store: Store, standing: Standing = Standing.WRITER) -> BoundaryText:
     """Ana, with the standing to withdraw: a reader may not, a writer may."""
-    grant_membership(store, case_id=CASE, member_id=ANA, standing=standing)
+    grant_membership(store, case_id=CASE, member_id=ANA, standing=standing, actor=PM)
     return ANA
 
 
@@ -111,7 +112,7 @@ def _plan(version: int) -> Plan:
 
 def _approvable_run(store: Store) -> str:
     run_id = start_run(store, case_id=CASE)
-    grant_membership(store, case_id=CASE, member_id=ANA, standing=Standing.APPROVER)
+    _writer(store, Standing.APPROVER)
     return run_id
 
 
