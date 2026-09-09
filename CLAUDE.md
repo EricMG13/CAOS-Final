@@ -89,14 +89,21 @@ directory the repository does not have costs more than no map.
   quote and derives its rectangles.
 - `server/boundary_text.py`, `server/digests.py`, `server/refusals.py` — the
   types every boundary uses.
+- `methodology/bundle.py` — `open_bundle` and `Bundle.read`, the only reader of
+  vendored bytes: no-follow handles, hashed against the manifest at every use.
+  `methodology/registry.py` — `ModuleSpec`, `reference_files`, `module_spec` and
+  `assemble_authority`. The catalog says what is live, the manifest says what its
+  bytes are, and `_CARVE_OUTS` is the host's one override.
+- `methodology/calculators.py` — `calculator_spec` and `run_calculator`. Host
+  selection, work factors, and execution of verified bytes under `-I -S` in a
+  private directory.
 - `vendor/deploy-v/` — the methodology bundle, read-only and never edited
   (`docs/DECISIONS.md` §6). The gates do not scan it.
 - `scripts/` — the five gates `make check` runs.
 
-Arriving with their phase, and not yet present: `methodology/` — bundle
-verification at use, the registry, the calculator boundary (Phase 5);
-`models/` — the build and the workbook renderer (Phase 7); `frontend/` — one
-workspace, nine sections, static export (Phase 9).
+Arriving with their phase, and not yet present: `models/` — the build and the
+workbook renderer (Phase 7); `frontend/` — one workspace, nine sections, static
+export (Phase 9).
 
 ## Rules of work
 
@@ -191,6 +198,79 @@ system this size means nobody looked.
   workflow driven by a personal access token would also work and is not worth a
   long-lived credential for this.
 
+**Phase 5.**
+
+- **The registry declares identity and folders, not execution.** `ModuleSpec`
+  carries `module_id`, `skill_slug` and `reference_files`. `SYSTEM_SPEC.md` §3
+  also lists execution mode, `max_output_tokens`, `calculators`,
+  `derived_projections`, `source_mode` and `plan_approval`; nothing reads any of
+  them yet, and a field no caller reads is a field no test can constrain.
+  *Upgrade:* each arrives with the slice that reads it — `calculators` with the
+  calculator boundary, the rest with the provider boundary.
+- **No run records the build it ran under.** `Bundle.build_id` is read and
+  `Authority` carries it, and no `runs` column holds it, so "a run pinned to one
+  build never executes under another" is enforced nowhere. Nothing executes a
+  module yet, so there is no execution to refuse. *Upgrade:* the slice that runs
+  CP-1, which is the first caller with a run to bind.
+- **Three `references/` workbooks are authority the host does not deliver.**
+  CP-3 has two and CP-6 one, all `.xlsx`. `reference_files` allowlists `.md`,
+  `.txt` and `.json` because authority reaches a module as prompt text, so a
+  module whose reference is a workbook is given everything except that.
+  `test_a_binary_reference_is_not_delivered_as_text` pins the set at three.
+  *Upgrade:* the slice that gives a module a non-text attachment, if one ever
+  needs to; otherwise a decision that these three are host-side inputs.
+- **`MANIFEST_SHA256` refuses an accident, not an author.** It is the only
+  cover for `DEPLOY_V_INTEGRITY_v1.json`, which is the one vendored file no
+  manifest entry covers — verified by
+  `test_the_manifest_is_the_only_uncovered_vendored_file`. It stops a partial
+  edit, a bad merge and a corrupt checkout. Anyone with commit rights edits the
+  constant and `vendor/` in one commit. *Upgrade:* a signature over the bundle
+  from a key this repository does not hold, which is a supply-chain decision
+  rather than a code one.
+- **Nothing bounds the size of an assembled authority.** CP-OS aside, the
+  largest module reads its `SKILL.md`, up to 20 reference files and the 48 KB
+  shared canon on every call, with no ceiling and no cache. Invariant 8 says
+  every ceiling refuses before overspend; assembly has none because nothing
+  downstream has a token budget to overspend yet. *Upgrade:* with
+  `max_output_tokens` and the provider boundary.
+- **A calculator's stdout is bounded in memory, not on disk.** `_captured`
+  writes the child's stdout to a file and refuses on `st_size` before reading a
+  byte, so the host cannot be OOMed. Nothing bounds what the child writes to
+  that file first, so a runaway calculator can fill the temp filesystem within
+  its 30-second ceiling. *Upgrade:* `RLIMIT_FSIZE` on the child — deliberately
+  not taken now, because `preexec_fn` is the only stdlib way to set it and its
+  fork-safety caveats do not belong in what becomes a threaded API process.
+- **The sandbox is `-I -S`, a scrubbed environment, a private cwd and a process
+  group kill.** It stops the child reaching the host's installed packages —
+  verified, and `-I` alone does not — but it is not a sandbox: no seccomp, no
+  network namespace, no memory limit. A calculator can still open a socket using
+  the standard library. The mitigation is that the code is pinned, read-only and
+  digest-checked at use. *Upgrade:* a real jail, if a calculator ever runs
+  anything but bundle-resident code.
+- **`-S` will not survive Phase 7.** It works because every calculator declared
+  today is standard-library only. The bundle ships `scripts/requirements.txt`
+  and `CP-MEMO_requirements.txt`, so `cp_model_v3` and `cp_memo` have
+  third-party dependencies and will need site-packages the host chooses.
+  *Upgrade:* a per-calculator dependency set, resolved by the phase that first
+  declares one.
+- **Existing calculators take JSON floats.** Invariant 7 wants Decimal on any
+  money path; `credit_metrics` computes in float, as `SYSTEM_SPEC.md` §6.1
+  records deliberately. The host refuses non-finite input via `allow_nan=False`
+  on the way in and takes the vendor's numbers as given on the way out.
+  *Upgrade:* `cash_flow_forecast`, which is Decimal end to end by contract.
+- **Vendored authority text is not `BoundaryText`.** `Bundle.read` checks the
+  digest and that the bytes decode as UTF-8, nothing more, and that text goes
+  straight into a prompt. `docs/DECISIONS.md` §16 rules on identifiers and on
+  document text; vendored authority is a third category nobody has ruled on. A
+  bidirectional override in an upstream markdown file is delivered as written.
+  Trusting it follows from invariant 4 — the bundle *is* the authority — but it
+  is a decision nobody has made rather than one that has been made.
+  *Upgrade:* a decision entry either way, in the slice that first sends
+  authority to a provider.
+- **CP-CF has no skill folder.** `_CALCULATORS`, `cp-cf-cash-flow-engine` and
+  the calculator boundary are the next slice; a route carrying CP-CF still
+  resolves and still cannot execute.
+
 **Phase 4.**
 
 - **Nodes run one at a time.** `SYSTEM_SPEC.md` §4 gathers the frontier
@@ -257,7 +337,7 @@ system this size means nobody looked.
   EXISTS` is a no-op on a table that already exists, so *adding* a table to
   `schema.sql` works and *widening* one silently does not. `apply_schema`
   applies the file a second time into an empty schema and refuses a store whose
-  columns, constraints, indexes or triggers differ (`docs/DECISIONS.md` §24).
+  columns, constraints, indexes or triggers differ (`docs/DECISIONS.md` §27).
   What it does not do: a schema that was **empty** before the file was applied
   is not compared at all -- there is nothing to have drifted from, and the
   comparison costs a second full apply; a mismatch is reconciled by a
@@ -369,3 +449,14 @@ system this size means nobody looked.
 - **A run's terminal event is the only event kind.** `RUN_COMPLETED` is
   written; failure and node-level transitions are not. *Upgrade:* Phase 4,
   with the frontier loop that produces them.
+- **`run_events.seq` is allocated by `coalesce(max(seq), 0) + 1` with nothing
+  serialising two allocators.** Today no two can run at once, but by accident
+  rather than by design: `commit_terminal` holds the run row `FOR UPDATE`, and
+  every `run_events` insert takes a KEY SHARE lock on that same row through the
+  foreign key, so any other writer blocks behind it -- while `pin_route` is
+  serialised against itself by the `run_routes` primary key. Two KEY SHARE
+  holders are compatible with *each other*, so the first event kind emitted from
+  a path holding neither guard gives two writers the same `seq` and a raw
+  `run_events_pkey` violation -- verified: two concurrent inserts of an
+  invented kind collide exactly so. *Upgrade:* the phase that emits node-level
+  events allocates `seq` under the run row lock, with a two-connection test.

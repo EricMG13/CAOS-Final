@@ -13,6 +13,7 @@ usage keeps its reserved exposure -- needs no state machine to enforce.
 from __future__ import annotations
 
 import json
+import uuid
 from decimal import Decimal
 from pathlib import Path
 
@@ -31,7 +32,7 @@ from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.attempts import accept, reserve, reserved_total
 from server.store.routes import pin_route
-from server.store.runs import start_run
+from server.store.runs import TerminalCommit, commit_terminal, start_run
 
 CATALOG = json.loads(
     (
@@ -217,7 +218,7 @@ def test_accepting_one_node_twice_records_one_artifact_and_one_charge(
     accept(store, run_id=pinned, node_id=node, artifact_sha256="a" * 64, charge=charge)
     # No commit here: `accept` opens the outermost transaction, so the first
     # call is already durable. A commit would also mask one that never was.
-    with pytest.raises(psycopg.errors.UniqueViolation):
+    with pytest.raises(Refusal):
         accept(
             store, run_id=pinned, node_id=node, artifact_sha256="b" * 64, charge=charge
         )
@@ -228,3 +229,75 @@ def test_accepting_one_node_twice_records_one_artifact_and_one_charge(
         (pinned, pinned),
     ).fetchone()
     assert counted == (1, 1)
+
+
+def test_a_terminated_run_refuses_a_reservation(store: Store, pinned: str) -> None:
+    """Invariant 8: a terminated run's ceiling is zero, whatever `runs.ceiling` says.
+
+    `reserve` takes the run row lock to make the ceiling real, and the same lock
+    makes the state authoritative -- so reading one without the other is a
+    choice, not an oversight. A run that has left RUNNING has no next operation
+    to fund, and a charge accepted against it is spend nobody can account to a
+    live run.
+    """
+    commit_terminal(
+        store,
+        TerminalCommit(
+            run_id=pinned,
+            node_id=BoundaryText.of("CP-0"),
+            artifact_sha256="a" * 64,
+            charge=PRICE,
+        ),
+    )
+    store.commit()
+
+    with pytest.raises(Refusal) as caught:
+        reserve(store, run_id=pinned, route_node_id="CP-8", amount=PRICE)
+    assert caught.value.code is RefusalCode.RUN_NOT_RUNNING
+
+    store.rollback()
+    store.execute("UPDATE runs SET state = 'FAILED' WHERE run_id = %s", (pinned,))
+    with pytest.raises(Refusal) as failed:
+        reserve(store, run_id=pinned, route_node_id="CP-8", amount=PRICE)
+    assert failed.value.code is RefusalCode.RUN_NOT_RUNNING
+
+    store.rollback()
+    assert reserved_total(store, run_id=pinned) == Decimal(0)
+
+
+def test_a_duplicate_acceptance_refuses_with_a_typed_code(
+    store: Store, pinned: str
+) -> None:
+    """The second acceptance refuses with a code, not with a vendor's constraint.
+
+    `server/refusals.py` exists so that no vendor name, constraint name or key
+    value escapes a governed write path. A raw `UniqueViolation` carries all
+    three -- `artifacts_pkey` and the offending `(run_id, node_id)` -- straight
+    into whatever logs the exception.
+    """
+    node = BoundaryText.of("CP-0")
+    accept(store, run_id=pinned, node_id=node, artifact_sha256="a" * 64, charge=PRICE)
+
+    with pytest.raises(Refusal) as caught:
+        accept(
+            store, run_id=pinned, node_id=node, artifact_sha256="b" * 64, charge=PRICE
+        )
+    assert caught.value.code is RefusalCode.NODE_ALREADY_ACCEPTED
+    leaked = f"{caught.value!r} {caught.value}"
+    assert "artifacts_pkey" not in leaked
+    assert pinned not in leaked
+    assert "CP-0" not in leaked
+
+
+def test_accepting_against_an_unknown_run_refuses_by_code(store: Store) -> None:
+    # `artifacts_run_id_fkey` and the run id escaped here. `reserve` refuses
+    # the same condition by code, and one boundary answers one way.
+    with pytest.raises(Refusal) as caught:
+        accept(
+            store,
+            run_id=str(uuid.uuid4()),
+            node_id=BoundaryText.of("CP-0"),
+            artifact_sha256="a" * 64,
+            charge=PRICE,
+        )
+    assert caught.value.code is RefusalCode.RUN_NOT_FOUND
