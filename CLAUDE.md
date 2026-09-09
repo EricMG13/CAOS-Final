@@ -340,7 +340,7 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 - **Withdrawal reaches the four uses, and nothing watches for it.** A
   withdrawn source is refused by `read_evidence`, by citation anchoring, by
   `pin_source_set` and by the plan gate's member list, and `withdraw_source`
-  itself needs writer standing on the case (`docs/DECISIONS.md` §40) -- but
+  itself needs writer standing on the case (`docs/DECISIONS.md` §42) -- but
   no path notices a withdrawal on its own: an undecided gate moves onto the
   remaining documents only when `open_plan_gate` is replayed, and a decided
   one replays as decided while the run's reads refuse; re-pinning is a new
