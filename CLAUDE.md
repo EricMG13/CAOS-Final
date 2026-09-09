@@ -87,6 +87,8 @@ directory the repository does not have costs more than no map.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
   quote and derives its rectangles.
+- `server/engine/node.py` — `execute_module`: assemble, ask, validate, anchor,
+  store. Nothing is written until every citation has been re-derived.
 - `methodology/envelope.py` — the canonical envelope, validated against the
   bundle's own `CP_MODULE_PAYLOAD_BASE.schema.txt`.
 - `server/provider.py` — the provider boundary: `ProviderCall`, `Completion`,
@@ -237,6 +239,25 @@ system this size means nobody looked.
   every ceiling refuses before overspend; assembly has none because nothing
   downstream has a token budget to overspend yet. *Upgrade:* with
   `max_output_tokens` and the provider boundary.
+- **`execute_module` opens the bundle twice** -- once directly and once inside
+  `assemble_authority` -- about 2.6 ms per node. Verification at use is the
+  point, so the duplicate is honest rather than wrong. *Upgrade:* pass the
+  open bundle down, when a node call is worth 1.3 ms.
+- **A malformed `document_sha256` in a citation refuses as `DIGEST_INVALID`,**
+  from `checked_digest`, rather than a citation-shaped code. Public-safe
+  either way; it names the wrong layer. *Upgrade:* when the refusal codes
+  reach a surface a person reads.
+- **The loop and `execute_module` have not met.** `run_route` still takes an
+  arbitrary `Executor` and prices every node at a flat 1.00; `execute_module`
+  computes a real charge from reported usage and no loop calls it.
+  *Upgrade:* Phase 6, with the run surface.
+- **`max_output_tokens` is one constant for every module.** `SYSTEM_SPEC.md`
+  §3 puts it on `ModuleSpec`; no module has needed a different ceiling yet.
+  *Upgrade:* the first module that does.
+- **`artifacts.node_id` still carries two spellings.** `execute_module` works
+  in route node ids throughout, which settles what the loop writes, and
+  `commit_terminal` is still exercised with module ids. Changing that is a
+  separate concern from this slice. *Upgrade:* Phase 6, unchanged.
 - **No live provider call has ever run.** Every provider test drives the real
   SDK against a mock transport, which is a real check of the request body and
   the refusal mapping and is not a check that the API accepts the combination
