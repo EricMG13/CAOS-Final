@@ -23,6 +23,7 @@ from server.provider import (
     Completion,
     ProviderCall,
     RecordedProvider,
+    live_client,
     live_provider_or_none,
     price_of,
     provider_using,
@@ -104,7 +105,24 @@ def test_a_live_call_needs_a_credential_and_says_so(
     """
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     monkeypatch.delenv("ANTHROPIC_AUTH_TOKEN", raising=False)
+    assert live_client() is None, "the client itself refuses, not only the wrapper"
     assert live_provider_or_none() is None
+
+
+def test_the_live_client_never_retries_on_its_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Invariant 8 and `docs/DECISIONS.md` §35: host retries are the only retries.
+
+    The SDK's default is two, and each one is a provider call under the same
+    attempt row and the same reservation. Read from the client the host builds,
+    not from a mock: `_client_answering` sets zero itself, so the mock suite
+    could never notice the default.
+    """
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "not-a-real-key")
+    client = live_client()
+    assert client is not None
+    assert client.max_retries == 0
 
 
 @pytest.mark.live_provider
