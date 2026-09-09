@@ -251,9 +251,11 @@ system this size means nobody looked.
   `sonar.sources` and `sonar.tests` between them claim every tracked .py, and
   `sonar.python.version` matches the type gate's interpreter. Whether SonarQube
   read it is a question only SonarQube answers.
-  *Upgrade:* read the analysis warnings after a change to this file — an
-  ignored key reappears there. The authoritative equivalent, if the file is
-  ever ignored wholesale, is the project's Analysis Scope settings.
+  *Upgrade:* read the analysis warnings once a change to this file has reached
+  `main` — automatic analysis reads it from the default branch, so the pull
+  request that edits it cannot show whether the edit took, and an ignored key
+  is still listed there afterwards. The authoritative equivalent, if the file
+  is ever ignored wholesale, is the project's Analysis Scope settings.
 - **Nothing replaces `.coderabbit.yaml`'s `path_instructions`.** They asked a
   reviewer to flag a float on a money path, a `str(exc)` on a wire response, a
   model without `extra="forbid"`, a synonym for a `CONTEXT.md` term. SonarQube
