@@ -24,6 +24,7 @@ from server.boundary_text import BoundaryText
 from server.engine.loop import (
     Executor,
     NodeOutcome,
+    Prepared,
     accepted_attempts,
     run_route,
 )
@@ -68,19 +69,24 @@ def _executor(
     die_on: str | None = None,
     charge: Decimal = PRICE,
 ) -> Executor:
-    def execute(route_node_id: str) -> NodeOutcome:
+    def execute(route_node_id: str) -> Prepared:
         calls.append(route_node_id)
-        if die_on and die_on in route_node_id:
-            # The provider completed and billed; the host dies before accepting.
-            raise TimeoutError(route_node_id)
-        if route_node_id.endswith("-CP-0"):
-            # The loop reads readiness back out of this artifact, so CP-0's
-            # has to be a real one.
-            return NodeOutcome(
-                artifact_sha256=_cp0_artifact(blobs, "READY"), charge=charge
-            )
-        digest = f"{abs(hash(route_node_id)):064x}"[:64]
-        return NodeOutcome(artifact_sha256=digest, charge=charge)
+
+        def call() -> NodeOutcome:
+            if die_on and die_on in route_node_id:
+                # The provider completed and billed; the host dies before
+                # accepting. Raised from the call, after the reservation.
+                raise TimeoutError(route_node_id)
+            if route_node_id.endswith("-CP-0"):
+                # The loop reads readiness back out of this artifact, so CP-0's
+                # has to be a real one.
+                return NodeOutcome(
+                    artifact_sha256=_cp0_artifact(blobs, "READY"), charge=charge
+                )
+            digest = f"{abs(hash(route_node_id)):064x}"[:64]
+            return NodeOutcome(artifact_sha256=digest, charge=charge)
+
+        return Prepared(ceiling=PRICE, call=call)
 
     return execute
 
@@ -204,8 +210,11 @@ def test_a_charge_above_its_reservation_is_refused(
     # The reservation is that ceiling for one call, so a charge exceeding it is
     # an overspend that already happened -- the ledger must not record it as if
     # the budget had allowed it.
-    def expensive(route_node_id: str) -> NodeOutcome:
-        return NodeOutcome(artifact_sha256="e" * 64, charge=PRICE * 10)
+    def expensive(route_node_id: str) -> Prepared:
+        return Prepared(
+            ceiling=PRICE,
+            call=lambda: NodeOutcome(artifact_sha256="e" * 64, charge=PRICE * 10),
+        )
 
     with pytest.raises(Refusal) as caught:
         run_route(store, run_id=pinned, blobs=blobs, execute=expensive)

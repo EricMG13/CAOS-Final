@@ -10,7 +10,9 @@ A node whose artifact is already there is never run again.
 
 Every node reserves before it calls, and the reservation is committed first --
 so a crash between the call and the acceptance leaves the exposure recorded
-rather than lost (`docs/DECISIONS.md` §21).
+rather than lost (`docs/DECISIONS.md` §21). What it reserves is the ceiling of
+the call it has prepared: the only thing a host knows before a call is what it
+is about to send, so that is what the reservation is taken from (§44).
 """
 
 from __future__ import annotations
@@ -37,7 +39,21 @@ class NodeOutcome:
     charge: Decimal
 
 
-type Executor = Callable[[str], NodeOutcome]
+@dataclass(frozen=True, slots=True)
+class Prepared:
+    """A node ready to call: the most it can cost, and the call itself.
+
+    Two steps rather than one because invariant 8 wants the ceiling before the
+    call. Preparing assembles what will be sent; the loop reserves its ceiling;
+    then the call is made. What is priced is what is sent, from one assembly --
+    not a pricing copy of the prompt beside a sending copy.
+    """
+
+    ceiling: Decimal
+    call: Callable[[], NodeOutcome]
+
+
+type Executor = Callable[[str], Prepared]
 
 
 # Where CP-0 states what it established, in its own payload schema
@@ -89,6 +105,10 @@ def run_route(
 ) -> ResolvedRoute:
     """Run the pinned route to a standstill, then return it.
 
+    Owns the connection's transaction state: it commits after every reservation
+    and every acceptance and rolls back a refused node, so it cannot be called
+    inside `store.transaction()`.
+
     Nodes run one at a time. `SYSTEM_SPEC.md` §4 gathers them concurrently; that
     waits for a provider call worth overlapping, and for a store that can be
     awaited -- see the known-gaps ledger.
@@ -107,15 +127,22 @@ def run_route(
 def _run_node(
     store: Store, *, run_id: str, route_node_id: str, execute: Executor
 ) -> None:
-    reserved = _price()
-    outcome = _attempt(
-        store,
-        run_id=run_id,
-        route_node_id=route_node_id,
-        reserved=reserved,
-        execute=execute,
-    )
-    if outcome.charge > reserved:
+    try:
+        prepared = execute(route_node_id)
+        reserve(
+            store, run_id=run_id, route_node_id=route_node_id, amount=prepared.ceiling
+        )
+    except Refusal:
+        # Assembly records what a node was handed before the reservation can
+        # refuse. A node that never ran was handed nothing; the rows are
+        # uncommitted on the loop's own connection, and it discards them.
+        store.rollback()
+        raise
+    # Reserve, commit the reservation, then call. In that order, always: a
+    # crash between the call and the acceptance must find the exposure recorded.
+    store.commit()
+    outcome = prepared.call()
+    if outcome.charge > prepared.ceiling:
         # Invariant 8: every ceiling refuses before overspend. The reservation
         # is that ceiling for one call, so a charge above it is an overspend
         # that has already happened. Refusing keeps it out of the ledger, and
@@ -128,27 +155,7 @@ def _run_node(
         artifact_sha256=outcome.artifact_sha256,
         charge=outcome.charge,
     )
-
-
-def _attempt(
-    store: Store,
-    *,
-    run_id: str,
-    route_node_id: str,
-    reserved: Decimal,
-    execute: Executor,
-) -> NodeOutcome:
-    """Reserve, commit the reservation, then call. In that order, always."""
-    reserve(store, run_id=run_id, route_node_id=route_node_id, amount=reserved)
+    # `accept` is the outermost transaction only when nothing is open, and a
+    # real executor's reads have opened one by now -- so without this the last
+    # node's artifact and charge sit uncommitted when the loop returns.
     store.commit()
-    return execute(route_node_id)
-
-
-def _price() -> Decimal:
-    """What one node may cost. Reserved before the call, and its ceiling.
-
-    ponytail: one flat price until a provider quotes a real one. The number is
-    not the point -- that the reservation and the charge are the same quantity
-    is, so a provider cannot bill past what the budget agreed to.
-    """
-    return Decimal("1.00")
