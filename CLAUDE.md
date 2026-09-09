@@ -94,6 +94,9 @@ directory the repository does not have costs more than no map.
   `methodology/registry.py` — `ModuleSpec`, `reference_files`, `module_spec` and
   `assemble_authority`. The catalog says what is live, the manifest says what its
   bytes are, and `_CARVE_OUTS` is the host's one override.
+- `methodology/calculators.py` — `calculator_spec` and `run_calculator`. Host
+  selection, work factors, and execution of verified bytes under `-I -S` in a
+  private directory.
 - `vendor/deploy-v/` — the methodology bundle, read-only and never edited
   (`docs/DECISIONS.md` §6). The gates do not scan it.
 - `scripts/` — the five gates `make check` runs.
@@ -230,6 +233,31 @@ system this size means nobody looked.
   every ceiling refuses before overspend; assembly has none because nothing
   downstream has a token budget to overspend yet. *Upgrade:* with
   `max_output_tokens` and the provider boundary.
+- **A calculator's stdout is bounded in memory, not on disk.** `_captured`
+  writes the child's stdout to a file and refuses on `st_size` before reading a
+  byte, so the host cannot be OOMed. Nothing bounds what the child writes to
+  that file first, so a runaway calculator can fill the temp filesystem within
+  its 30-second ceiling. *Upgrade:* `RLIMIT_FSIZE` on the child — deliberately
+  not taken now, because `preexec_fn` is the only stdlib way to set it and its
+  fork-safety caveats do not belong in what becomes a threaded API process.
+- **The sandbox is `-I -S`, a scrubbed environment, a private cwd and a process
+  group kill.** It stops the child reaching the host's installed packages —
+  verified, and `-I` alone does not — but it is not a sandbox: no seccomp, no
+  network namespace, no memory limit. A calculator can still open a socket using
+  the standard library. The mitigation is that the code is pinned, read-only and
+  digest-checked at use. *Upgrade:* a real jail, if a calculator ever runs
+  anything but bundle-resident code.
+- **`-S` will not survive Phase 7.** It works because every calculator declared
+  today is standard-library only. The bundle ships `scripts/requirements.txt`
+  and `CP-MEMO_requirements.txt`, so `cp_model_v3` and `cp_memo` have
+  third-party dependencies and will need site-packages the host chooses.
+  *Upgrade:* a per-calculator dependency set, resolved by the phase that first
+  declares one.
+- **Existing calculators take JSON floats.** Invariant 7 wants Decimal on any
+  money path; `credit_metrics` computes in float, as `SYSTEM_SPEC.md` §6.1
+  records deliberately. The host refuses non-finite input via `allow_nan=False`
+  on the way in and takes the vendor's numbers as given on the way out.
+  *Upgrade:* `cash_flow_forecast`, which is Decimal end to end by contract.
 - **Vendored authority text is not `BoundaryText`.** `Bundle.read` checks the
   digest and that the bytes decode as UTF-8, nothing more, and that text goes
   straight into a prompt. `docs/DECISIONS.md` §16 rules on identifiers and on
