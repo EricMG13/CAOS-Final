@@ -202,7 +202,7 @@ def test_a_bidi_override_in_the_document_is_dropped_not_refused(
     # control is dropped and the coordinates kept (docs/DECISIONS.md 16).
     page_two = [token.text for token in admitted.tokens if token.page == 2]
     assert page_two == ["Net", "debt", "was", "EUR", "95", "million."]
-    assert not any("‮" in block.text for block in admitted.blocks)
+    assert not any("\u202e" in block.text for block in admitted.blocks)
     assert len(_anchor(store, admitted, "EUR 95 million.", page=2).bboxes) == 1
 
 
