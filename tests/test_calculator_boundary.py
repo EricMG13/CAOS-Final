@@ -10,6 +10,8 @@ from __future__ import annotations
 import ast
 import json
 import shutil
+import subprocess
+import sys
 import time
 from pathlib import Path
 
@@ -21,6 +23,7 @@ from methodology.calculators import (
     CalculatorLimits,
     CalculatorSpec,
     _execute,
+    _kill_group,
     calculator_spec,
     run_calculator,
 )
@@ -216,3 +219,29 @@ def test_calculator_output_is_json_the_host_can_name() -> None:
     result = run_calculator("CP-1", METRICS, ONE_PERIOD)
     assert isinstance(result, dict)
     json.dumps(result)  # returned shape is serialisable, not a live object
+
+
+def test_killing_the_group_tolerates_a_child_that_already_exited() -> None:
+    """The child can exit between the timeout and the kill.
+
+    A `ProcessLookupError` escaping there would replace the typed refusal with
+    an untyped one, which is the failure `server/refusals.py` exists to stop.
+    """
+    finished = subprocess.Popen(
+        [sys.executable, "-I", "-S", "-c", ""], start_new_session=True
+    )
+    finished.wait()
+    _kill_group(finished.pid)  # must not raise
+
+
+def test_a_calculator_that_leaves_a_read_only_directory_still_returns() -> None:
+    """Cleanup must not turn a finished calculation into an error."""
+    litter = (
+        "import json, os, sys\n"
+        "sys.stdin.read()\n"
+        "os.mkdir('locked')\n"
+        "open('locked/f', 'w').write('x')\n"
+        "os.chmod('locked', 0o500)\n"
+        'print(json.dumps({"ok": True}))\n'
+    )
+    assert _execute({"litter.py": litter}, "litter.py", "{}") == {"ok": True}

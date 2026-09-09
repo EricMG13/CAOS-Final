@@ -116,13 +116,15 @@ def _interpreter_argv(entry: str) -> list[str]:
 
 def _checked_input(calculator_id: str, payload: Mapping[str, Any]) -> str:
     """Serialise and bound the request. Refuses before any byte is read."""
+    # Counts first: bounding the structure before serialising it means a payload
+    # cannot explode into a string this process then measures.
+    _enforce_work_factor(calculator_id, payload)
     try:
         request = json.dumps(payload, allow_nan=False)
     except (TypeError, ValueError):
         request = ""
     if not request or len(request) > CalculatorLimits.MAX_INPUT_BYTES:
         raise Refusal(RefusalCode.METHODOLOGY_INPUT_INVALID)
-    _enforce_work_factor(calculator_id, payload)
     return request
 
 
@@ -164,7 +166,9 @@ def _confidence_score_work_factor(payload: Mapping[str, Any]) -> None:
 
 def _execute(sources: Mapping[str, str], entry: str, request: str) -> dict[str, Any]:
     """Write the verified bytes somewhere private and run them there."""
-    with tempfile.TemporaryDirectory() as workspace:
+    # A calculator can leave a read-only directory behind, and cleanup raising
+    # would turn a finished calculation into an untyped OSError.
+    with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as workspace:
         directory = Path(workspace)
         for name, text in sources.items():
             (directory / name).write_text(text, encoding="utf-8")
@@ -196,13 +200,27 @@ def _captured(directory: Path, entry: str) -> Path:
             code = child.wait(timeout=CalculatorLimits.TIMEOUT_SECONDS)
         except subprocess.TimeoutExpired:
             code = None
-            os.killpg(os.getpgid(child.pid), signal.SIGKILL)
+            _kill_group(child.pid)
             child.wait()
     if code != 0:
         # The vendor's blocked path prints the offending input to stderr, which
         # is why stderr is discarded rather than reported.
         raise Refusal(RefusalCode.METHODOLOGY_CALCULATION_FAILED)
     return output
+
+
+def _kill_group(pid: int) -> None:
+    """Kill the child and everything it started. A ceiling that leaves the work
+    running is bookkeeping.
+
+    Tolerates a pid that has already gone: the child can exit between the
+    timeout being raised and this call, and a `ProcessLookupError` escaping here
+    would replace the refusal with an untyped error.
+    """
+    try:
+        os.killpg(os.getpgid(pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError):
+        return
 
 
 def _parse(output: Path) -> dict[str, Any]:
