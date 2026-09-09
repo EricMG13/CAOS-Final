@@ -2,4 +2,5 @@
 ruff==0.14.0
 mypy==1.18.2
 pytest==9.0.3
+types-jsonschema
 -r requirements.in
