@@ -775,3 +775,29 @@ which silently makes its check unreportable and blocks every merge until the
 ruleset is edited to match. `test_every_required_check_is_a_job_the_ci_still_defines`
 refuses the rename. Nothing here can read the ruleset, so the test pins this
 entry's list against the workflow rather than against GitHub.
+
+## 2026-09-09 §35 — Readiness is read from the CP-0 artifact, and CONDITIONAL exists
+
+**Decided.** `accepted_attempts` reads CP-0's readiness from its accepted
+artifact at `runtime_output.readiness_summary.overall_readiness`, the field
+`CP-0__SourceReadiness__payload.schema.txt` declares. An accepted CP-0 artifact
+that does not carry one of its four values is refused `ENVELOPE_INVALID`.
+
+**Why this and not a column.** §18 already decided it: readiness is derived
+from the accepted CP-0 artifact, and there is no separate state. The loop then
+built every `Accepted` without one, so the hardening rule — OPTIONAL and
+ADVISORY block once the source is READY — held in tests that hand-constructed
+`Accepted(readiness=...)` and nowhere else. Reading the artifact is what §18
+described; a column would be the separate state it ruled out, and one that
+`artifacts` has no rewrite guard on.
+
+**§18 was wrong about the enum.** It said source readiness is READY,
+READY_WITH_LIMITATIONS, BLOCKED. The schema's `overall_readiness` also carries
+CONDITIONAL. It is accepted as a value and does not harden: hardening turns
+soft inputs into blocking ones on the strength of a source that is ready, and
+a conditional source is not that. The enum is copied into `loop.py` because
+the schema file is not JSON Schema and cannot be validated against.
+
+**Consequence.** `run_route` and `accepted_attempts` take a `BlobStore`. The
+frontier is still recomputation and nothing else: on restart the loop reads the
+artifact CP-0 actually produced.
