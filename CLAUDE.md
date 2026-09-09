@@ -154,7 +154,7 @@ system this size means nobody looked.
 An entry that defers to *a slice* — the extraction slice, the ingestion slice,
 the run surface, the API layer — defers to the current phase, the lowest whose
 exit test does not pass. `docs/REBUILD_PLAN.md` lists under that phase what the
-exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §36).
+exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 
 **Phase 0.**
 

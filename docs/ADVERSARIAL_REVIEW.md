@@ -196,7 +196,7 @@ verdict is left as written for the same reason as the first.
 **Personas:** Saboteur + Security Auditor; WARNING → CRITICAL.
 **Status:** fixed. `live_client()` builds the client with `max_retries=0`,
 `test_the_live_client_never_retries_on_its_own` reads it back, and
-`docs/DECISIONS.md` §35 reconciles §21 with §28.
+`docs/DECISIONS.md` §37 reconciles §21 with §28.
 
 `live_provider_or_none` built `anthropic.Anthropic()` with the SDK default of
 two retries (read from the locked 1.4.0, not recalled). On a 408, 409, 429, 5xx
@@ -212,7 +212,7 @@ ran was the one path no test ran.
 **Status:** scheduled, not built. Phase 6 owes
 `test_a_withdrawn_source_refuses_the_read_and_reopens_the_gate`; the column,
 the `read_evidence` predicate and the plan-gate re-open are Phase 6 work under
-`docs/DECISIONS.md` §36.
+`docs/DECISIONS.md` §38.
 
 No phase bullet named it, no column existed, and `grep withdraw` found comments
 only, while Phase 2 — the `read_evidence` phase — was exited. A source admitted
@@ -225,7 +225,7 @@ pin is immutable by design.
 0, 3, 5; `docs/SYSTEM_SPEC.md` §2, §3, §4, §6.1, §6.2; `README.md`.
 **Personas:** New Hire + Saboteur; promoted.
 **Status:** fixed. The prompt reads `docs/DECISIONS.md`; every overridden line
-named below is corrected in place with a citation; `docs/DECISIONS.md` §36
+named below is corrected in place with a citation; `docs/DECISIONS.md` §38
 reverses §20's "left alone"; `test_every_exit_test_of_an_exited_phase_exists`
 holds the plan to the standard `test_the_map_is_true.py` held `CLAUDE.md` to.
 
@@ -244,7 +244,7 @@ without editing an upstream folder. CP-CF is now its only caller.
 
 | Finding | Personas | Status |
 |---|---|---|
-| **W1.** Exit tests passed without the phase's deliverable — Phase 2 had no extractor, Phase 4 a stub executor at a flat price, Phase 5 a recorded provider — and the ledger deferred each gap to a "slice" the plan never named, so "start at the lowest phase whose exit test does not pass" walked past all three. | Saboteur | Rule added to the plan and to `docs/DECISIONS.md` §36: the current phase owes what an exited phase did not ship, listed under it with the test it owes. Phase 6 lists the five. The ledger's "slice" is defined as that phase. The map test refuses a later phase starting before an earlier one's tests exist. |
+| **W1.** Exit tests passed without the phase's deliverable — Phase 2 had no extractor, Phase 4 a stub executor at a flat price, Phase 5 a recorded provider — and the ledger deferred each gap to a "slice" the plan never named, so "start at the lowest phase whose exit test does not pass" walked past all three. | Saboteur | Rule added to the plan and to `docs/DECISIONS.md` §38: the current phase owes what an exited phase did not ship, listed under it with the test it owes. Phase 6 lists the five. The ledger's "slice" is defined as that phase. The map test refuses a later phase starting before an earlier one's tests exist. |
 | **W2.** The audit chain was Phase 8, after six phases of governed writes; `audit_events` did not exist, and a plan approval — a human decision — committed without one. | Security Auditor | Phase 6 owes `audit_events`, `audit_chain_heads` and `test_a_governed_write_commits_its_audit_event_or_nothing`; Phase 8 builds the package over the chain rather than the chain. |
 | **W3.** Commit-time authority was bound to "the first HTTP route", but the commit is `approve_gate`, which exists and checks nothing about the approver. A check at the request is what §8 says is not enough. | Security Auditor | Standing rule rewritten: the phase that first commits a human decision ships the standing check inside the store call; the HTTP phase ships identity derivation. `test_membership_revocation_refuses_commit` and `case_members` are Phase 6's. |
 | **W4.** Phase 10 had no runnable exit test, and `ORCHESTRATION_PROOF` appeared nowhere else — not in any document, not in the bundle. | Saboteur | Both words defined in the plan; two named exit tests. |
@@ -294,7 +294,7 @@ with the code.
    one-line client factory, which the skill excludes.
 6. **Gates:** `make lint`, `make types`, `make test` against the local store
    (361 passed, the live-provider test skipped), `make security`, and
-   `test_decision_record` over §35–§36 — all green.
+   `test_decision_record` over §37–§38 — all green.
 
 ## Summary
 

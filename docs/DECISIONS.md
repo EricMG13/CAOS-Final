@@ -847,7 +847,7 @@ the SDK read an `ant` profile from disk (§28).
 and the attempt is INDETERMINATE with its reservation kept, as §21 says. When a
 retry is worth having, it is the loop's, reserved as a new attempt.
 
-## 2026-09-09 §36 — The plan is kept true, and the current phase owes what exited phases did not ship
+## 2026-09-09 §38 — The plan is kept true, and the current phase owes what exited phases did not ship
 
 Two findings of the second adversarial review (`docs/ADVERSARIAL_REVIEW.md`),
 both in the documents rather than the code.

@@ -134,7 +134,7 @@ frontier(route, accepted)    -> [route_node_id]   # RUNNABLE + RESTRICTED
 
 An `expected_upstream_digests` in the first draft of this block had no consumer
 and was never built; it is dropped rather than left as a promise
-(`docs/DECISIONS.md` §36).
+(`docs/DECISIONS.md` §38).
 
 Edge types and their meaning are the bundle's, read from `profile["edges"]`:
 `REQUIRED`, `CONDITIONAL`, `QA_GATE` block; `OPTIONAL`, `ADVISORY` degrade to

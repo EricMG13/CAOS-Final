@@ -6,7 +6,7 @@ repository does not have costs more than no map at all. Five of the six original
 entries pointed at paths that never existed -- `engine/runtime.py`, `storage/`,
 `methodology/`, `models/`, `frontend/` -- while `server/evidence/`, which holds
 two invariants, was unlisted. `docs/REBUILD_PLAN.md` is the second thing, and
-it decides what gets built next (`docs/DECISIONS.md` §36).
+it decides what gets built next (`docs/DECISIONS.md` §38).
 """
 
 from __future__ import annotations

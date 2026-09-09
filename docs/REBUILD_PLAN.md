@@ -107,7 +107,7 @@ Plus the three the provider-call contract owes (`docs/DECISIONS.md` §21):
 - Commit-time authority on the store call that releases a gate: `case_members`,
   and standing rechecked inside `approve_plan`, not only at the request.
 
-**Owed by exited phases**, and exited here (`docs/DECISIONS.md` §36):
+**Owed by exited phases**, and exited here (`docs/DECISIONS.md` §38):
 
 - Withdrawal, the second half of invariant 1: a `withdrawn_at` on `sources`,
   refused by `read_evidence` at every use and re-opening the plan gate —
@@ -224,7 +224,7 @@ in this repository can mint `QUALIFIED`.
   is owed by the current phase, listed under it with the test it owes — never
   added back to the exited phase.
 - When a decision entry overrides this plan or a spec, the overridden text is
-  corrected in place and cites the entry (`docs/DECISIONS.md` §36). A reader
+  corrected in place and cites the entry (`docs/DECISIONS.md` §38). A reader
   must not have to know which of thirty entries rewrote the page in front of
   them.
 
