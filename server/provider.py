@@ -18,7 +18,7 @@ suite that is meant to be free. See the known-gaps ledger.
 
 **No SDK retries.** The default is two, each a fresh provider call under the
 same attempt row and reservation -- the crash-after-billing case `DECISIONS.md`
-§21 closed, reopened inside one call. Host retries are the only retries (§35).
+§21 closed, reopened inside one call. Host retries are the only retries (§37).
 """
 
 from __future__ import annotations
@@ -121,7 +121,7 @@ def live_client() -> anthropic.Anthropic | None:
     A credential means an environment variable: the SDK would also read an
     `ant` profile from disk, and this is the one place that refuses it. No
     retries: a retry is a provider call, and a provider call needs a
-    reservation of its own (`DECISIONS.md` §21, §35).
+    reservation of its own (`DECISIONS.md` §21, §37).
     """
     if not any(os.environ.get(name) for name in _CREDENTIAL_VARIABLES):
         return None

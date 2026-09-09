@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
+from pathlib import Path
 
 import pytest
 from psycopg import Cursor
@@ -14,6 +15,7 @@ from psycopg.abc import Params, Query
 from psycopg.rows import TupleRow
 
 from server.store import Store
+from server.store.blobs import BlobStore
 
 
 def postgres_dsn_or_none(environ: Mapping[str, str]) -> str | None:
@@ -108,3 +110,8 @@ def count_io() -> Counter:
             del store.execute
 
     return counting
+
+
+@pytest.fixture
+def blobs(tmp_path: Path) -> BlobStore:
+    return BlobStore(root=tmp_path)

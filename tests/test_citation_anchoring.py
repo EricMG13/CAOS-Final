@@ -24,7 +24,6 @@ from server.evidence.citations import (
     IO_BUDGET,
     Citation,
     _enclosing_box,
-    _line_runs,
     _locate,
     anchor_citation,
 )
@@ -206,11 +205,6 @@ def test_the_refusal_carries_no_document_text(store: Store, source: None) -> Non
     assert "9.9x" not in rendered
 
 
-def test_line_runs_keeps_each_line_separate() -> None:
-    runs = _line_runs(_tokens()[:8])
-    assert [text for text, _ in runs] == ["Net leverage was 4.2x", "at the year end"]
-
-
 def test_enclosing_box_is_the_smallest_rectangle_over_the_tokens() -> None:
     covering = _tokens()[1:3]
     assert _enclosing_box(covering) == (
@@ -245,3 +239,23 @@ def test_io_budget_anchor_citation(
     with count_io(store) as tally:
         _anchor(store, "leverage was")
     assert tally.statements == IO_BUDGET
+
+
+def test_a_quote_that_begins_or_ends_inside_a_token_is_refused(
+    store: Store, source: None
+) -> None:
+    # `find` on the joined line text matches "4.2x" inside "14.2x" and boxes the
+    # whole token -- a rectangle enclosing a digit the quote does not contain,
+    # which is the last sentence of invariant 11 read backwards. A quote is a
+    # run of whole tokens or it is not on the page.
+    for quote in ("everage", "et leverage", "leverage was 4.2"):
+        with pytest.raises(Refusal) as caught:
+            _anchor(store, quote)
+        assert caught.value.code is RefusalCode.CITATION_NOT_LOCATABLE, quote
+
+    inflated = [
+        _token((1, 1, 0), "was", (72, 700), page=1),
+        _token((1, 1, 1), "14.2x", (100, 700), page=1),
+    ]
+    with pytest.raises(Refusal):
+        _locate(inflated, "4.2x")

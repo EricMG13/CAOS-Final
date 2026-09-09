@@ -112,7 +112,7 @@ def test_a_live_call_needs_a_credential_and_says_so(
 def test_the_live_client_never_retries_on_its_own(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Invariant 8 and `docs/DECISIONS.md` §35: host retries are the only retries.
+    """Invariant 8 and `docs/DECISIONS.md` §37: host retries are the only retries.
 
     The SDK's default is two, and each one is a provider call under the same
     attempt row and the same reservation. Read from the client the host builds,
