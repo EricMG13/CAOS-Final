@@ -87,6 +87,8 @@ directory the repository does not have costs more than no map.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
   quote and derives its rectangles.
+- `server/provider.py` — the provider boundary: `ProviderCall`, `Completion`,
+  `price_of`, `RecordedProvider` and the live client. Pinned to `claude-opus-5`.
 - `server/boundary_text.py`, `server/digests.py`, `server/refusals.py` — the
   types every boundary uses.
 - `methodology/bundle.py` — `open_bundle` and `Bundle.read`, the only reader of
@@ -233,6 +235,22 @@ system this size means nobody looked.
   every ceiling refuses before overspend; assembly has none because nothing
   downstream has a token budget to overspend yet. *Upgrade:* with
   `max_output_tokens` and the provider boundary.
+- **No live provider call has ever run.** Every provider test drives the real
+  SDK against a mock transport, which is a real check of the request body and
+  the refusal mapping and is not a check that the API accepts the combination
+  of `thinking: adaptive` and `output_config.effort` this host sends. The one
+  test that would prove it, `test_the_live_provider_returns_a_completion`, is
+  `-m live_provider` and skips without a credential; none was available in the
+  environment that wrote it. *Upgrade:* run it once with a key.
+- **A credential means an environment variable, not an `ant` profile.** The SDK
+  would resolve a profile from disk; honouring it would let a developer's
+  machine spend money in a suite meant to be free (`docs/DECISIONS.md` §27).
+  A machine with a profile and no environment variable gets no live provider.
+  *Upgrade:* an explicit opt-in variable, if anyone wants profiles.
+- **The loop still prices every node at 1.00.** `price_of` computes the real
+  charge from reported usage and nothing calls it: `server/engine/loop.py`
+  keeps `_price()`. *Upgrade:* the slice that runs CP-1, which is the first
+  caller with a `Completion` to price.
 - **A calculator's stdout is bounded in memory, not on disk.** `_captured`
   writes the child's stdout to a file and refuses on `st_size` before reading a
   byte, so the host cannot be OOMed. Nothing bounds what the child writes to

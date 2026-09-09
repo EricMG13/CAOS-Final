@@ -1,1 +1,2 @@
 psycopg[binary]==3.2.12
+anthropic==1.4.0
