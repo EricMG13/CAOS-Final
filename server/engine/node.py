@@ -8,6 +8,11 @@ which the host has re-derived, or it produces nothing.
 The order matters. Nothing is written until every citation has been anchored,
 so a module that quotes what it cannot support costs a reservation and leaves
 no artifact -- rather than leaving a half-checked one behind.
+
+It is split where the reservation goes. Assembling -- authority, identity, the
+evidence a node is handed -- is everything a call contains, and the loop
+reserves the ceiling of exactly that before the call is made. `module_executor`
+is the loop's side of the seam: the pinned run's nodes, each run this way.
 """
 
 from __future__ import annotations
@@ -17,16 +22,19 @@ from dataclasses import dataclass, replace
 from decimal import Decimal
 from pathlib import Path
 
-from methodology.bundle import BUNDLE_ROOT, open_bundle
+from methodology.bundle import BUNDLE_ROOT, Bundle, open_bundle
 from methodology.envelope import claimed_citations, parse_envelope
 from methodology.registry import assemble_authority
 from server.boundary_text import BoundaryText
+from server.engine.loop import Executor, NodeOutcome, Prepared
 from server.evidence.citations import Citation, anchor_citation
 from server.evidence.reads import EvidenceRequest, read_evidence
-from server.provider import Provider, ProviderCall, price_of
+from server.provider import Provider, ProviderCall, ceiling_of, price_of
 from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.blobs import BlobStore
+from server.store.routes import pinned_route, pinned_source_set_version
+from server.store.source_sets import pinned_evidence
 
 # ponytail: one ceiling for every module until one needs its own. SYSTEM_SPEC 3
 # lists `max_output_tokens` per ModuleSpec; no module differs yet.
@@ -54,6 +62,51 @@ class ModuleResult:
     citations: tuple[Citation, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class _Assembled:
+    """A node assembled and not yet asked: what it will send, and as whom."""
+
+    request: ModuleRequest
+    call: ProviderCall
+    bundle: Bundle
+
+
+def _assemble(store: Store, *, request: ModuleRequest, root: Path) -> _Assembled:
+    """Everything a call contains, from one assembly."""
+    bundle = open_bundle(root)
+    authority = assemble_authority(request.module_id, root=root)
+    # The authority is alias-resolved -- CP-2C assembles CP-1A's methodology --
+    # so the identity everything downstream uses is the resolved one. Running
+    # one module's methodology under another module's name is what invariant 3
+    # forbids, and the request's own spelling is a claim like any other.
+    running = replace(request, module_id=authority.module_id)
+    blocks = _deliver(store, running)
+    return _Assembled(
+        request=running,
+        call=ProviderCall(
+            system="\n\n".join(text for _, text in authority.files),
+            prompt=_prompt(running, blocks),
+            max_output_tokens=MAX_OUTPUT_TOKENS,
+        ),
+        bundle=bundle,
+    )
+
+
+def _complete(
+    store: Store, *, assembled: _Assembled, provider: Provider, blobs: BlobStore
+) -> ModuleResult:
+    """Ask, validate, anchor, store. Refusing at the first failure."""
+    answer = provider(assembled.call)
+    payload = parse_envelope(assembled.bundle, answer.text)
+    _check_identity(assembled.request, payload)
+    anchored = _anchor(store, assembled.request, claimed_citations(payload))
+    return ModuleResult(
+        artifact_sha256=blobs.put(_canonical(payload)),
+        charge=price_of(answer),
+        citations=anchored,
+    )
+
+
 def execute_module(
     store: Store,
     *,
@@ -63,29 +116,73 @@ def execute_module(
     root: Path = BUNDLE_ROOT,
 ) -> ModuleResult:
     """Assemble, ask, validate, anchor, store. Refusing at the first failure."""
-    bundle = open_bundle(root)
-    authority = assemble_authority(request.module_id, root=root)
-    # The authority is alias-resolved -- CP-2C assembles CP-1A's methodology --
-    # so the identity everything downstream uses is the resolved one. Running
-    # one module's methodology under another module's name is what invariant 3
-    # forbids, and the request's own spelling is a claim like any other.
-    running = replace(request, module_id=authority.module_id)
-    blocks = _deliver(store, running)
-    answer = provider(
-        ProviderCall(
-            system="\n\n".join(text for _, text in authority.files),
-            prompt=_prompt(running, blocks),
-            max_output_tokens=MAX_OUTPUT_TOKENS,
+    assembled = _assemble(store, request=request, root=root)
+    return _complete(store, assembled=assembled, provider=provider, blobs=blobs)
+
+
+def module_executor(
+    store: Store,
+    *,
+    run_id: str,
+    provider: Provider,
+    blobs: BlobStore,
+    root: Path = BUNDLE_ROOT,
+) -> Executor:
+    """The loop's executor for a pinned run: every node runs `execute_module`.
+
+    Everything here is fixed at the gate -- the case, the route, the evidence
+    version, and the blocks themselves, since members are append-only and a
+    source's blocks are fixed at admission -- so all of it is read once, and a
+    replay from the same pin assembles the same bytes. What is checked live at
+    every use (invariant 1) is the read of each block, which `_deliver` makes
+    per node through `read_evidence`.
+    """
+    row = store.execute(
+        "SELECT case_id FROM runs WHERE run_id = %s", (run_id,)
+    ).fetchone()
+    if row is None:
+        raise Refusal(RefusalCode.RUN_NOT_FOUND)
+    case_id = BoundaryText.of(str(row[0]))
+    modules = {
+        n.route_node_id: n.module_id for n in pinned_route(store, run_id=run_id).nodes
+    }
+    version = pinned_source_set_version(store, run_id=run_id)
+    evidence = pinned_evidence(store, case_id=case_id, source_set_version=version)
+    if not evidence:
+        # No members is not "every read refused" -- it is no reads at all, and
+        # a module called over nothing. The gate refuses this before a run
+        # exists; a direct pin is refused here, before a node.
+        raise Refusal(RefusalCode.SOURCE_SET_EMPTY)
+
+    def execute(route_node_id: str) -> Prepared:
+        if route_node_id not in modules:
+            # Not a node the pin names. The loop never asks for one, so this
+            # is the seam refusing a caller that is not the loop.
+            raise Refusal(RefusalCode.ROUTE_NOT_PINNED)
+        assembled = _assemble(
+            store,
+            request=ModuleRequest(
+                run_id=run_id,
+                route_node_id=route_node_id,
+                module_id=modules[route_node_id],
+                case_id=case_id,
+                source_set_version=version,
+                evidence=evidence,
+            ),
+            root=root,
         )
-    )
-    payload = parse_envelope(bundle, answer.text)
-    _check_identity(running, payload)
-    anchored = _anchor(store, running, claimed_citations(payload))
-    return ModuleResult(
-        artifact_sha256=blobs.put(_canonical(payload)),
-        charge=price_of(answer),
-        citations=anchored,
-    )
+
+        def call() -> NodeOutcome:
+            result = _complete(
+                store, assembled=assembled, provider=provider, blobs=blobs
+            )
+            return NodeOutcome(
+                artifact_sha256=result.artifact_sha256, charge=result.charge
+            )
+
+        return Prepared(ceiling=ceiling_of(assembled.call), call=call)
+
+    return execute
 
 
 def _deliver(store: Store, request: ModuleRequest) -> list[str]:

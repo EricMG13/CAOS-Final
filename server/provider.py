@@ -26,7 +26,7 @@ from __future__ import annotations
 import os
 from collections.abc import Callable
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_CEILING, Decimal
 
 import anthropic
 
@@ -76,6 +76,43 @@ def price_of(completion: Completion) -> Decimal:
         INPUT_PER_MTOK * completion.input_tokens
         + OUTPUT_PER_MTOK * completion.output_tokens
     ) / _PER_MTOK
+
+
+# What the API counts around the bytes a call sends: role and turn markers, and
+# whatever else it counts that is not content. Single digits in practice; 256 is
+# the margin over that, not an estimate of it. The one number in the ceiling not
+# derived from the call, and `test_the_live_provider_returns_a_completion` is
+# where it is checked against the tokenizer.
+_FRAMING_TOKENS = 256
+
+# Every money column is numeric(18, 6), and Postgres rounds what it is given.
+_LEDGER_SCALE = Decimal("0.000001")
+
+
+def input_token_bound(call: ProviderCall) -> int:
+    """The most input tokens a call can be counted as, from the bytes it sends.
+
+    A token is at least one byte, so the bytes sent bound the tokens counted.
+    That is the one claim the reservation rests on.
+    """
+    sent = len(call.system.encode("utf-8")) + len(call.prompt.encode("utf-8"))
+    return sent + _FRAMING_TOKENS
+
+
+def ceiling_of(call: ProviderCall) -> Decimal:
+    """The most a call can cost: its reservation, and the ceiling on its charge.
+
+    Output is bounded exactly -- `max_tokens` caps thinking and text together.
+    Input is bounded by its bytes. Invariant 8 wants the ceiling before the
+    call, and this is everything the host knows before one. Rounded up to the
+    ledger's scale, so what is stored is never below what was computed: a
+    ceiling that rounds down is not a ceiling.
+    """
+    exact = (
+        INPUT_PER_MTOK * input_token_bound(call)
+        + OUTPUT_PER_MTOK * call.max_output_tokens
+    ) / _PER_MTOK
+    return exact.quantize(_LEDGER_SCALE, rounding=ROUND_CEILING)
 
 
 class RecordedProvider:
