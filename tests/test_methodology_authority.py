@@ -20,6 +20,7 @@ import pytest
 
 from methodology.bundle import BUNDLE_ROOT, MANIFEST_NAME, Bundle, open_bundle
 from methodology.registry import (
+    SHARED_CANON,
     Authority,
     ModuleSpec,
     assemble_authority,
@@ -216,11 +217,23 @@ def test_the_two_alias_sources_agree() -> None:
     assert superseded == bundle.aliases
 
 
-def test_authority_never_carries_calculator_code() -> None:
-    """A module asks for a calculation; it never supplies the code (SPEC 3)."""
+def test_authority_is_the_allowlist_and_nothing_else_in_the_real_bundle() -> None:
+    """The allowlist, asserted against the bundle rather than a synthetic list.
+
+    Stated as what a delivered name may be, not by re-deriving the filter the
+    code uses. A module asks for a calculation and never supplies the code
+    (SPEC 3), so no `scripts/`; CP-MODEL also ships `agents/openai.yaml`, which
+    is the file a denylist naming `scripts/` would have delivered.
+    """
     for module_id in sorted(live_module_ids()):
+        folder = f"skills/{module_spec(module_id).skill_slug}/"
         for name, _ in assemble_authority(module_id).files:
-            assert "/scripts/" not in name
+            if name == SHARED_CANON:
+                continue
+            assert name.startswith(folder), f"{module_id} was given {name}"
+            tail = name.removeprefix(folder)
+            assert tail == "SKILL.md" or tail.startswith("references/"), name
+            assert not tail.endswith(".xlsx"), name
 
 
 def test_an_unrecognised_bundle_directory_is_not_authority() -> None:

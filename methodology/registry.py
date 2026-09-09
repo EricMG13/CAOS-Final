@@ -98,24 +98,33 @@ def module_spec(module_id: str, *, root: Path = BUNDLE_ROOT) -> ModuleSpec:
 
 
 def assemble_authority(module_id: str, *, root: Path = BUNDLE_ROOT) -> Authority:
-    """Read every authority file for a module, verifying each on the bytes."""
+    """Read every authority file for a module, verifying each on the bytes.
+
+    `root` is a seam for tests, and it opens nothing: `MANIFEST_SHA256` still
+    gates the manifest and every file is still checked against it, so a tree
+    pointed at here can refuse but can never substitute authority.
+    """
     bundle = open_bundle(root)
     spec = _spec(bundle, module_id)
+    files = tuple((name, bundle.read(name)) for name in spec.reference_files)
     return Authority(
         module_id=spec.module_id,
         build_id=bundle.build_id,
-        files=tuple((name, bundle.read(name)) for name in spec.reference_files),
-        authority_digest=_authority_digest(bundle, spec),
+        files=files,
+        authority_digest=_authority_digest(bundle.build_id, spec.module_id, files),
     )
 
 
 def _catalog(bundle: Bundle) -> dict[str, Any]:
+    # Digest-checked before it is parsed, so the parse cannot fail on bytes the
+    # manifest vouches for -- the same reasoning as `open_bundle`.
     loaded: dict[str, Any] = json.loads(bundle.read(CATALOG))
     return loaded
 
 
 def _live(bundle: Bundle, catalog: dict[str, Any]) -> dict[str, str]:
     """Module id to skill folder, for everything runnable under this build."""
+    live: dict[str, str] | None = None
     try:
         live = {
             str(module["module_id"]): bundle.folders[str(module["module_id"])]
@@ -125,8 +134,12 @@ def _live(bundle: Bundle, catalog: dict[str, Any]) -> dict[str, str]:
             {alias: bundle.folders[owner] for alias, owner in _CARVE_OUTS.items()}
         )
     except KeyError:
+        live = None
+    if live is None:
         # A catalog module with no skill folder is a bundle we cannot execute.
-        raise Refusal(RefusalCode.METHODOLOGY_BUNDLE_INVALID) from None
+        # Raised clear of the handler, as in `Bundle.read`: the KeyError carries
+        # bundle-derived text and would ride out on __context__.
+        raise Refusal(RefusalCode.METHODOLOGY_BUNDLE_INVALID)
     return live
 
 
@@ -147,16 +160,27 @@ def _spec(bundle: Bundle, module_id: str) -> ModuleSpec:
     return ModuleSpec(resolved, slug, reference_files(slug, bundle.digests))
 
 
-def _authority_digest(bundle: Bundle, spec: ModuleSpec) -> str:
+def _authority_digest(
+    build_id: str, module_id: str, files: tuple[tuple[str, str], ...]
+) -> str:
     """Same bundle, same module, same digest -- on any machine (invariant 10).
+
+    Over the text actually delivered, not over the manifest's expectation for
+    it. The two agree by construction -- nothing reaches here without matching
+    -- and binding what was delivered is the statement replay needs. It also
+    keeps the digest off a second lookup, which was correct only because
+    keyword arguments evaluate left to right.
 
     The module id is in the payload, so CP-0 and CP-PARSE are told apart despite
     holding byte-identical authority.
     """
     payload = {
-        "build_id": bundle.build_id,
-        "module_id": spec.module_id,
-        "files": [[name, bundle.digests[name]] for name in spec.reference_files],
+        "build_id": build_id,
+        "module_id": module_id,
+        "files": [
+            [name, hashlib.sha256(text.encode("utf-8")).hexdigest()]
+            for name, text in files
+        ],
     }
     canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
