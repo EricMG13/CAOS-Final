@@ -85,6 +85,7 @@ directory the repository does not have costs more than no map.
   `server/store/schema.sql` is applied whole at startup, with no migrations.
   The write paths are `server/store/runs.py`, `server/store/attempts.py`,
   `server/store/routes.py`, `server/store/gates.py` (digest-bound interrupts),
+  `server/store/members.py` (case standing, read where a gate is released),
   `server/store/sources.py` (admission) and `server/store/source_sets.py`
   (pinning); `server/store/events.py` is the one emitter every run event is
   allocated through, and `server/store/blobs.py` is the content-addressed blob
@@ -217,7 +218,7 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
 - **The third reviewer's scope is now editable by the agent it reviews.**
-  `docs/DECISIONS.md` §39 moved the analysis from SonarQube Cloud's own side
+  `docs/DECISIONS.md` §41 moved the analysis from SonarQube Cloud's own side
   into the `sonarqube` CI job, because automatic analysis imports no coverage
   report and there is no setting that changes that. §31's property is spent:
   `sonar.sources`, `sonar.exclusions` and the coverage path are in
@@ -232,13 +233,13 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   speed bump, and is why this is a ledger entry rather than a footnote.
   *Upgrade:* none available in this repository. A scope that the code's author
   cannot edit means a scanner nobody here configures, and that is the
-  arrangement §39 gave up to obtain a coverage metric. The alternative worth
+  arrangement §41 gave up to obtain a coverage metric. The alternative worth
   having is a branch ruleset condition on the analysis' own reported scope,
   which SonarQube Cloud does not offer today.
 - **Two analysis configurations exist, and which one is live is not readable
   from here.** `.sonarcloud.properties` is automatic analysis' and
   `sonar-project.properties` is the scanner's; the switch between them is a
-  setting in SonarQube Cloud (`docs/DECISIONS.md` §39). While both exist,
+  setting in SonarQube Cloud (`docs/DECISIONS.md` §41). While both exist,
   `test_both_analysis_configurations_declare_the_same_scope` keeps their sources,
   tests, Python version and exclusions identical, so whichever is being read says
   the same thing. What no test here can tell is *which*, so a coverage report is
@@ -250,7 +251,7 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   is a required check on `main`, bound to the SonarQubeCloud app
   (`docs/DECISIONS.md` §34), and it was the name posted under *automatic*
   analysis. Nothing in this repository can read the ruleset or the check name,
-  and nothing tried the CI-submitted path before §39, so whether the app posts
+  and nothing tried the CI-submitted path before §41, so whether the app posts
   the same name is not known here. If it does not, the required check never
   reports and blocks every merge — §14's hazard, from the direction §34 did not
   cover — until someone edits the ruleset to the new name.
@@ -271,7 +272,7 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   `sonar.sources` and `sonar.tests` between them claim every tracked .py,
   `sonar.python.version` matches the type gate's interpreter, and the coverage
   path matches what the suite writes. Whether SonarQube read it is a question
-  only SonarQube answers. Under §39 a pull request's own analysis does read this
+  only SonarQube answers. Under §41 a pull request's own analysis does read this
   file, which is one thing automatic analysis could not do — the scanner runs
   from the branch, so an ignored key shows up on the pull request that
   introduced it rather than only after merge.
@@ -288,7 +289,7 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   *Upgrade:* a custom rule set, or a lint rule per invariant, the day one of
   these is missed in review rather than caught by a test.
 - **Coverage is measured and imported; no percentage is enforced here.**
-  `docs/DECISIONS.md` §39 closed the gap that said no coverage reached the
+  `docs/DECISIONS.md` §41 closed the gap that said no coverage reached the
   analysis at all. What replaced it is narrower: `scan_floors.py --cobertura`
   refuses a report that measured nothing or that left out a tracked file, which
   is a floor on the report's *completeness* and not on its *number*. Nothing in
@@ -356,19 +357,54 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   Identical in shape to `commit_terminal`'s and `apply_schema`'s assumptions
   below, and it gets the same answer for the same reason. *Upgrade:* refuse a
   non-idle connection at entry, with the slice that fixes all three.
-- **An approval binds content, not authority, and not run state.**
-  `approve_gate` records who approved and checks nothing about them.
-  `SYSTEM_SPEC.md` §8 wants case standing and global role rechecked at commit
-  time; there is no `case_members` table, no served identity and no commit-time
-  check, so today any caller holding a connection can release any gate. Neither
-  `open_gate` nor `approve_gate` reads `runs.state` either, so a gate can be
-  opened on a run that has already completed or failed -- `reserve` refuses a
-  non-RUNNING run and these do not. Both checks belong at the same boundary and
-  are deliberately not split across two slices: guarding one and not the other
-  is an asymmetry the next slice would have to undo. The digest binding is real
-  and it is one of the three things a human gate is. *Upgrade:* the run-surface
-  slice, which brings the actor matrix and
-  `test_membership_revocation_refuses_commit`.
+- **An approval checks case standing, not global role.** `approve_gate` reads
+  `case_members` under the run row lock and refuses a release by anyone who is
+  not `APPROVER` or `ADMIN` on the run's case, holding the row `FOR SHARE` so a
+  revocation waits for the release rather than landing inside it
+  (`docs/DECISIONS.md` §39). `SYSTEM_SPEC.md` §8 wants global role rechecked
+  there too, and nothing derives one: there is no served identity, so the
+  store call is handed an approver's name and can check only what the store
+  holds about it. *Upgrade:* identity derivation with the first HTTP route,
+  which is what turns a header or an OIDC group into a role the call can be
+  handed.
+- **`case_members` is current membership, with no history and no guard.** A
+  grant, a change of standing and a revocation each rewrite the row in place,
+  and nothing records who did it or when the previous standing ended; the
+  audit chain that would is owed by this phase. A raw `DELETE` on the table is
+  a revocation nobody made, and a raw `UPDATE` a grant nobody gave. *Upgrade:*
+  `audit_events`, with `test_a_governed_write_commits_its_audit_event_or_nothing`,
+  which makes a membership change a governed write.
+- **There is no `users` table.** `SYSTEM_SPEC.md` §2 lists one under tenancy.
+  `member_id` is the same text an approval records in `approved_by`, and
+  nothing yet joins it to a person. *Upgrade:* identity derivation, which is
+  the first thing with a person to record.
+- **Granting and revoking standing check nothing about who is doing it.**
+  `grant_membership` and `revoke_membership` take no actor: any caller holding
+  a connection can make anyone `ADMIN` on any case, or strip a case's last
+  `ADMIN`, and then release its gate through the check this slice added. The
+  release is guarded and the thing that confers the standing to release is
+  not, which is a privilege-escalation path the moment a route wraps either
+  call. It is not closed here because the rule that closes it is intake's:
+  who a case's first member is follows from who admitted it, and
+  `admit_source` and `start_run` still mint cases with no authority check
+  (Phase 1, below). Guarding the grant with an `ADMIN` check and leaving that
+  bootstrap open would be the asymmetry the release entry refused. *Upgrade:*
+  identity derivation and intake authority together, with the actor matrix --
+  `test_a_grant_needs_admin_standing_on_the_case`.
+- **At the store, an unknown run and an unauthorised one are different
+  codes.** `lock_run` refuses `RUN_NOT_FOUND` before the case is known, so
+  `STANDING_INSUFFICIENT` can only follow it, and a caller with no standing
+  anywhere can tell a run that exists from one that does not. `SYSTEM_SPEC.md`
+  §8 collapses both into one 404 at an edge that does not exist yet, and
+  nothing here pins that it will. *Upgrade:* the first HTTP route, with
+  `test_unauthorised_case_is_private_404`.
+- **Nobody has ruled on independence at the plan gate.** `open_gate` takes no
+  actor -- the host parks the run; a person does not -- so the store cannot
+  say who derived the plan, and an `APPROVER` or `ADMIN` may release it
+  whoever that was. `SYSTEM_SPEC.md` §7 wants filing to refuse the opinion's
+  signer and its freezer; nothing says whether the plan gate wants the same,
+  and a rule nobody wrote is not one this slice should invent. *Upgrade:* a
+  decision entry, and Phase 8's independence check if the answer is yes.
 - **A `run_id` that is not a UUID escapes as a psycopg error, not a refusal.**
   Every store signature takes `run_id: str` and every `runs` lookup compares it
   to a `uuid` column, so a malformed id raises `InvalidTextRepresentation`
@@ -400,9 +436,10 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   which is the collision the lock exists to prevent, reintroduced by the
   caller. Every caller today opens one. Same shape as `commit_terminal`'s and
   `apply_schema`'s assumptions below, and it gets the same answer for the same
-  reason. *Upgrade:* refuse a connection in autocommit at entry, with the slice
-  that fixes all three -- the API layer, which is what brings callers this file
-  did not write.
+  reason; `require_standing` shares it, since its `FOR SHARE` is released with
+  the transaction it was taken in. *Upgrade:* refuse a connection in autocommit
+  at entry, with the slice that fixes all four -- the API layer, which is what
+  brings callers this file did not write.
 
 **Phase 5.**
 
@@ -655,8 +692,11 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 - **`check_vocabulary.py` cannot see a term used for two things.** It catches a
   synonym for a `CONTEXT.md` term, not one spelling carrying two concepts -- a
   layout `block_id` on `source_tokens` and the `block_id` of `source_blocks`
-  passed it cleanly until a human read them together. *Upgrade:* unclear that a
-  checker can do this; the control is review.
+  passed it cleanly until a human read them together. `source_set_members`
+  and `case_members` are the second instance: the first holds documents, the
+  second people, and `CONTEXT.md` gives *membership* to the case, so the older
+  table is the one misnamed. Renaming it is its own slice. *Upgrade:* unclear
+  that a checker can do this; the control is review.
 - **A quote must align to whole extracted tokens, and must not be hyphenated
   across a line.** A PDF that breaks `leverage` into `lever-` and `age` yields
   two tokens, and a module quoting `leverage` is refused. *Upgrade:*

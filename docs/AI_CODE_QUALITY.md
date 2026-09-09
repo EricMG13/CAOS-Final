@@ -64,7 +64,7 @@ Phase 7, `frontend` (lint, tsc, unit, build, a11y, workbench smoke) in Phase 9.
 `sonarqube` is the third reviewer, and it is the one job that does not decide
 its own verdict: it submits the analysis, and `SonarCloud Code Analysis` —
 posted by SonarQube Cloud's GitHub App — carries the quality gate's answer. It
-was deliberately absent until `docs/DECISIONS.md` §39; the paragraph below says
+was deliberately absent until `docs/DECISIONS.md` §41; the paragraph below says
 what changed and what it cost.
 
 ### Review
@@ -83,7 +83,7 @@ not the same thing as a second opinion. SonarQube's rule engine was written by
 people who never saw this repository, which is exactly the property the review
 control was missing — see `docs/DECISIONS.md` §31.
 
-**It runs from CI, and it did not always.** Until `docs/DECISIONS.md` §39 the
+**It runs from CI, and it did not always.** Until `docs/DECISIONS.md` §41 the
 analysis ran from SonarQube Cloud's own side, which meant the agent writing this
 repository could not narrow the reviewer reading it — the independence §2 had
 been missing. That ended for one reason: **automatic analysis imports no
@@ -113,7 +113,7 @@ Analysis scope follows the repository: `sonar-project.properties` excludes
 `vendor/`, so the bundle we never edit is not judged, and names the three source
 directories every tracked `.py` outside `tests/` falls under. The check belongs
 in the `main` ruleset for the reason §14 gives. Two cases remain uncovered: a
-quality gate loosened rather than switched off, and — since §39 — a scope
+quality gate loosened rather than switched off, and — since §41 — a scope
 narrowed in the diff under review.
 
 The measured value of the arrangement so far, on the two changes it reviewed
@@ -158,7 +158,7 @@ directory cannot quietly expect nothing. `--unscanned DIR…` names what is
 deliberately left out, and between the two every tracked .py in the repository
 has to be claimed: a source package a later phase adds cannot go unscanned
 without somebody saying so. This applies to every scanning gate this
-repository runs, and since `docs/DECISIONS.md` §39 that includes the coverage
+repository runs, and since `docs/DECISIONS.md` §41 that includes the coverage
 report: `scan_floors.py --cobertura` reads `coverage.xml` through the same
 floors, because a file missing from a coverage report is not a file at zero per
 cent — it raises the percentage of every file that is there. The third reviewer

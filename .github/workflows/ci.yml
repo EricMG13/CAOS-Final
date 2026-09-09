@@ -98,7 +98,7 @@ jobs:
     # by SonarQube Cloud's GitHub App and required on `main` (DECISIONS.md 34) --
     # carries the quality gate's answer. It runs from CI rather than from
     # SonarQube Cloud's own side for one reason: automatic analysis cannot import
-    # a coverage report, and this repository now has one (DECISIONS.md 39).
+    # a coverage report, and this repository now has one (DECISIONS.md 41).
     needs: test
     # `on: [push, pull_request]` fires twice for a branch that has a pull
     # request, and every other job here is idempotent enough not to care. This

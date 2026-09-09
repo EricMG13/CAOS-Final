@@ -21,7 +21,7 @@ exist before the code they govern.
   (`docs/DECISIONS.md` §11). Pre-commit with ruff, gitleaks, the vocabulary
   check.
 - SonarQube Cloud bound to the repository (DECISIONS.md §31), analysed from the
-  `sonarqube` CI job with a coverage report since §39.
+  `sonarqube` CI job with a coverage report since §41.
 - `scripts/check_vocabulary.py`, `scripts/io_budget.py`, `scripts/scan_floors.py`.
 
 **Exit:** an empty PR that adds one unformatted, unnamed, untested function is

@@ -6,7 +6,7 @@ postures, so the third is the only one that brings different weights. CodeRabbit
 could not be that here: it declined every pull request in this repository, for
 one reason or another, and the ask could not be automated.
 
-SonarQube Cloud is the third, and as of `docs/DECISIONS.md` section 39 it is
+SonarQube Cloud is the third, and as of `docs/DECISIONS.md` section 41 it is
 submitted from CI rather than read from SonarQube Cloud's own side. Section 31
 chose the opposite and gave a good reason -- an analysis unreachable from a
 commit cannot be narrowed by the agent whose code it reads. What overrode it is
@@ -51,7 +51,7 @@ PINNED = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 # other end. `SonarCloud Code Analysis` is absent because no job posts it: the
 # `sonarqube` job submits the analysis, and SonarQube Cloud's GitHub App posts
 # the check that carries the verdict. `sonarqube` itself is absent because the
-# ruleset does not require it yet (§39), and this list states the ruleset.
+# ruleset does not require it yet (§41), and this list states the ruleset.
 REQUIRED_JOBS = frozenset({"lint", "types", "test", "postgres", "security", "size"})
 
 # The action that submits the analysis. `sonarcloud-github-action` is its
@@ -99,7 +99,7 @@ def test_exactly_one_job_submits_the_analysis() -> None:
     Automatic analysis and a CI scanner are mutually exclusive, and so are two
     CI scanners on the same commit: the second run fails and fails the build
     with it. Under §31 the safe count was zero, because the analysis came from
-    SonarQube Cloud's side. Under §39 it is exactly one, and the file that
+    SonarQube Cloud's side. Under §41 it is exactly one, and the file that
     configures it has to exist rather than be refused.
     """
     assert PROPERTIES.exists(), (
@@ -124,7 +124,7 @@ def test_both_analysis_configurations_declare_the_same_scope() -> None:
     deleting the first one in the same commit as adding the second one caused.
 
     The coverage path is deliberately not compared -- automatic analysis imports
-    no coverage report, which is the whole reason for §39.
+    no coverage report, which is the whole reason for §41.
     """
     automatic = REPO / ".sonarcloud.properties"
     if not automatic.exists():
@@ -143,7 +143,7 @@ def test_both_analysis_configurations_declare_the_same_scope() -> None:
 
 
 def test_the_analysis_imports_the_coverage_report_the_suite_writes() -> None:
-    """The whole reason the analysis moved into CI (§39).
+    """The whole reason the analysis moved into CI (§41).
 
     Two ways this silently becomes a no-op: the scanner is told a path the suite
     does not write, or the suite stops writing one. Neither is visible in the
