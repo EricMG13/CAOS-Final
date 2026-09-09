@@ -748,3 +748,30 @@ version 3 release a run bound to version 4. The route digest is in the
 fingerprint rather than the preview for the same reason in reverse: the preview
 names modules, because a route node id is an internal spelling and a person
 approving a plan should not be asked to read one.
+
+## 2026-09-09 §34 — Every gate the CI runs is a required check
+
+`main gates` requires all seven: `lint`, `types`, `test`, `postgres`,
+`security`, `size` and `SonarCloud Code Analysis`. The last is bound to the
+SonarQubeCloud app rather than *Any source*; the six Actions jobs are not.
+
+**Reason.** §14 fixed five and deferred `postgres` because no job of that name
+existed on `main` yet — "a required check that never reports blocks every
+merge". It has existed since the store phase, and it is the only gate that
+proves the governed races on two independent connections, which
+`docs/AI_CODE_QUALITY.md` §1 names against the ~2× concurrency defect rate. It
+ran and reported on every pull request and stopped none of them.
+
+**Why the third reviewer is bound to its app and the six are not.** A check is
+matched by name, so *Any source* accepts that name from any actor. For
+`SonarCloud Code Analysis` that would undo the argument §31 rests on — a
+reviewer the author of the code cannot weaken. The six Actions jobs are
+declared in `.github/workflows/ci.yml`, so whoever can edit the workflow already
+controls them; binding the source buys nothing they do not already concede.
+
+**Consequence.** The hazard now runs the other way. §14 worried about a
+required check that never reports; the same break arrives by renaming a job,
+which silently makes its check unreportable and blocks every merge until the
+ruleset is edited to match. `test_every_required_check_is_a_job_the_ci_still_defines`
+refuses the rename. Nothing here can read the ruleset, so the test pins this
+entry's list against the workflow rather than against GitHub.
