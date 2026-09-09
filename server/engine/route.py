@@ -134,7 +134,7 @@ def resolve_route(
         )
         for node in pathway["nodes"]
     ]
-    nodes = _narrowed(declared, module_order)
+    nodes = _narrowed(declared, module_order, profile["edges"])
     by_module = {node.module_id: node.route_node_id for node in nodes}
     edges = [
         Edge(by_module[edge["source"]], by_module[edge["target"]], str(edge["type"]))
@@ -202,12 +202,33 @@ def _route_node_id(
     return f"RN-{profile_id}-{selection_id}-{stage:02d}-{module_id}"
 
 
-def _narrowed(declared: list[Node], module_order: tuple[str, ...] | None) -> list[Node]:
-    """CP-0's plan narrows the pathway; it never adds to it (DECISIONS.md §18)."""
+def _narrowed(
+    declared: list[Node],
+    module_order: tuple[str, ...] | None,
+    edges: list[dict[str, Any]],
+) -> list[Node]:
+    """CP-0's plan narrows the pathway; it never adds to it (DECISIONS.md §18).
+
+    Nor does it cut a blocking input out from under a module it keeps (§35):
+    the edge set is filtered to the surviving modules afterwards, so a dropped
+    REQUIRED source would otherwise leave its target RUNNABLE with nothing to
+    read, rather than BLOCKED on what the catalog says it needs.
+    """
     if module_order is None:
         return declared
     wanted = set(module_order)
-    if not wanted <= {node.module_id for node in declared}:
+    pathway = {node.module_id for node in declared}
+    if not wanted <= pathway:
+        raise Refusal(RefusalCode.ROUTE_NOT_RESOLVABLE)
+    severed = [
+        edge
+        for edge in edges
+        if edge["type"] in _BLOCKING
+        and edge["target"] in wanted
+        and edge["source"] in pathway
+        and edge["source"] not in wanted
+    ]
+    if severed:
         raise Refusal(RefusalCode.ROUTE_NOT_RESOLVABLE)
     return [node for node in declared if node.module_id in wanted]
 

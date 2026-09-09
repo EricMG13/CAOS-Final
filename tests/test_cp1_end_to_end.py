@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 from dataclasses import replace
 from decimal import Decimal
-from pathlib import Path
 
 import pytest
 
@@ -115,11 +114,6 @@ def request_for(store: Store) -> ModuleRequest:
         source_set_version=version,
         evidence=((DIGEST, 0),),
     )
-
-
-@pytest.fixture
-def blobs(tmp_path: Path) -> BlobStore:
-    return BlobStore(root=tmp_path)
 
 
 def _stored(blobs: BlobStore) -> int:

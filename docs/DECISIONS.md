@@ -776,7 +776,55 @@ ruleset is edited to match. `test_every_required_check_is_a_job_the_ci_still_def
 refuses the rename. Nothing here can read the ruleset, so the test pins this
 entry's list against the workflow rather than against GitHub.
 
-## 2026-09-09 §35 — Host retries are the only retries
+## 2026-09-09 §35 — A plan never severs a blocking edge into a module it keeps
+
+**Decided.** `module_order` may drop modules from a pathway (§18); it may not
+drop one that a kept module reaches through a REQUIRED, CONDITIONAL or QA_GATE
+edge. `resolve_route` refuses such a plan with `ROUTE_NOT_RESOLVABLE` before
+anything is pinned.
+
+**Why.** Narrowing filters the edge set to the surviving modules, so keeping
+CP-2 and dropping CP-1 — which CP-2 REQUIRES — resolved to a CP-2 that was
+RUNNABLE with nothing to read. Reproduced against the pinned catalog. A blocking
+edge is the catalog saying a module cannot run without that input; a plan that
+deletes the edge does not make the input unnecessary, it makes the gap
+invisible.
+
+**What §18 said and did not say.** "Narrows, never adds" ruled out invention. It
+was silent on severance, and the code read the silence as permission.
+
+**Soft edges are not covered.** Dropping the source of an OPTIONAL or ADVISORY
+edge removes the edge too, so its target runs RUNNABLE rather than RESTRICTED
+and carries no limitation forward. That is a lesser loss and a separate
+decision; it is noted here so it is not mistaken for one already made.
+
+## 2026-09-09 §36 — Readiness is read from the CP-0 artifact, and CONDITIONAL exists
+
+**Decided.** `accepted_attempts` reads CP-0's readiness from its accepted
+artifact at `runtime_output.readiness_summary.overall_readiness`, the field
+`CP-0__SourceReadiness__payload.schema.txt` declares. An accepted CP-0 artifact
+that does not carry one of its four values is refused `ENVELOPE_INVALID`.
+
+**Why this and not a column.** §18 already decided it: readiness is derived
+from the accepted CP-0 artifact, and there is no separate state. The loop then
+built every `Accepted` without one, so the hardening rule — OPTIONAL and
+ADVISORY block once the source is READY — held in tests that hand-constructed
+`Accepted(readiness=...)` and nowhere else. Reading the artifact is what §18
+described; a column would be the separate state it ruled out, and one that
+`artifacts` has no rewrite guard on.
+
+**§18 was wrong about the enum.** It said source readiness is READY,
+READY_WITH_LIMITATIONS, BLOCKED. The schema's `overall_readiness` also carries
+CONDITIONAL. It is accepted as a value and does not harden: hardening turns
+soft inputs into blocking ones on the strength of a source that is ready, and
+a conditional source is not that. The enum is copied into `loop.py` because
+the schema file is not JSON Schema and cannot be validated against.
+
+**Consequence.** `run_route` and `accepted_attempts` take a `BlobStore`. The
+frontier is still recomputation and nothing else: on restart the loop reads the
+artifact CP-0 actually produced.
+
+## 2026-09-09 §37 — Host retries are the only retries
 
 The live client is built with `max_retries=0`. The SDK's default is 2, and it
 retries a 408, 409, 429, 5xx or connection error by re-sending the request.
