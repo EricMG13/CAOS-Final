@@ -32,6 +32,7 @@ from server.store.gates import (
     gate_released,
     open_gate,
 )
+from server.store.members import Standing, grant_membership
 from server.store.runs import start_run
 
 REPO = Path(__file__).resolve().parents[1]
@@ -39,6 +40,15 @@ CASE = BoundaryText.of("acme")
 APPROVER = BoundaryText.of("ana")
 PREVIEW = "a" * 64
 FINGERPRINT = "b" * 64
+
+
+def _run(store: Store) -> str:
+    """A run on whose case `APPROVER` holds the standing to release a gate."""
+    run_id = start_run(store, case_id=CASE)
+    grant_membership(
+        store, case_id=CASE, member_id=APPROVER, standing=Standing.APPROVER
+    )
+    return run_id
 
 
 def _gate(run_id: str) -> Gate:
@@ -66,7 +76,7 @@ def test_approval_binds_the_exact_reviewed_content(store: Store) -> None:
     the digests of the preview that was actually read, and committing it would
     bind a human decision to content nobody saw.
     """
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     reviewed = _gate(run_id)
     assert open_gate(store, reviewed) is True
 
@@ -90,7 +100,7 @@ def test_an_identical_preview_over_different_inputs_is_different_content(
     # preview bytes -- a withdrawn document that contributed no visible line, a
     # reordering the renderer normalises away -- and the approval must still be
     # of the inputs, not of the picture of them.
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     reviewed = _gate(run_id)
     open_gate(store, reviewed)
     open_gate(store, replace(reviewed, input_fingerprint="e" * 64))
@@ -103,7 +113,7 @@ def test_an_identical_preview_over_different_inputs_is_different_content(
 def test_the_release_is_exactly_once_and_a_replay_says_so(store: Store) -> None:
     # The commit gap again: the release commits, the process dies before the
     # caller learns it did, and recovery replays the identical approval.
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     gate = _gate(run_id)
     open_gate(store, gate)
 
@@ -118,7 +128,7 @@ def test_the_release_is_exactly_once_and_a_replay_says_so(store: Store) -> None:
 def test_a_gate_that_was_never_opened_cannot_be_approved(store: Store) -> None:
     # An approval is of something. Nothing to review is not a release, and it is
     # not a replay either -- False would report a decision that never happened.
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     with pytest.raises(Refusal) as caught:
         approve_gate(store, _gate(run_id), approver=APPROVER)
     assert caught.value.code is RefusalCode.GATE_NOT_OPEN
@@ -128,7 +138,7 @@ def test_a_released_gate_is_not_reopened_on_new_content(store: Store) -> None:
     # The engine must not be able to move an interrupt a person already cleared.
     # Re-opening would leave the released content and the asked content
     # disagreeing, with only the approval row saying which was reviewed.
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     gate = _gate(run_id)
     open_gate(store, gate)
     approve_gate(store, gate, approver=APPROVER)
@@ -144,7 +154,7 @@ def test_reopening_a_gate_on_the_same_content_emits_no_second_event(
 ) -> None:
     # Recovery replays the gate. A stream that gains an event per replay is a
     # stream that cannot be resumed from, and SSE resume is what reads it.
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     gate = _gate(run_id)
     assert open_gate(store, gate) is True
     assert open_gate(store, gate) is False
@@ -154,7 +164,7 @@ def test_reopening_a_gate_on_the_same_content_emits_no_second_event(
 def test_two_gate_kinds_on_one_run_are_separate_interrupts(store: Store) -> None:
     # Source-set pinning and research-plan approval are both digest-bound and
     # neither releases the other.
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     pinning = _gate(run_id)
     plan = replace(pinning, kind=GateKind.RESEARCH_PLAN, preview_sha256="c" * 64)
     open_gate(store, pinning)
@@ -168,7 +178,7 @@ def test_two_gate_kinds_on_one_run_are_separate_interrupts(store: Store) -> None
 def test_the_approver_is_recorded_with_the_release(store: Store) -> None:
     # Who approved is part of what an approval is, and it reaches pinned state,
     # so it crosses the boundary as BoundaryText and never as a bare str.
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     gate = _gate(run_id)
     open_gate(store, gate)
     approve_gate(store, gate, approver=APPROVER)
@@ -182,7 +192,7 @@ def test_the_approver_is_recorded_with_the_release(store: Store) -> None:
 
 
 def test_a_digest_that_is_not_a_digest_never_reaches_the_gate(store: Store) -> None:
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     with pytest.raises(Refusal) as caught:
         open_gate(store, replace(_gate(run_id), preview_sha256="not-a-digest"))
     assert caught.value.code is RefusalCode.DIGEST_INVALID
@@ -196,7 +206,7 @@ def test_an_unknown_run_cannot_open_a_gate(store: Store) -> None:
 
 
 def test_the_approval_ledger_has_no_rewrite_path(store: Store) -> None:
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     gate = _gate(run_id)
     open_gate(store, gate)
     approve_gate(store, gate, approver=APPROVER)
@@ -232,7 +242,7 @@ def test_the_emitter_refuses_an_unknown_run(store: Store) -> None:
 
 
 def test_lock_run_refuses_an_unknown_run(store: Store) -> None:
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     lock_run(store, run_id=run_id)  # the run this test opened: no refusal
     with pytest.raises(Refusal) as caught:
         lock_run(store, run_id=str(uuid.uuid4()))

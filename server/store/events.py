@@ -31,19 +31,24 @@ class EventKind(StrEnum):
     RUN_COMPLETED = "RUN_COMPLETED"
 
 
-def lock_run(store: Store, *, run_id: str) -> None:
+def lock_run(store: Store, *, run_id: str) -> tuple[str, str]:
     """Take the run row lock, the serialisation point for everything about a run.
 
     Wants an open transaction, and that is the whole point: the lock is released
     when the transaction ends, so a caller that takes it outside one holds
     nothing. An unknown run is refused here rather than by a foreign key, so no
     constraint name reaches a caller.
+
+    Returns the run's case and state. Both are read under the lock, so they are
+    authoritative for the rest of the transaction: a caller deciding on them is
+    deciding on what the run is, not on what it was a moment ago.
     """
     locked = store.execute(
-        "SELECT 1 FROM runs WHERE run_id = %s FOR UPDATE", (run_id,)
+        "SELECT case_id, state FROM runs WHERE run_id = %s FOR UPDATE", (run_id,)
     ).fetchone()
     if locked is None:
         raise Refusal(RefusalCode.RUN_NOT_FOUND)
+    return str(locked[0]), str(locked[1])
 
 
 def emit(

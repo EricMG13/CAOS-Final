@@ -36,6 +36,7 @@ from server.refusals import Refusal, RefusalCode
 from server.store import Store
 from server.store.events import EventKind
 from server.store.gates import GateKind, gate_released
+from server.store.members import Standing, grant_membership
 from server.store.routes import pin_route, pinned_route
 from server.store.runs import start_run
 from server.store.source_sets import pin_source_set
@@ -83,6 +84,15 @@ def _evidence(store: Store, *digests: str) -> int:
     return pin_source_set(store, case_id=CASE, source_ids=admitted)
 
 
+def _run(store: Store) -> str:
+    """A run on whose case `APPROVER` holds the standing to release a gate."""
+    run_id = start_run(store, case_id=CASE)
+    grant_membership(
+        store, case_id=CASE, member_id=APPROVER, standing=Standing.APPROVER
+    )
+    return run_id
+
+
 def _plan(version: int, *, selection: str = ASSESSMENT, model: bool = False) -> Plan:
     return Plan(
         case_id=CASE,
@@ -103,7 +113,7 @@ def test_a_route_is_pinned_only_by_approving_the_plan_that_named_it(
     store: Store,
 ) -> None:
     version = _evidence(store, "a" * 64)
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     plan = _plan(version)
 
     open_plan_gate(store, run_id=run_id, plan=plan)
@@ -123,7 +133,7 @@ def test_approving_a_plan_that_is_not_the_one_on_screen_pins_nothing(
     # the reviewed plan and pin a different route, and only the approval row
     # would disagree -- quietly, and after the fact.
     version = _evidence(store, "a" * 64)
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     reviewed = _plan(version)
     open_plan_gate(store, run_id=run_id, plan=reviewed)
 
@@ -153,7 +163,7 @@ def test_two_source_set_versions_over_the_same_documents_are_different_inputs(
     second = pin_source_set(store, case_id=CASE, source_ids=admitted)
     assert (first, second) == (1, 2)
 
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     earlier, later = _plan(first), _plan(second)
     reviewed = plan_gate(run_id, earlier, ("a" * 64,))
     restated = plan_gate(run_id, later, ("a" * 64,))
@@ -223,7 +233,7 @@ def test_a_plan_over_a_source_set_that_was_never_pinned_is_refused(
     # A version with no members and a version that does not exist are the same
     # thing to a plan: there is no evidence to run against.
     _evidence(store, "a" * 64)
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     with pytest.raises(Refusal) as caught:
         open_plan_gate(store, run_id=run_id, plan=_plan(99))
     assert caught.value.code is RefusalCode.SOURCE_SET_EMPTY
@@ -233,7 +243,7 @@ def test_replaying_the_plan_gate_opens_no_second_interrupt(store: Store) -> None
     # Recovery replays the gate. `pin_route` was written for exactly this and
     # the gate has to match it, or a restart asks a person to approve twice.
     version = _evidence(store, "a" * 64)
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     plan = _plan(version)
 
     assert open_plan_gate(store, run_id=run_id, plan=plan) == plan_gate(
@@ -249,7 +259,7 @@ def test_approving_the_same_plan_twice_is_the_pin_it_already_has(
     # The commit gap: the transaction commits, the process dies before the
     # caller learns it did, and recovery replays the identical approval.
     version = _evidence(store, "a" * 64)
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     plan = _plan(version)
     open_plan_gate(store, run_id=run_id, plan=plan)
 
@@ -274,7 +284,7 @@ def test_approving_the_same_plan_twice_is_the_pin_it_already_has(
 
 def test_a_plan_cannot_be_approved_before_it_is_opened(store: Store) -> None:
     version = _evidence(store, "a" * 64)
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     with pytest.raises(Refusal) as caught:
         approve_plan(store, run_id=run_id, plan=_plan(version), approver=APPROVER)
     assert caught.value.code is RefusalCode.GATE_NOT_OPEN
@@ -295,7 +305,7 @@ def test_a_pin_that_fails_takes_the_release_down_with_it(store: Store) -> None:
     opened, so it proved the refusal and nothing about the rollback.
     """
     version = _evidence(store, "a" * 64)
-    run_id = start_run(store, case_id=CASE)
+    run_id = _run(store)
     pin_route(store, run_id=run_id, resolved=resolve_route(CATALOG, FULL, PORTFOLIO))
 
     plan = _plan(version)
