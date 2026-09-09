@@ -224,19 +224,20 @@ system this size means nobody looked.
   and its gate would sit in the same diff as the code under review, editable by
   the author. §14 made the same move for the other gates, off `make merge` and
   onto a platform ruleset, for the same reason.
-  What stays genuinely uncovered is a gate *loosened* rather than turned off: a
-  relaxed condition still reports green and nothing here would notice. Turned
-  off is the loud case once the check is required — it stops reporting, and a
-  required check that never reports blocks every merge.
+  **Turning it off is no longer silent.** `SonarCloud Code Analysis` is a
+  required check on `main`, bound to the SonarQubeCloud app rather than *Any
+  source* (`docs/DECISIONS.md` §34), so an analysis that stops running stops
+  reporting, and a required check that never reports blocks every merge.
+  What stays uncovered is one case: a gate *loosened* rather than turned off. A
+  relaxed condition still reports green and nothing here would notice.
   `test_nothing_here_starts_a_scanner_of_its_own` covers the one failure a
   commit can cause: a CI scanner job, which would fail against a project under
   automatic analysis and take the build with it.
-  *Upgrade:* add `SonarCloud Code Analysis` to the `main` ruleset's required
-  checks — that is what converts a disabled analysis from silent into blocking,
-  and it is the only part of this a person still has to do. Nothing closes the
-  loosened-gate case while the gate lives in a UI, and reverting to a CI scanner
-  trades it for a configuration the author of the code can edit, which is the
-  worse end for a repository written by an agent.
+  *Upgrade:* none for the loosened-gate case while the gate lives in a UI, and
+  reverting to a CI scanner trades it for a configuration the author of the code
+  can edit, which is the worse end for a repository written by an agent. The
+  honest position is that this control is trusted at one point — the gate's own
+  conditions — in exchange for being unreachable from a commit everywhere else.
 - **`.sonarcloud.properties` is verified by the project's analysis warnings,
   and by nothing in this tree.** The first version of this file declared only
   `sonar.exclusions`, and SonarQube Cloud's *Analysis warnings* said what that

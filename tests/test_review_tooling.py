@@ -31,6 +31,7 @@ DEFINITIONS = sorted((REPO / ".github" / "workflows").glob("*.yml"))
 CI = "\n".join(path.read_text(encoding="utf-8") for path in DEFINITIONS)
 QUALITY = (REPO / "docs" / "AI_CODE_QUALITY.md").read_text(encoding="utf-8")
 
+JOB = re.compile(r"^  ([a-z][a-z0-9-]*):$", re.M)
 USES = re.compile(r"^\s*-?\s*uses:\s*(\S+)", re.M)
 # `owner/name@<40 hex>` is the only pinned form: a tag moves, a digest does not.
 PINNED = re.compile(r"^[^@]+@[0-9a-f]{40}$")
@@ -38,6 +39,12 @@ PINNED = re.compile(r"^[^@]+@[0-9a-f]{40}$")
 # Every way this repository could start a scanner of its own. Any one of them
 # turns the analysis that currently runs into a failing build -- see
 # `test_nothing_here_starts_a_scanner_of_its_own` for why.
+# The Actions jobs the `main gates` ruleset requires (docs/DECISIONS.md §34).
+# A required check is matched by name: rename the job and it never reports, and
+# a check that never reports blocks every merge -- §14's own hazard, from the
+# other end. `SonarCloud Code Analysis` is absent because no job posts it.
+REQUIRED_JOBS = frozenset({"lint", "types", "test", "postgres", "security", "size"})
+
 SCANNER = (
     "sonarqube-scan-action",
     "sonarcloud-github-action",
@@ -174,3 +181,19 @@ def test_the_analysis_covers_everything_the_sast_gate_covers() -> None:
     """
     assert make_variable("SEC_TARGETS") <= declared("sonar.sources")
     assert make_variable("SEC_UNSCANNED") <= declared("sonar.tests")
+
+
+def test_every_required_check_is_a_job_the_ci_still_defines() -> None:
+    """A renamed job does not fail the ruleset; it stops reporting to it.
+
+    `docs/DECISIONS.md` §14 names the hazard from one end -- a required check
+    that never reports blocks every merge -- and §34 fixes the set. This is the
+    other end: the rename that quietly makes a required check unreportable.
+    """
+    defined = {match.group(1) for match in JOB.finditer(CI)}
+    assert defined, "no jobs found: the CI definition must have changed shape"
+    missing = sorted(REQUIRED_JOBS - defined)
+    assert missing == [], (
+        f"the ruleset requires checks no CI job posts: {missing}; "
+        "renaming a required job blocks every merge until the ruleset follows"
+    )
