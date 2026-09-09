@@ -152,6 +152,27 @@ system this size means nobody looked.
 
 **Phase 0.**
 
+- **The SAST gate does not scan `tests/`.** `make security` points bandit at
+  `$(SEC_TARGETS)` and declares `$(SEC_UNSCANNED) = tests` to `scan_floors.py`,
+  which refuses any tracked .py neither list claims -- so the omission is
+  declared here rather than merely absent. Pointed at `tests/` as well, bandit
+  reports 437 findings: 408 are B101 `assert_used`, because a suite is nothing
+  but asserts, and the one HIGH is B613 `trojansource` on
+  `test_a_case_id_carrying_a_bidi_override_never_reaches_the_store`, which
+  needs a real `\u202e` in the source to prove invariant 2 refuses it. Both are
+  the test doing its job, and `make security` fails on any finding, so scanning
+  the suite means a skip list that would also mask those checks in `server/`.
+  *Upgrade:* scan `tests/` with B101 and B613 skipped, the day a test helper
+  does something a scanner should have an opinion about.
+- **The vendored bundle carries no licence, and the repository is public.**
+  `vendor/deploy-v/` is 349 files and 5.3 MB with no licence file, no copyright
+  notice and no provenance statement -- searched for, not assumed. `LICENSE`
+  carves it out and says so (`docs/DECISIONS.md` §30), which states this
+  repository's position and does not obtain terms for redistributing somebody
+  else's bytes from a public repository. Invariant 4 makes the bundle
+  authority; it does not make it ours. *Upgrade:* terms from whoever authored
+  Deploy V, or a private repository -- the copyright holder's call, and the
+  only known gap in this ledger that code cannot close.
 - **No `image` CI job.** There is no Dockerfile and no runtime lock with
   packages in it, so Trivy would report every target as *not scanned*
   (`docs/DECISIONS.md` §11). *Upgrade:* the phase that adds the Dockerfile adds
@@ -549,9 +570,12 @@ system this size means nobody looked.
   succeeds whether the trigger is there or not; a behavioural test needs a
   populated fixture per table. *Upgrade:* the slice that gives those tables
   real fixtures.
-- **The identifier gates see only what git tracks.** A file added but not yet
-  staged is invisible to `check_vocabulary.py` and `check_tested.py`, so
-  `make check` can pass over code neither has read. *Upgrade:* stage before
+- **The identifier gates and the SAST floor see only what git tracks.** A file
+  added but not yet staged is invisible to `check_vocabulary.py`,
+  `check_tested.py` and `scan_floors.py --cover`, so `make check` can pass over
+  code none of them has read. bandit walks the filesystem rather than the index,
+  so it does scan that file and its findings still fail the gate; what the floor
+  cannot do is *require* it to have been scanned. *Upgrade:* stage before
   running the gates -- or have them scan the working tree and subtract
   .gitignore, which is what `git ls-files` was chosen to avoid re-deriving.
 - **`check_vocabulary.py` cannot see a term used for two things.** It catches a
