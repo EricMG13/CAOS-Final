@@ -584,7 +584,33 @@ closes the half of invariant 9 that anchoring alone never could — the other
 document is in the same case, in the same pinned set, and carries the same
 sentence, so only the ledger can tell the two apart.
 
-## 2026-09-09 §30 — SonarQube replaces CodeRabbit as the third reviewer
+## 2026-09-09 §30 — All rights reserved, because the bundle is not ours to license
+
+**Decided.** `LICENSE` states proprietary terms — no grant — and carves
+`vendor/deploy-v/` out of them explicitly.
+
+**Why not an open-source licence.** The repository is public and vendors 5.3 MB
+of `deploy-v` verbatim. MIT or Apache-2.0 at the root would assert terms over
+those bytes too, and invariant 4 says the bundle is upstream authority this
+repository never edits — it certainly cannot relicense it. A permissive licence
+here would be a claim the copyright holder is not in a position to make, and the
+carve-out is the whole reason the file has to exist rather than be omitted.
+
+**Why write anything at all.** An unlicensed public repository is already all
+rights reserved, so this grants and removes nothing. What it removes is the
+ambiguity a reader resolves by guessing, and it is the only place the carve-out
+can be stated. §6 says the bundle is never edited; it does not say the
+repository has no rights in it.
+
+**What this does not settle.** The bundle ships no licence file, no copyright
+notice and no provenance statement — searched, not assumed. Redistributing it
+from a public repository rests on terms nobody here has seen. That is a gap in
+the ledger, not a decision, and `CLAUDE.md` carries it.
+
+**Reversible.** Moving to an open-source licence is the copyright holder's
+decision, and it needs the bundle's terms settled first.
+
+## 2026-09-09 §31 — SonarQube replaces CodeRabbit as the third reviewer
 
 `.coderabbit.yaml` is deleted. SonarQube Cloud's automatic analysis takes its
 place: the GitHub App reads the repository from its own side and posts the

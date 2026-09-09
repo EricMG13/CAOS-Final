@@ -1,0 +1,26 @@
+CAOS
+
+Copyright (c) 2026 Eric Guei. All rights reserved.
+
+No licence is granted. You may not use, copy, modify, merge, publish,
+distribute, sublicense or sell any part of this repository, or any derivative of
+it, without prior written permission from the copyright holder. Viewing and
+forking through GitHub's own interface is permitted by GitHub's Terms of
+Service, and by nothing in this file.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+
+vendor/deploy-v/ is not covered by the above
+--------------------------------------------
+
+The methodology bundle under `vendor/deploy-v/` is third-party material,
+vendored verbatim and never edited (docs/DECISIONS.md section 6). It is not the
+copyright holder's to license, and nothing above grants any right in it.
+
+The bundle as vendored carries no licence file, no copyright notice and no
+statement of its own terms. Until its author states them, treat every byte under
+that directory as all rights reserved by whoever wrote it. See the known-gaps
+ledger in CLAUDE.md.

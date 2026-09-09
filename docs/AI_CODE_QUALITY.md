@@ -76,7 +76,7 @@ its reason. A pass that produced nothing means it was not run.
 work in two postures; the persona structure buys back some independence and is
 not the same thing as a second opinion. SonarQube's rule engine was written by
 people who never saw this repository, which is exactly the property the review
-control was missing — see `docs/DECISIONS.md` §30.
+control was missing — see `docs/DECISIONS.md` §31.
 
 **It runs from SonarQube Cloud's side, not from CI.** Automatic analysis reads
 the repository through the GitHub App and posts the `SonarCloud Code Analysis`

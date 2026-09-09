@@ -10,7 +10,7 @@ SonarQube Cloud analyses this repository automatically, from its own side of the
 GitHub App, and posts the `SonarCloud Code Analysis` check. None of that lives in
 this tree, so what these tests can hold is the shape of the tree around it -- and
 the one way to break it from here, which is to commit the scanner configuration
-that automatic analysis forbids. See `docs/DECISIONS.md` section 30.
+that automatic analysis forbids. See `docs/DECISIONS.md` section 31.
 
 Invariant protected: the review control in `docs/AI_CODE_QUALITY.md` section 2
 is enforced by a tool rather than by whoever remembers to ask for it.
@@ -59,12 +59,12 @@ def test_nothing_here_starts_a_scanner_of_its_own() -> None:
     """
     assert not (REPO / "sonar-project.properties").exists(), (
         "sonar-project.properties configures the scanner CLI, which cannot run "
-        "against a project under automatic analysis; see DECISIONS.md section 30"
+        "against a project under automatic analysis; see DECISIONS.md section 31"
     )
     found = sorted(token for token in SCANNER if token.lower() in CI.lower())
     assert found == [], (
         f"a CI job would start a second analysis ({found}), which fails against "
-        "a project under automatic analysis; see DECISIONS.md section 30"
+        "a project under automatic analysis; see DECISIONS.md section 31"
     )
 
 
