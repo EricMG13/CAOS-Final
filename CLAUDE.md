@@ -87,6 +87,10 @@ directory the repository does not have costs more than no map.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
   quote and derives its rectangles.
+- `server/engine/node.py` — `execute_module`: assemble, ask, validate, anchor,
+  store. Nothing is written until every citation has been re-derived.
+- `methodology/envelope.py` — the canonical envelope, validated against the
+  bundle's own `CP_MODULE_PAYLOAD_BASE.schema.txt`.
 - `server/provider.py` — the provider boundary: `ProviderCall`, `Completion`,
   `price_of`, `RecordedProvider` and the live client. Pinned to `claude-opus-5`.
 - `server/boundary_text.py`, `server/digests.py`, `server/refusals.py` — the
@@ -235,6 +239,17 @@ system this size means nobody looked.
   every ceiling refuses before overspend; assembly has none because nothing
   downstream has a token budget to overspend yet. *Upgrade:* with
   `max_output_tokens` and the provider boundary.
+- **The loop and `execute_module` have not met.** `run_route` still takes an
+  arbitrary `Executor` and prices every node at a flat 1.00; `execute_module`
+  computes a real charge from reported usage and no loop calls it.
+  *Upgrade:* Phase 6, with the run surface.
+- **`max_output_tokens` is one constant for every module.** `SYSTEM_SPEC.md`
+  §3 puts it on `ModuleSpec`; no module has needed a different ceiling yet.
+  *Upgrade:* the first module that does.
+- **`artifacts.node_id` still carries two spellings.** `execute_module` works
+  in route node ids throughout, which settles what the loop writes, and
+  `commit_terminal` is still exercised with module ids. Changing that is a
+  separate concern from this slice. *Upgrade:* Phase 6, unchanged.
 - **No live provider call has ever run.** Every provider test drives the real
   SDK against a mock transport, which is a real check of the request body and
   the refusal mapping and is not a check that the API accepts the combination

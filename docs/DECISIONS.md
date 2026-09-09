@@ -553,3 +553,33 @@ whose laptop ran it.
 that spends money, and it skips without a credential. Everything else drives the
 real SDK against a mock transport, which is what caught `ParsedMessage` having
 no `_request_id` — a crash on every live call that `mypy` could not see.
+
+## 2026-09-09 §29 — The envelope is the bundle's schema; citations are the host's
+
+`CP_MODULE_PAYLOAD_BASE.schema.txt` already declares the canonical envelope:
+thirteen required fields, closed enums for `output_class`, `qa_status` and
+`confidence_band`, and `additionalProperties: false`. That last line *is*
+invariant 9. The host validates against that file, read through `Bundle.read`
+and therefore digest-checked at use.
+
+**Not against a model copied from it.** A hand-written `pydantic` model would be
+a second declaration of one contract, free to drift from the authority it
+paraphrases — and it is the drift, not the schema, that admits an undeclared
+field. `jsonschema==4.26.0` enters the locks (4 transitive packages) rather than
+a hand-rolled validator: `additionalProperties` getting subtly wrong is exactly
+the failure invariant 9 exists to prevent, and the Lite base already uses
+`$ref`, `$defs` and `allOf`, which is a spec to implement rather than a subset.
+
+**Where the schema stops, the host starts.** The base types `evidence_trace`
+only as an object. Citations are host territory (invariant 11), so the shape
+inside it is declared here: `evidence_trace.citations` is a list of
+`{document_sha256, page, matched_text}` — exactly those three keys. A claim
+carrying `bboxes` is refused rather than ignored, because a module supplying its
+own rectangles is a module asserting where its quote sits, and the host derives
+that.
+
+**Consequence.** `delivered_evidence` is finally read. `read_evidence` records
+what a node was handed; `_anchor` refuses a citation naming anything else, which
+closes the half of invariant 9 that anchoring alone never could — the other
+document is in the same case, in the same pinned set, and carries the same
+sentence, so only the ledger can tell the two apart.
