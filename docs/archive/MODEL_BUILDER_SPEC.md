@@ -1,3 +1,13 @@
+> **Archived 2026-09-09 under `docs/DECISIONS.md` §48.** Not in the build.
+> Kept verbatim for a build that brings the workbook back. What that build
+> needs, measured in §48: `libreoffice-calc` in the image (436 MB, 167
+> packages), the model extension placing CP-MODEL at stage 101 with the
+> `CP-CF → CP-MODEL` edge, a worker process for the recalculation, and a
+> per-calculator dependency set for `openpyxl`. The bundle code it renders and
+> verifies with -- `vendor/deploy-v/skills/cp-model/` -- is still vendored and
+> pinned. Section references below are to the documents as they stood before
+> §48; the appendix carries what those documents said.
+
 # Model Builder — legacy parity spec
 
 CP-MODEL v3 is the reference implementation. The rebuild's Model Builder must
@@ -165,3 +175,85 @@ pins.
 
 A green suite with soffice absent is a vacuous pass. CI installs LibreOffice
 for the model job and asserts the engine version is recorded in `_AUDIT`.
+
+---
+
+## Appendix — what the other documents said before §48
+
+### `docs/SYSTEM_SPEC.md` §6
+
+## 6. Model
+
+One model effect per pathway. Full Credit builds the complete model from the six
+canonical artifacts. Every other pathway resolves through the nearest validated
+Full Credit ancestor: its build re-verified by recomputation, the accepted run's
+calculation records re-executed, one `pathway_effects` entry on a byte-identical
+copy of the base model-table payloads under the overlay's own input fingerprint.
+This reuses validated data, not workbook sheets or a prior `.xlsx`. Every
+workbook is rendered from the resulting typed IR and recalculated and validated
+afresh, as required by `MODEL_BUILDER_SPEC.md` §§4–5.
+
+- Calculation is pure and finite. Non-finite values and zero denominators are
+  refused before use.
+- Every build carries `source_lineage`: one row per pinned source with intake
+  disposition, consumers, citing artifacts, model tables and binding. A `used`
+  relevant document bound to nothing is `MODEL_SOURCE_LINEAGE_INCOMPLETE` and
+  never READY.
+- The expression language ported from the AI Studio build (`docs/DECISIONS.md` §8)
+  is a registry calculator. It parses `$M`, `x`, `%`, `bps`, `IF/THEN/ELSE`,
+  `MIN`/`MAX`/`SUM`/`HAIRCUT`, evaluates against pinned artifacts server-side,
+  and attaches the lineage of every operand to the result. It never evaluates in
+  the browser and never reads anything but the pinned snapshot.
+
+Builds are claimed CAS-bound; a `BUILDING` row a dead worker left behind is
+requeued at the next worker start. Exports take the same claim — one worker
+today, but the claim is not optional.
+
+### `docs/IA_SPEC.md` §4.6
+
+### 4.6 Model — `/model/`
+
+The build, its worksheet, assumptions, scenarios, tornado and one-way
+sensitivity, revisions and rebase preview. Source lineage is a first-class view:
+one row per pinned source, its consumers and its bindings. An incomplete
+lineage blocks READY and says which source is bound to nothing.
+
+The projection is a view here, not a separate section: per case-period, the
+operating, investing and financing lines, the debt and cash roll-forward, and
+**the residual as its own column**. A period whose residual exceeds tolerance
+renders unavailable with its reason, and every later period in that case
+renders unavailable too — never as zero growth, and never silently balanced.
+Each projected figure carries the driver that produced it and that driver's
+evidence, so the passport contract (§4.4) holds for forecast cells exactly as
+it does for actuals.
+
+### `docs/REBUILD_PLAN.md` Phase 7
+
+## Phase 7 — Model build and the workbook
+
+`docs/MODEL_BUILDER_SPEC.md` in full. This is the phase where "looks like
+legacy" is either true or not.
+
+- Typed IR from the six canonical artifacts; overlay resolution for the other
+  pathways; `source_lineage` per pinned source.
+- Renderer: seven sheets in order, four hidden, real formulas, every formula
+  tracked by a `FormulaExpectation`, provenance comments on source cells.
+- Recalculate through soffice; validate registry, inventory and every computed
+  value; publish exclusively.
+- `cash_flow_forecast` calculator and CP-CF (`SYSTEM_SPEC.md` §6.1–6.2).
+- The `worker` process, its Dockerfile with soffice in it, and the `image` job
+  with its scan floor (`docs/DECISIONS.md` §11).
+- A per-calculator dependency set: `-S` holds for the stdlib calculators and
+  not for `cp_model_v3` or `cp_memo` —
+  `test_a_calculator_sees_only_its_declared_dependencies`.
+
+**Exit:** the ten parity tests in `MODEL_BUILDER_SPEC.md` §8, with LibreOffice
+present. `test_recalc_unavailable_fails_closed` proves the suite is not vacuous.
+`test_forecast_complete_requires_every_requested_period` refuses a missing,
+duplicate, extra or unavailable case-period; a full horizon with an explicitly
+unavailable zero-denominator ratio remains valid. An independently wrong
+residual and forward propagation are exercised by
+`test_forecast_residual_is_not_forced_to_zero` and
+`test_forecast_unavailability_propagates`.
+`test_overlay_renders_from_ir_without_reusing_a_workbook` protects the overlay
+boundary in `SYSTEM_SPEC.md` §6.

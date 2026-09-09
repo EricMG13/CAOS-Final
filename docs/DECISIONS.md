@@ -1580,3 +1580,69 @@ then meets `audit_events_pkey` rather than a refusal. Two reviewers flagged
 it. It is the shape `emit`, `lock_run`, `require_standing`, `commit_terminal`
 and `apply_schema` already carry, every caller opens a transaction, and it is
 deferred with them to the API layer rather than closed for one emitter alone.
+
+## 2026-09-09 §48 — The host places no model build and no publication module; the deliverable is rendered by the host
+
+**Decided.** CP-MODEL and CP-MEMO are not placed. The model extension appends
+CP-CF alone, and the `CP-CF → CP-MODEL` edge goes with the node it pointed at.
+The deliverable is one HTML file the host renders from the frozen snapshot --
+the accepted artifacts in route order, every figure carrying its citation --
+never overwriting, printing to paper (`DESIGN.md`). The host's own chain
+around it is unchanged: opinion on the exact revision, freeze, filing that
+refuses the signer and the freezer, the detached receipt, the package
+verifiable with the standard library. There is one process: the worker existed
+to poll for model builds and publication jobs, and a render from frozen bytes
+takes milliseconds in the request. Nothing installs LibreOffice or poppler;
+every calculator stays standard-library, so the `-S` jail holds. The Model
+section shows CP-CF's projection. Overrides §7 and the half of §23 that placed
+CP-MODEL; the plan's Phases 7 and 8 are rewritten, the workbook and
+publication contracts are archived verbatim under `docs/archive/` for a build
+that brings them back, and the rest is corrected in place under §38.
+
+**Reason: the image.** Measured on `python:3.14-slim` (Debian 13, arm64),
+installed sizes summed over each package set's dependency closure:
+`libreoffice-calc` + `libreoffice-writer` + `poppler-utils` + Carlito is
+482 MB across 176 packages with `--no-install-recommends`, and the finished
+image is about 763 MB with it against about 281 MB without -- base
+169, the runtime lock 64, the Phase 6 and 7 wheels 28, the bundle 5, the
+static export an estimated 15. LibreOffice is 63 % of the image and, for the
+`image` job §11 owes, 176 packages of standing CVE triage that `pip-audit`
+does not cover.
+
+**Reason: nothing smaller conforms.** Both modules mandate the binaries in
+their own hard gates. `CP-MODEL_CP_WORKBOOK_EXPORT_HARD_GATE.md` says
+"LibreOffice/soffice for external recalculation is mandatory" and fails a
+workbook where "recalculation does not produce a cached value"; CP-MEMO's
+`render_pdf.py` resolves `soffice` and `pdftoppm` by name and refuses without
+either. Neither has a Python-only mode: `export_cp_model_v3.py --soffice` is a
+path override and `_resolve_soffice` raises without one, and
+`cp_memo/builder.py` imports `render_to_pages` at module scope. So every
+alternative was costed and lost. A smaller formula engine (IronCalc, Gnumeric)
+saves nothing while the memo's page images keep LibreOffice in the image, and
+deviates from a gate that names soffice. Static figures in place of formulas
+save nothing for the same reason and fail four clauses of the gate. Running
+the bundle's own exporters under the calculator boundary is the same two
+binaries. The predecessor's answer -- `reportlab` composing a PDF directly, no
+`.docx`, formulas "evidence only" and never evaluated -- is a different
+deliverable, and the un-evaluated workbook §7 refused.
+
+**Why not placing them is no deviation.** Both are `navigable: false` and
+appear in no pathway's node list; they ran only because §23 placed them. A hard
+gate constrains the module that executes, and a module the host never places
+owes nothing to it. No upstream file changes (§6), and Phase 10's
+`ORCHESTRATION_PROOF` stays true of every module that runs.
+
+**What it costs.** No workbook an analyst can open and stress. No Word memo
+for a committee pack. The methodology's own deliverables are not produced, so
+the proof narrows to the modules that run. Those are product calls, and the
+day a committee needs the workbook or the `.docx`, this entry is what a later
+one overrides -- with the 482 MB and the two hard gates coming back together.
+The contracts wait in `docs/archive/`, each under a banner saying what that
+build must bring back.
+
+**What stays.** CP-CF and `cash_flow_forecast` (§8, §22): standard-library
+Decimal, pure, and the one place the forward model's arithmetic is the host's.
+The vocabulary loses the model build's `build` and keeps the word for the
+thing it already names everywhere else -- the bundle release a run is pinned
+to. `MODEL_EXTENSION` drops CP-MODEL in the slice that builds CP-CF (Phase 7),
+with the two tests that placed it.

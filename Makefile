@@ -13,7 +13,7 @@ SEC_UNSCANNED := tests
 COV_TARGETS := scripts server methodology
 COV_UNSCANNED := tests
 
-.PHONY: venv lock lint types test test-model security check pg merge dev
+.PHONY: venv lock lint types test security check pg merge dev
 
 venv:  ## dev toolchain on 3.14, security toolchain on 3.12 (AI_CODE_QUALITY 4)
 	uv venv --python 3.14 .venv
@@ -40,10 +40,6 @@ test:  # CAOS_TEST_POSTGRES_URL must be set; a skipped store suite is not a pass
 	$(PY) scripts/scan_floors.py coverage.xml --cobertura \
 		--cover $(COV_TARGETS) --unscanned $(COV_UNSCANNED)
 	$(PY) scripts/io_budget.py --assert
-
-test-model:  ## needs soffice on PATH; a green model suite without it is vacuous
-	soffice --version
-	$(PYTEST) -m model_parity
 
 security:  # the floor is checked first: a report that skipped a file must fail
 	$(SEC)/bandit -r $(SEC_TARGETS) -f json -o bandit.json || true
@@ -72,4 +68,4 @@ merge:  ## refuse to merge a PR whose checks are not all green
 	"$$gh" pr merge "$$PR" --merge --match-head-commit "$$head_oid"
 
 dev:
-	@echo "no API or worker yet; they arrive with the first HTTP route" && exit 1
+	@echo "no API yet; it arrives with the first HTTP route" && exit 1

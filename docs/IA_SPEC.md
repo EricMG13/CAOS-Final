@@ -21,9 +21,9 @@ sections is the whole surface — a tenth needs a decision entry, not a ticket.
 | Analysis | `/analysis/` | the module output | read, cite, dispute |
 | Book | `/book/` | the credit, across the portfolio | filter, group, compare |
 | Run | `/run/` | the resolved route | approve a plan, accept a run |
-| Model | `/model/` | the build | revise, sign off |
+| Model | `/model/` | the projection | read, compare cases |
 | Report | `/report/` | the draft revision | edit, sign the opinion |
-| Committee | `/committee/` | the CP-MEMO deliverable | inspect QA, publish |
+| Committee | `/committee/` | the deliverable | freeze, file |
 | Admin | `/admin/` | the deployment | — (unavailable capability) |
 
 One word per URL, trailing slash, static export. Every pre-v2 slug forwards to
@@ -49,7 +49,7 @@ screen. It is deleted.
   global role at commit time, regardless of which section issued it.
 
 A user with `READER` standing sees `/committee/` and can read the deliverable.
-The publish control is present and refused, with the reason stated —
+The filing control is present and refused, with the reason stated —
 `APPROVER_NOT_INDEPENDENT`, or absent standing — never hidden. Hiding a control
 teaches the wrong model of the system.
 
@@ -78,7 +78,7 @@ right column that is always *about the selected thing*, never a second menu.
 ### Rail
 
 Two groups. **Workspace** lists the nine sections with a count and a one-line
-state (`ACTIVE · CP-6 OF 12`, `bld_c41a · READY`, `CP-MEMO · QA OPEN`). Below it
+state (`ACTIVE · CP-6 OF 12`, `CP-CF · ACCEPTED`, `rev_3 · FROZEN`). Below it
 a **section-local** group: filters in Book, report sections in Committee, the
 route frontier in Analysis. The foot carries two controls and no more.
 
@@ -158,7 +158,7 @@ opens the passport, and it always carries all of:
 | Method | the calculator, and whether it verified |
 | Derivation | the expression, with operands |
 | Citations | anchored chips |
-| Supporting research | direct links to the accepted module artifacts, any running Deep Research, and prior published memos |
+| Supporting research | direct links to the accepted module artifacts, any running Deep Research, and prior filed deliverables |
 
 **Definition deviation is marked everywhere it applies**, not once in a
 footnote: on the credit, on every affected cell, and in the comparison, with
@@ -179,13 +179,12 @@ compile form or the accept control.
 
 ### 4.6 Model — `/model/`
 
-The build, its worksheet, assumptions, scenarios, tornado and one-way
-sensitivity, revisions and rebase preview. Source lineage is a first-class view:
-one row per pinned source, its consumers and its bindings. An incomplete
-lineage blocks READY and says which source is bound to nothing.
+CP-CF's accepted projection (`SYSTEM_SPEC.md` §6). The workbook build, its
+assumptions, scenarios and revisions that stood here went with CP-MODEL
+(`docs/DECISIONS.md` §48); what remains is read, never edited.
 
-The projection is a view here, not a separate section: per case-period, the
-operating, investing and financing lines, the debt and cash roll-forward, and
+The projection, per case-period: the operating, investing and financing lines,
+the debt and cash roll-forward, and
 **the residual as its own column**. A period whose residual exceeds tolerance
 renders unavailable with its reason, and every later period in that case
 renders unavailable too — never as zero growth, and never silently balanced.
@@ -201,21 +200,20 @@ freeze, and the refusal names the figure.
 
 ### 4.8 Committee — `/committee/` (IC Pack)
 
-The legacy CP-MEMO deliverable. Three regions:
+The deliverable the host renders from the frozen snapshot (`SYSTEM_SPEC.md`
+§7). Three regions:
 
-- **Rail** — the ten report sections in order, each showing its contributing
-  module and disposition.
-- **Centre** — the document itself on paper, watermarked `DRAFT — NOT
-  PUBLISHED` until it is published.
-- **Right** — the publication gate. Every page as a thumbnail with a pass, fail
-  or not-yet-checked state; the defect named in the language of the gate
-  (clipping, overlap, broken table, font substitution, orphan heading, bad page
-  break, header/footer defect). Below it the editorial boundary, stated and
-  counted — figures originated, conflicts preserved, confidence changes. Below
-  that the module provenance index.
+- **Rail** — the accepted artifacts in route order, each showing its module
+  and disposition, then the narrative and the provenance index.
+- **Centre** — the document itself on paper, watermarked `DRAFT — NOT FILED`
+  until it is filed.
+- **Right** — the filing. The opinion and the revision it binds, the freeze,
+  the filing with its independence stated, and the receipt once filed. Every
+  refusal shows its code and what would clear it.
 
-Publish is present and refused while any page fails. The output is one `.docx`
-and the surface says so.
+File is present and refused while the freeze has no current opinion or the
+actor signed or froze it (`APPROVER_NOT_INDEPENDENT`). The output is one HTML
+file and the surface says so.
 
 ### 4.9 Admin — `/admin/`
 
@@ -269,7 +267,7 @@ notes).
 ## 7. Density and motion
 
 - Dark institutional terminal, single mode. Paper — dark ink on cream — only
-  inside published output and research documents.
+  inside filed output and research documents.
 - Colour is signal: status, seniority, selection, lineage. Never decoration.
   Status is shape *and* hue, never hue alone.
 - Numerics are mono and tabular everywhere so columns scan and decimals align.
@@ -288,6 +286,6 @@ notes).
 - No role switcher that changes what a user may do.
 - No second navigation surface — no mega-menu, no breadcrumb trail, no tab bar
   that leaves the section.
-- No inline editing of a published artifact. Published is immutable; the path
+- No inline editing of a filed deliverable. Filed is immutable; the path
   forward is a new revision.
 - No chart that carries a number the passport cannot explain.

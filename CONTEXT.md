@@ -18,9 +18,9 @@ introduces a synonym for a term below.
 | **frontier** | the nodes currently RUNNABLE or RESTRICTED | queue, ready set |
 | **artifact** | one module's accepted, content-addressed output | result, response |
 | **snapshot** | the accepted artifact set that a case's conclusion rests on | version, state |
-| **build** | one model compilation from a snapshot | model run |
-| **revision** | an immutable analyst edit on a build | draft, version |
-| **deliverable** | a published document (CP-MEMO) or workbook (CP-MODEL) | report, output, export |
+| **build** | one release of the methodology bundle, named by its manifest's `build_id`; a run is pinned to one | version |
+| **revision** | an immutable analyst edit on the deliverable | draft, version |
+| **deliverable** | the document the host renders from a frozen snapshot | report, output, export |
 | **opinion** | the analyst's signature on an exact revision | approval, sign-off of the deliverable |
 | **filing** | the independent approval that makes a deliverable final | publication, release |
 

@@ -1,7 +1,6 @@
 # Jobs arrive with the phase whose code they can actually scan. A job that
 # passes because it found nothing is the failure mode docs/AI_CODE_QUALITY.md
 # section 4 exists to prevent, so none is scaffolded ahead of its subject:
-#   model    (LibreOffice recalc) .... Phase 7
 #   frontend (lint, tsc, a11y) ....... Phase 9
 #   image    (Trivy) ................. the phase that adds the Dockerfile
 name: ci
