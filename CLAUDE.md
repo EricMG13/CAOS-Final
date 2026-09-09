@@ -206,20 +206,32 @@ system this size means nobody looked.
   *Upgrade:* Phase 2 raises the floor to one budget per request path, with
   `test_io_budget_read_evidence`.
 - **`make dev` fails.** There is no API or worker until the first HTTP route.
-- **The third reviewer's configuration is not in this tree.** SonarQube Cloud
-  analyses this repository automatically and posts `SonarCloud Code Analysis`
-  (`docs/DECISIONS.md` §31), which is the property CodeRabbit never had: it runs
-  without anyone asking. What follows the repository is one line —
-  `.sonarcloud.properties` excluding `vendor/`. The quality gate's conditions,
-  the rule set, and whether automatic analysis stays enabled at all are settings
-  in SonarQube Cloud that no test here can read, so the gates cannot tell a
-  weakened gate from a passing one. `test_nothing_here_starts_a_scanner_of_its_own`
-  covers the one failure a commit can cause — a CI scanner job, which would fail
-  against a project under automatic analysis and take the build with it.
-  *Upgrade:* none available while automatic analysis is the mechanism. Turning
-  it off for a CI scanner would put the configuration back in the tree and cost
-  a `SONAR_TOKEN` plus a job that has to be kept green; it is a trade, not a
-  fix.
+- **The third reviewer's configuration is not in this tree, and that is half
+  deliberate.** SonarQube Cloud analyses this repository automatically and posts
+  `SonarCloud Code Analysis` (`docs/DECISIONS.md` §31), which is the property
+  CodeRabbit never had: it runs without anyone asking. What follows the
+  repository is one line — `.sonarcloud.properties` excluding `vendor/`. The
+  quality gate's conditions, the rule set, and whether automatic analysis stays
+  enabled are settings in SonarQube Cloud that no test here can read. The first
+  draft of this entry recorded that as a flat cost, which was half the picture:
+  **the agent that writes this repository cannot weaken the reviewer that reads
+  it.** A CI scanner would hand that back — its `sonar.sources`, its exclusions
+  and its gate would sit in the same diff as the code under review, editable by
+  the author. §14 made the same move for the other gates, off `make merge` and
+  onto a platform ruleset, for the same reason.
+  What stays genuinely uncovered is a gate *loosened* rather than turned off: a
+  relaxed condition still reports green and nothing here would notice. Turned
+  off is the loud case once the check is required — it stops reporting, and a
+  required check that never reports blocks every merge.
+  `test_nothing_here_starts_a_scanner_of_its_own` covers the one failure a
+  commit can cause: a CI scanner job, which would fail against a project under
+  automatic analysis and take the build with it.
+  *Upgrade:* add `SonarCloud Code Analysis` to the `main` ruleset's required
+  checks — that is what converts a disabled analysis from silent into blocking,
+  and it is the only part of this a person still has to do. Nothing closes the
+  loosened-gate case while the gate lives in a UI, and reverting to a CI scanner
+  trades it for a configuration the author of the code can edit, which is the
+  worse end for a repository written by an agent.
 - **`.sonarcloud.properties` is unverified from here.** It is the file automatic
   analysis reads — `sonar-project.properties` is the scanner CLI's and is
   ignored — but nothing in this repository can prove the exclusion took effect,

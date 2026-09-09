@@ -640,11 +640,20 @@ analysis, so it configured nothing while it existed; `gitleaks` also read the
 `test_nothing_here_starts_a_scanner_of_its_own` refuses all of it, because the
 next agent to read §11 will reach for the same job.
 
-**Consequence.** The controls that are visible in this repository are one line
-narrower than a CI job would have been: analysis scope is
-`.sonarcloud.properties`, and the quality gate, the rule set and the schedule
-are settings in SonarQube Cloud that no test here can read. That is the trade
-this decision accepts — a reviewer with genuinely different weights, in exchange
-for a control whose configuration is not entirely in the tree. §14's answer
-applies to the check: `SonarCloud Code Analysis` joins the `main` ruleset's
-required checks once it has reported on `main`.
+**Consequence.** The controls visible in this repository are one line narrower
+than a CI job would have been: analysis scope is `.sonarcloud.properties`, and
+the quality gate, the rule set and the schedule are settings in SonarQube Cloud
+that no test here can read.
+
+That is not only a cost. Most of this repository is written by an agent, and a
+scanner configured from the tree would put the reviewer's scope and gate in the
+same diff as the code under review — editable by its author. Automatic analysis
+cannot be reached from a commit at all, which is the independence
+`docs/AI_CODE_QUALITY.md` §2 said the review control was missing, and it is the
+same reasoning §14 used to move the other gates off `make merge` and onto a
+platform ruleset. What it does not cover is a gate *loosened* rather than
+disabled: a relaxed condition still reports green.
+
+§14's answer applies to the check: `SonarCloud Code Analysis` joins the `main`
+ruleset's required checks once it has reported on `main`, which is what makes a
+disabled analysis block every merge instead of passing silently.

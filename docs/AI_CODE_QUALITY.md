@@ -98,7 +98,11 @@ is not a control.
 
 The one thing that follows the repository rather than the platform is analysis
 scope: `.sonarcloud.properties` excludes `vendor/`, so the bundle we never edit
-is not judged.
+is not judged. Everything else living outside the tree is what keeps this
+reviewer independent of the agent that writes the code — a scanner configured
+from `sonar-project.properties` could be narrowed in the same PR it reviews.
+The check belongs in the `main` ruleset for the reason §14 gives, and the case
+that remains uncovered is a quality gate loosened rather than switched off.
 
 The measured value of the arrangement so far, on the two changes it reviewed
 before this: CodeRabbit contributed two docstrings to #20; the adversarial pass
