@@ -82,6 +82,7 @@ def report_within(path: Path, base: Path) -> Path:
     """
     resolved = os.path.realpath(path)
     root = os.path.realpath(base)
+    # The separator is load-bearing: `/base-secret/x` starts with `/base`.
     if not resolved.startswith(root + os.sep):
         message = (
             f"{path} is outside {base}; a scanner report is read only from under "

@@ -389,16 +389,31 @@ def test_scan_floor_refuses_a_report_outside_the_directory_it_was_invoked_from(
 
 
 def test_report_within_refuses_a_path_that_escapes_the_base(tmp_path: Path) -> None:
+    """Three ways out, and the third is the one a prefix check misses.
+
+    `"/data/resources-secret".startswith("/data/resources")` is true, so a
+    containment check has to compare against the directory *with* its trailing
+    separator or a sibling whose name merely begins with the base walks through
+    it. The rule's own guidance names this pitfall; the sibling case here is what
+    makes the separator in `report_within` load-bearing rather than decorative.
+    """
     base = tmp_path / "base"
     base.mkdir()
     (base / "coverage.xml").write_text("", encoding="utf-8")
     (tmp_path / "escaped.xml").write_text("", encoding="utf-8")
+    sibling = tmp_path / "base-secret"
+    sibling.mkdir()
+    (sibling / "coverage.xml").write_text("", encoding="utf-8")
 
     assert (
         scan_floors.report_within(base / "coverage.xml", base)
         == (base / "coverage.xml").resolve()
     )
-    for escaping in (tmp_path / "escaped.xml", base / ".." / "escaped.xml"):
+    for escaping in (
+        tmp_path / "escaped.xml",
+        base / ".." / "escaped.xml",
+        sibling / "coverage.xml",
+    ):
         with pytest.raises(ValueError, match="outside"):
             scan_floors.report_within(escaping, base)
 

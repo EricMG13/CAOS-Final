@@ -967,6 +967,16 @@ What this cost is a lesson worth the entry: an analysis this repository cannot
 read is an analysis it cannot fix without a person in the loop. Two cycles
 were spent on inference, and the finding was on the dashboard the whole time.
 
+One more, found while pinning the fix. The mutation checks that backed this
+change's tests were first run under `pytest -q` on top of the `-q` already in
+`addopts`, and `-qq` prints no `N passed` line — so a harness that grepped for
+one reported every mutation as caught, whether it was or not. "A scanner that
+scanned nothing is a failure" applies to the scaffolding around a test as much
+as to the gates; the checks were redone keyed on the exit code, with the
+unmutated tree proven green first, and the separator in `report_within` was
+the case that showed it: `"/base-secret/x".startswith("/base")` is true, and
+only a sibling-directory input makes the trailing separator load-bearing.
+
 That is weaker than an analysis nobody here can reach, and it is what buys a
 coverage metric. The honest summary is that this repository traded an
 independent scope for a measured one.
