@@ -87,6 +87,8 @@ directory the repository does not have costs more than no map.
 - `server/evidence/` — `server/evidence/reads.py` is `read_evidence`, the only
   way a module sees a document; `server/evidence/citations.py` re-locates a
   quote and derives its rectangles.
+- `methodology/envelope.py` — the canonical envelope, validated against the
+  bundle's own `CP_MODULE_PAYLOAD_BASE.schema.txt`.
 - `server/provider.py` — the provider boundary: `ProviderCall`, `Completion`,
   `price_of`, `RecordedProvider` and the live client. Pinned to `claude-opus-5`.
 - `server/boundary_text.py`, `server/digests.py`, `server/refusals.py` — the
