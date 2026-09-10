@@ -125,7 +125,11 @@ Plus the three the provider-call contract owes (`docs/DECISIONS.md` §21):
 
 **Exit:** `test_approval_binds_the_exact_reviewed_content`;
 `test_membership_revocation_refuses_commit`;
-`test_sse_closes_after_terminal_delivery`; and the five owed above.
+`test_unauthorised_case_is_private_404`,
+`test_production_never_trusts_role_header` and
+`test_the_actor_matrix_for_the_run_view` for the first HTTP route
+(`docs/DECISIONS.md` §50); `test_sse_closes_after_terminal_delivery`; and the
+five owed above.
 
 ## Phase 7 — The forecast and the image
 

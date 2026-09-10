@@ -377,8 +377,12 @@ the export from the frozen payload.
 
 ## 8. Identity and authority
 
-- Development trusts a role header. Production derives role from OIDC groups
-  only; a client role header never escalates.
+- Development trusts an identity header pair (`X-Caos-Member`,
+  `X-Caos-Groups`), and only when `CAOS_ENV=development` says so. Production reads what the OIDC
+  edge asserted (`X-Forwarded-User`, `X-Forwarded-Groups`) and never the
+  development pair; a client role header never escalates. Role is derived
+  from those groups only, by the first write that needs one
+  (`docs/DECISIONS.md` §50).
 - Unknown runs and unauthorized runs return the same 404.
 - Case standing (`READER`/`WRITER`/`APPROVER`/`ADMIN`) and global role are
   separate and both are rechecked at commit time, not only at request time.

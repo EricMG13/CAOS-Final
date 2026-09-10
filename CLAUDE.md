@@ -73,6 +73,11 @@ Standing rules that back them:
 Paths that exist today, then the ones each phase adds. A map that names a
 directory the repository does not have costs more than no map.
 
+- `server/api/` — the edge. `app.py` is `create_app`, the one ASGI app and the
+  one place a `Refusal` becomes a status; `identity.py` is `identify`, who is
+  asking, from the header pair the environment trusts; `runs.py` is the run
+  view with its `IO_BUDGET`; `wire.py` is `Wire`, the closed base every JSON
+  body serves. `python -m server.api` is the process.
 - `server/engine/route.py` — `resolve_route`, `dependency_order`, `node_states`,
   `frontier`, `route_digest`, and the host-declared model extension. Typed edges
   from `profile["edges"]`, never from `navigation.dependencies`. Pure: no I/O.
@@ -148,7 +153,8 @@ nine sections, static export (Phase 9).
 ## Running
 
 - `make venv` — the two toolchains. `make lock` — recompile every lock.
-- `make dev` — fails until the first HTTP route exists (Phase 6).
+- `make dev` — the API on `127.0.0.1:8000`; wants `CAOS_BLOB_ROOT` and
+  `CAOS_POSTGRES_URL`, the DSN `make pg` prints.
 - `make test` — the suite.
 - `make check` — lint, types, tests, security, in that order.
 
@@ -221,9 +227,7 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
 - **`io_budget.py --assert` enforces only that some `server/api/` module
   declares an `IO_BUDGET`.** It keys on the route directory, not on `server/`:
   a store module has no request path and no round-trip budget to declare.
-  *Upgrade:* Phase 2 raises the floor to one budget per request path, with
-  `test_io_budget_read_evidence`.
-- **`make dev` fails.** There is no API until the first HTTP route.
+  Three modules declare one. *Upgrade:* refuse a route that declares none.
 - **The third reviewer's scope is now editable by the agent it reviews.**
   `docs/DECISIONS.md` §41 moved the analysis from SonarQube Cloud's own side
   into the `sonarqube` CI job, because automatic analysis imports no coverage
@@ -423,9 +427,39 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   (`docs/DECISIONS.md` §39). `SYSTEM_SPEC.md` §8 wants global role rechecked
   there too, and nothing derives one: there is no served identity, so the
   store call is handed an approver's name and can check only what the store
-  holds about it. *Upgrade:* identity derivation with the first HTTP route,
-  which is what turns a header or an OIDC group into a role the call can be
-  handed.
+  holds about it. `server/api/identity.py` derives who is asking and carries
+  their groups; nothing turns a group into a role, because no spec names the
+  roles (`docs/DECISIONS.md` §50). *Upgrade:* the first write route.
+- **Production trusts a header pair and the socket it arrived on.** `identify`
+  reads `X-Forwarded-User` and `X-Forwarded-Groups` (`docs/DECISIONS.md` §50):
+  what an OIDC proxy forwards and must overwrite. Nothing binds the connection
+  to that proxy, so any process that reaches the port is any member -- and a
+  proxy that forwards a client's own copy is the same hole from the other side.
+  Groups cross as bare `str`, unbounded, because nothing reads them yet.
+  *Upgrade:* a proxy-set secret compared with `hmac.compare_digest`, or the
+  forwarded token verified against the issuer's keys; either is its own entry.
+- **One connection, one request, and no way back from losing it.** The route is
+  `async def` over a synchronous store on one connection (`docs/DECISIONS.md`
+  §48): a slow read stalls every reader, nothing threads -- which is what keeps
+  pdfminer's unlocked caches safe -- and a Postgres restart leaves the process
+  up and refusing everything, with no probe to notice. *Upgrade:* reconnect or
+  exit non-zero, with `/api/health`.
+- **No `/api/health`, no request ceiling, no SSE, no HTTP client, no logger.**
+  §11's probe and ceiling and §9's tail are routes this slice did not write;
+  `test_sse_closes_after_terminal_delivery` is the phase's remaining exit test.
+  `httpx` is not in the lock -- `anthropic` depends on `httpx2` -- so `serve`
+  in `tests/conftest.py` builds the scope uvicorn would, in latin-1, and
+  exercises no header parsing, size limit or keep-alive. uvicorn's access log
+  and its `str(exc)` tracebacks are switched off rather than redacted, so §45's
+  logger is owed; `python -m server.api` has no test. *Upgrade:* the SSE slice.
+- **What the run view cannot say.** A pin the store cannot read back is served
+  as no pin, and one whose edges name absent nodes is a `KeyError` and a 500 to
+  a member -- reachable only by the table owner, since `resolve_route` filters
+  those edges. `GateView` carries the kind and the releaser, not the digests a
+  person approved; an unknown path is Starlette's 404 and a wrong method its
+  405, neither a named model; every artifact digest and the approver's name go
+  to a `READER`. *Upgrade:* validation in `_route` with a second code; the
+  approval route; a decision on what a reader sees.
 - **`case_members` is current membership, with no guard.** A grant, a change
   of standing and a revocation each rewrite the row in place; who made each,
   and when, is the case's audit chain's (`docs/DECISIONS.md` §47), so the
@@ -469,9 +503,9 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   codes.** `lock_run` refuses `RUN_NOT_FOUND` before the case is known, so
   `STANDING_INSUFFICIENT` can only follow it, and a caller with no standing
   anywhere can tell a run that exists from one that does not. `SYSTEM_SPEC.md`
-  §8 collapses both into one 404 at an edge that does not exist yet, and
-  nothing here pins that it will. *Upgrade:* the first HTTP route, with
-  `test_unauthorised_case_is_private_404`.
+  §8 collapses both, and `server/api/app.py` is where that happens: one status
+  and one body (`test_unauthorised_case_is_private_404`). *Upgrade:* none; a
+  store caller that is not a route still sees the two codes.
 - **Nobody has ruled on independence at the plan gate.** `open_gate` takes no
   actor -- the host parks the run; a person does not -- so the store cannot
   say who derived the plan, and an `APPROVER` or `ADMIN` may release it
@@ -486,8 +520,8 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   document text, so nothing governed leaks -- but `SYSTEM_SPEC.md` §8 wants an
   unknown run and an unauthorized one to be indistinguishable, and an
   unparseable one is neither. `lock_run` inherits the shape rather than
-  introducing it. *Upgrade:* the run surface, where a path parameter is parsed
-  once and a bad one is the same private 404 as any other unknown run.
+  introducing it; the run view parses its path parameter with `checked_uuid`
+  first. *Upgrade:* `checked_uuid` inside `lock_run`, the day a caller needs it.
 - **`run_gates` carries no rewrite guard.** It needs the UPDATE path the
   re-open uses, so `refuse_rewrite` would refuse the one thing the table exists
   to allow. A raw `UPDATE` therefore moves the asked content under a person who
@@ -576,8 +610,8 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   posture wanted for a ledger that was rewritten, and a case nobody can act on
   meanwhile. *Upgrade:* a repair procedure with its own decision entry, the
   day a chain is found broken.
-- **The actor on the chain is the name the caller gave.** There is no served
-  identity, so `record` writes what it is handed: `withdraw_source` has checked
+- **The actor on the chain is the name the caller gave.** No route hands the
+  store the identity it derived, so `record` writes what it is handed: `withdraw_source` has checked
   that the name holds standing on the case; `grant_membership` and
   `revoke_membership` have not (above). *Upgrade:* identity derivation with the
   first HTTP route.

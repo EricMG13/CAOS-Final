@@ -8,9 +8,9 @@ revocation deletes it -- because the history of who changed it is the audit
 chain's: each is a governed write, recorded there in its own transaction.
 
 Standing is a case's own thing. It is not the global role §8 derives from an
-OIDC group or a development header; that is an edge this repository does not
-have yet, and nothing here stands in for it. Nor does the actor a grant or
-revocation records: the store is handed a name and checks nothing about it.
+OIDC group or a development header, which `server/api/identity.py` derives and
+nothing yet turns into a role. Nor is it the actor a grant or revocation
+records: the store is handed a name and checks nothing about it.
 """
 
 from __future__ import annotations
