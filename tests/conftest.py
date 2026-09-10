@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 import uuid
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -13,6 +14,7 @@ import pytest
 from psycopg import Cursor
 from psycopg.abc import Params, Query
 from psycopg.rows import TupleRow
+from starlette.types import ASGIApp, Message
 
 from server.store import Store
 from server.store.blobs import BlobStore
@@ -115,3 +117,45 @@ def count_io() -> Counter:
 @pytest.fixture
 def blobs(tmp_path: Path) -> BlobStore:
     return BlobStore(root=tmp_path)
+
+
+@dataclass(frozen=True, slots=True)
+class Served:
+    """One HTTP response, as the ASGI app sent it."""
+
+    status: int
+    body: bytes
+
+
+def serve(app: ASGIApp, path: str, headers: Iterable[tuple[str, str]] = ()) -> Served:
+    """Drive the app through one GET as uvicorn would: a scope and two coroutines.
+
+    The suite has no HTTP client -- `httpx` is not in the lock, only `httpx2`.
+    """
+    scope = {
+        "type": "http",
+        "http_version": "1.1",
+        "method": "GET",
+        "path": path,
+        "query_string": b"",
+        "root_path": "",
+        # latin-1, as a server hands header bytes over; see `_sent`.
+        "headers": [
+            (n.lower().encode("latin-1"), v.encode("latin-1")) for n, v in headers
+        ],
+    }
+    sent: list[Message] = []
+
+    async def receive() -> Message:
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message: Message) -> None:
+        sent.append(message)
+
+    async def drive() -> None:
+        await app(scope, receive, send)
+
+    asyncio.run(drive())
+    start = next(m for m in sent if m["type"] == "http.response.start")
+    parts = (m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+    return Served(int(start["status"]), b"".join(parts))

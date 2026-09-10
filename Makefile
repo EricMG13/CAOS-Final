@@ -67,5 +67,5 @@ merge:  ## refuse to merge a PR whose checks are not all green
 	"$$gh" pr checks "$$PR" && \
 	"$$gh" pr merge "$$PR" --merge --match-head-commit "$$head_oid"
 
-dev:
-	@echo "no API yet; it arrives with the first HTTP route" && exit 1
+dev:  ## CAOS_POSTGRES_URL (the DSN `make pg` prints) and CAOS_BLOB_ROOT
+	$(PY) -m server.api

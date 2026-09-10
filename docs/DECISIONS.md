@@ -1720,3 +1720,98 @@ Form XObjects, the ceilings above, de-hyphenation, rotated pages, a
 deterministic region order when pdfminer's boxes tie, ligatures and unmapped
 glyphs, storing the bytes, and a store that checks what its one producer
 hands it.
+
+## 2026-09-10 §50 — FastAPI is the edge, identity is the proxy's word in production and a header's in development
+
+**Decided.** `fastapi` 0.141.1 and `uvicorn` 0.52.4 are the runtime
+dependencies of the edge -- with them `starlette`, `click` and
+`annotated-doc`, five pure-Python packages -- and `server/api/` is the
+package: `create_app` over one open store connection, `identify` once per
+request, and one route, `GET /api/runs/{run_id}`, serving `RunView`. Every
+JSON body extends `Wire`, `extra="forbid"` and frozen, and
+`test_every_route_serves_a_named_model_with_a_pinned_key_set` names every
+route the app has and the key set of every model it serves. Identity is a
+member id and the groups asserted for it. In development it is read from
+`X-Caos-Member` and `X-Caos-Groups`; in production from `X-Forwarded-User`
+and `X-Forwarded-Groups`, what an OIDC-authenticating reverse proxy forwards,
+and never from the development pair -- two pairs, so that what production
+trusts can never be what a client wrote. `CAOS_ENV` chooses, and unset is
+production: trusting a client header is opted into. The run view asks one
+statement whether this is a run on a case this person is on, and
+`RUN_NOT_FOUND` and `STANDING_INSUFFICIENT` are served as one 404 with one
+body, so an outsider learns neither that the run exists nor that they are
+not on it; a malformed run id is refused by `checked_uuid` before the store
+sees it, by the same code. `NodeState` gains `blocked_on`, the edges a
+BLOCKED node waits on, so the view can say which upstream and which edge
+type -- the OPTIONAL edge CP-0's readiness hardened included -- and the one
+QA_GATE reads as a gate because its type is on the wire. `IO_BUDGET` is
+four: the run with the member's standing, the pin, the artifacts, the
+gates; a nineteen-node route is one row and its states are computed. The
+suite drives the app through `tests/conftest.py`'s `serve`, an ASGI scope
+and two coroutines, because `httpx` is not in the lock. The actor matrix
+`docs/AI_CODE_QUALITY.md` §1 owed is defined here as every actor the store
+distinguishes -- anonymous, a member of another case, the four standings --
+plus a forged development header in production; the "nine" it named was a
+number nobody had derived, corrected in place under §38.
+
+**Reason: FastAPI, and not less.** `SYSTEM_SPEC.md` §1 names it, and the
+alternatives were costed. The standard library's `http.server` has no ASGI,
+so the SSE tail §9 wants is a thread per client and the routing is written
+here. Starlette alone is the same packages less one, and hands back the
+`response_model` validation that makes §9's "named model" a thing the
+framework refuses rather than a convention. A WSGI framework streams events
+only on threads, which the store is not ready for. What FastAPI costs is
+generated documentation this host disables -- three routes nobody reads,
+and one contract test that names every route this app serves.
+
+**Reason: the proxy's word, not a token.** Production could instead verify
+the ID token the proxy forwards against the issuer's JWKS. That is a key
+fetch or a key cache in every request, a clock to check expiry against, and
+either a dependency or sixty lines of signature code on the one boundary
+where a defect is a stranger reading a case. The forwarded pair is what
+every OIDC proxy of this shape sets, and the single reverse proxy §11 puts
+in front of the one instance is the thing that must overwrite it. The ledger
+says what that trusts; the token check is the upgrade, as its own entry.
+
+**Reason: no global role yet.** §8 derives a role from OIDC groups and no
+spec names the roles. Deriving one here would be inventing the value set the
+first write route will need, for a read that checks standing and nothing
+else -- a field no caller reads, which the ledger has refused before.
+`Identity.groups` is carried so the first write finds it there.
+
+**Measured.** `uv pip compile` against the existing locks adds five pins and
+moves none; `pip-audit --require-hashes` over all three locks is clean on
+2026-09-10; the suite is 521 passed, 1 skipped, the run view at 97 % and
+`identify` at 96 %. `python -m server.api` is at 0 %: the startup path has no
+test, and both defects the review found in it were found by reading it.
+
+**Split, because the size gate counts a deletion like an insertion.** The
+edges a BLOCKED node waits on are an engine property -- `NodeState.blocked_on`
+and `EdgeType` in `server/engine/route.py`, with the test that names them --
+and they ship as their own change ahead of this one. What is left is the edge
+itself, at 791 of the gate's 800 lines. Correcting a ledger entry that this
+slice makes untrue costs two lines for every one it touches, which is why the
+four corrections here are surgical and the reasoning lives in this entry:
+`docs/` is outside the gate and `CLAUDE.md` is inside it.
+
+**Reviewed adversarially, five fixed and the rest ledgered.** Three personas
+and a rewrite tournament ran against the finished code. Fixed here: a member
+id was compared in the wrong encoding -- a header is bytes, the framework
+hands them over decoded latin-1, so `josé` reached the store as `josÃ©` and a
+granted member was a stranger for as long as they were called that; an absent
+or misspelled `CAOS_BLOB_ROOT` turned every view of a run with an accepted
+artifact into a 500, where a drifted store is refused at startup, so this is
+too; `EdgeView.type` served an open `str` where `CONTEXT.md` names five edge
+types; uvicorn's access log and its `str(exc)` tracebacks were on, which is a
+logger arriving without the redaction §45 owes, so both are off; and the
+contract test pinned the key set of five models by hand without noticing a
+sixth, so it now compares against every `Wire` subclass there is. Ledgered:
+that nothing binds the connection to the proxy whose header production
+trusts, so any process reaching the port is any member; that a lost store
+connection is permanent and unnoticed; and that a pin whose edges name absent
+nodes is a `KeyError` rather than a refusal, which takes the table owner to
+write. The tournament's readability pass won on the two functions it was run
+against and is applied; its speed pass -- a four-way join at three statements
+-- was declined, because it read the pin's existence in the statement that
+answers §8's question and bought one round trip with a query nobody will read
+twice.

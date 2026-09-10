@@ -3,3 +3,6 @@ anthropic==1.4.0
 jsonschema==4.26.0
 # PDF text with a rectangle, region and line per character (docs/DECISIONS.md section 49).
 pdfminer.six==20260107
+# The edge: one ASGI app served by uvicorn (docs/DECISIONS.md section 50).
+fastapi==0.141.1
+uvicorn==0.52.4
