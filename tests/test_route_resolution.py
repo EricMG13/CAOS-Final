@@ -22,6 +22,7 @@ from server.engine.route import (
     _SOFT,
     Accepted,
     Edge,
+    EdgeType,
     Node,
     NodeState,
     ResolvedRoute,
@@ -235,3 +236,22 @@ def test_cp0s_plan_narrows_the_pathway_and_never_adds_to_it(
     assert [n.module_id for n in narrowed.nodes] == ["CP-0", "CP-1", "CP-5"]
     with pytest.raises(Refusal):
         resolve_route(CATALOG, FULL, ASSESSMENT, module_order=("CP-0", "CP-MEMO"))
+
+
+def test_a_blocked_node_names_the_edges_it_waits_on(route: ResolvedRoute) -> None:
+    # The run view serves the reason beside the state (IA_SPEC 4.5): which
+    # upstream, which edge type. A RUNNABLE node waits on nothing.
+    cp0, cp1, cp1b, cp1d = (_node(route, m) for m in ("CP-0", "CP-1", "CP-1B", "CP-1D"))
+    states = node_states(route, {})
+    assert states[cp0].blocked_on == ()
+    assert states[cp1b].blocked_on == (
+        Edge(cp0, cp1b, EdgeType.REQUIRED),
+        Edge(cp1, cp1b, EdgeType.REQUIRED),
+    )
+    # A soft edge hardened by CP-0's readiness is a reason too, and the node
+    # still names it as carried, so a reader can tell the two apart.
+    hardened = node_states(route, _accept(route, "CP-0", readiness="READY"))[cp1d]
+    soft = node_states(route, _accept(route, "CP-0", readiness="BLOCKED"))[cp1d]
+    assert Edge(cp1b, cp1d, EdgeType.OPTIONAL) in hardened.blocked_on
+    assert Edge(cp1b, cp1d, EdgeType.OPTIONAL) not in soft.blocked_on
+    assert hardened.carried == soft.carried == (cp1b,)
