@@ -32,11 +32,22 @@ class State(StrEnum):
     BLOCKED = "BLOCKED"
 
 
-# REQUIRED, CONDITIONAL and QA_GATE block. OPTIONAL and ADVISORY are soft until
-# the source's readiness is READY or READY_WITH_LIMITATIONS, at which point a
-# missing input is a real gap rather than an absent extra.
-_BLOCKING = frozenset({"REQUIRED", "CONDITIONAL", "QA_GATE"})
-_SOFT = frozenset({"OPTIONAL", "ADVISORY"})
+class EdgeType(StrEnum):
+    """The bundle's words, unchanged (`CONTEXT.md`), and all of them."""
+
+    REQUIRED = "REQUIRED"
+    CONDITIONAL = "CONDITIONAL"
+    QA_GATE = "QA_GATE"
+    OPTIONAL = "OPTIONAL"
+    ADVISORY = "ADVISORY"
+
+
+# The first three block. OPTIONAL and ADVISORY are soft until the source's
+# readiness is READY or READY_WITH_LIMITATIONS, at which point a missing input
+# is a real gap rather than an absent extra. Members are `str`, so an edge type
+# read from the catalog compares against these without being decoded.
+_BLOCKING = frozenset({EdgeType.REQUIRED, EdgeType.CONDITIONAL, EdgeType.QA_GATE})
+_SOFT = frozenset({EdgeType.OPTIONAL, EdgeType.ADVISORY})
 _HARDENING_READINESS = frozenset({"READY", "READY_WITH_LIMITATIONS"})
 
 
@@ -103,10 +114,13 @@ class Accepted:
 
 @dataclass(frozen=True, slots=True)
 class NodeState:
-    """A node's state, and the soft inputs a RESTRICTED node is running without."""
+    """A node's state, with its reason: the soft inputs a RESTRICTED node is
+    running without, and the edges a BLOCKED node waits on -- which upstream,
+    which edge type, so a person is told why and not only what."""
 
     state: State
     carried: tuple[str, ...] = ()
+    blocked_on: tuple[Edge, ...] = ()
 
 
 def resolve_route(
@@ -293,7 +307,9 @@ def node_states(
         blocking = [e for e in unmet if e.type in _BLOCKING or hardened]
         carried = tuple(e.source for e in unmet if e.type in _SOFT)
         if blocking:
-            states[node.route_node_id] = NodeState(State.BLOCKED, carried)
+            states[node.route_node_id] = NodeState(
+                State.BLOCKED, carried, tuple(blocking)
+            )
         elif carried:
             states[node.route_node_id] = NodeState(State.RESTRICTED, carried)
         else:
