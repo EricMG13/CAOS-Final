@@ -273,14 +273,20 @@ def test_every_route_serves_a_named_model_with_a_pinned_key_set(
     store: Store, blobs: BlobStore
 ) -> None:
     app = create_app(store, blobs=blobs, environment=Environment.DEVELOPMENT)
-    served = [route for route in app.routes if isinstance(route, Route)]
-    assert [route.path for route in served] == ["/api/runs/{run_id}"]
-    for route in served:
-        model = getattr(route, "response_model", None)
-        assert isinstance(model, type) and issubclass(model, Wire), route.path
+    served = {r.path: r for r in app.routes if isinstance(r, Route)}
+    # SSE is `docs/SYSTEM_SPEC.md` §9's one carve-out from a named model, and
+    # it is named here rather than left to what a route happens to return.
+    tail = "/api/runs/{run_id}/events"
+    assert set(served) == {"/api/runs/{run_id}", tail}
+    for path, route in served.items():
         # The one connection is safe only while no request leaves the loop
         # for a threadpool: dropping `async` would put two on one of it.
-        assert inspect.iscoroutinefunction(route.endpoint), route.path
+        assert inspect.iscoroutinefunction(route.endpoint), path
+        model = getattr(route, "response_model", None)
+        if path == tail:
+            assert model is None, "the carve-out serves no model, and no other"
+            continue
+        assert isinstance(model, type) and issubclass(model, Wire), path
 
     assert Wire.model_config["extra"] == "forbid"
     pinned: dict[type[Wire], str] = {

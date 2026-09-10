@@ -125,6 +125,7 @@ class Served:
 
     status: int
     body: bytes
+    headers: Mapping[str, str]
 
 
 def serve(app: ASGIApp, path: str, headers: Iterable[tuple[str, str]] = ()) -> Served:
@@ -134,6 +135,9 @@ def serve(app: ASGIApp, path: str, headers: Iterable[tuple[str, str]] = ()) -> S
     """
     scope = {
         "type": "http",
+        # Starlette reads `spec_version` to choose how a streaming response
+        # watches for a disconnect; uvicorn sends 2.3, so this does.
+        "asgi": {"version": "3.0", "spec_version": "2.3"},
         "http_version": "1.1",
         "method": "GET",
         "path": path,
@@ -146,7 +150,18 @@ def serve(app: ASGIApp, path: str, headers: Iterable[tuple[str, str]] = ()) -> S
     }
     sent: list[Message] = []
 
+    asked = False
+
     async def receive() -> Message:
+        # The body once, then a client that says no more -- parked, not
+        # disconnected: `http.disconnect` would also stop the spin below, by
+        # cancelling the response and truncating the body a test then counts.
+        # A coroutine that returns without ever awaiting spins Starlette's
+        # disconnect listener into a busy loop the response cannot escape.
+        nonlocal asked
+        if asked:
+            await asyncio.Event().wait()
+        asked = True
         return {"type": "http.request", "body": b"", "more_body": False}
 
     async def send(message: Message) -> None:
@@ -158,4 +173,5 @@ def serve(app: ASGIApp, path: str, headers: Iterable[tuple[str, str]] = ()) -> S
     asyncio.run(drive())
     start = next(m for m in sent if m["type"] == "http.response.start")
     parts = (m.get("body", b"") for m in sent if m["type"] == "http.response.body")
-    return Served(int(start["status"]), b"".join(parts))
+    named = {n.decode("latin-1"): v.decode("latin-1") for n, v in start["headers"]}
+    return Served(int(start["status"]), b"".join(parts), named)

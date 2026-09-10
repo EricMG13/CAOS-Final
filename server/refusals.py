@@ -52,6 +52,9 @@ class RefusalCode(StrEnum):
     RUN_NOT_FOUND = "RUN_NOT_FOUND"
     RUN_NOT_RUNNING = "RUN_NOT_RUNNING"
     SOURCE_ALREADY_ADMITTED = "SOURCE_ALREADY_ADMITTED"
+    # An open stream is a request that lasts minutes, so the instance ceiling
+    # SYSTEM_SPEC 11 wants enforced is a count of them.
+    STREAM_CEILING_EXCEEDED = "STREAM_CEILING_EXCEEDED"
     SOURCE_HAS_NO_TEXT = "SOURCE_HAS_NO_TEXT"
     SOURCE_NOT_ADMISSIBLE = "SOURCE_NOT_ADMISSIBLE"
     SOURCE_NOT_EXTRACTABLE = "SOURCE_NOT_EXTRACTABLE"
