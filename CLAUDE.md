@@ -76,8 +76,9 @@ directory the repository does not have costs more than no map.
 - `server/api/` — the edge. `app.py` is `create_app`, the one ASGI app and the
   one place a `Refusal` becomes a status; `identity.py` is `identify`, who is
   asking, from the header pair the environment trusts; `runs.py` is the run
-  view with its `IO_BUDGET`; `wire.py` is `Wire`, the closed base every JSON
-  body serves. `python -m server.api` is the process.
+  view and `events.py` its tail, each with its `IO_BUDGET`; `wire.py` is
+  `Wire`, the closed base every JSON body serves. `python -m server.api` runs
+  it.
 - `server/engine/route.py` — `resolve_route`, `dependency_order`, `node_states`,
   `frontier`, `route_digest`, and the host-declared model extension. Typed edges
   from `profile["edges"]`, never from `navigation.dependencies`. Pure: no I/O.
@@ -444,14 +445,14 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   pdfminer's unlocked caches safe -- and a Postgres restart leaves the process
   up and refusing everything, with no probe to notice. *Upgrade:* reconnect or
   exit non-zero, with `/api/health`.
-- **No `/api/health`, no request ceiling, no SSE, no HTTP client, no logger.**
-  §11's probe and ceiling and §9's tail are routes this slice did not write;
-  `test_sse_closes_after_terminal_delivery` is the phase's remaining exit test.
+- **No `/api/health`, no request ceiling, no HTTP client, no logger.**
+  §11's probe and ceiling are routes no slice has written.
   `httpx` is not in the lock -- `anthropic` depends on `httpx2` -- so `serve`
   in `tests/conftest.py` builds the scope uvicorn would, in latin-1, and
   exercises no header parsing, size limit or keep-alive. uvicorn's access log
   and its `str(exc)` tracebacks are switched off rather than redacted, so §45's
-  logger is owed; `python -m server.api` has no test. *Upgrade:* the SSE slice.
+  logger is owed; `python -m server.api` has no test. *Upgrade:* the slice
+  that adds the probe and the ceiling.
 - **What the run view cannot say.** A pin the store cannot read back is served
   as no pin, and one whose edges name absent nodes is a `KeyError` and a 500 to
   a member -- reachable only by the table owner, since `resolve_route` filters
@@ -460,6 +461,46 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   405, neither a named model; every artifact digest and the approver's name go
   to a `READER`. *Upgrade:* validation in `_route` with a second code; the
   approval route; a decision on what a reader sees.
+- **The tail polls, and a revoked member reads until the next one.** One
+  statement a second per open stream -- so `IO_BUDGET` here bounds a poll and
+  not a request, which is what it bounds everywhere else, and a five-minute
+  tail makes about three hundred of them. `LISTEN`/`NOTIFY` on one shared
+  connection would mean a notification arriving mid-transaction for whichever
+  request is holding it (`docs/DECISIONS.md` §51). Revocation therefore takes
+  effect within `POLL_SECONDS` rather than at once, and what a member removed
+  from a case learns in that second is that something happened, never what.
+  A forged `run_events.kind` raises rather than refusing, as a corrupt pin
+  does, and the tail ends on it rather than truncating its body. `MAX_TAILS`
+  and `MAX_TAILS_PER_MEMBER` count streams, not the statements they make, so
+  one member's four tails are still four hundred statements a second at the
+  poll interval, and a client that stops reading mid-batch parks its tail past
+  the deadline, holding its place. The poll has
+  no `LIMIT`, so a client resuming from nothing re-reads a run's whole history
+  in one synchronous fetch -- four event kinds today, and an unbounded read on
+  a request path whose budget counts statements. *Upgrade:* `LISTEN` on a
+  connection of its own, with the pool.
+- **A tail inherits a transaction its caller was already holding, for as long
+  as it lives.** `poll_events` nests inside one rather than stealing the
+  commit, which is right and is what `test_a_poll_leaves_the_connection_as_it_found_it`
+  pins; the consequence is that `event_tail` opened by such a caller parks at
+  its sleep with that transaction open, on the process's one connection, for
+  up to five minutes. The endpoint is the only caller and holds none. The same
+  shape as `emit`, `lock_run`, `require_standing`, `record`, `commit_terminal`
+  and `apply_schema`, and the only one where the cost is measured in minutes.
+  *Upgrade:* refuse a non-idle connection at entry, with the slice that fixes
+  all seven.
+- **A tail that reaches its deadline just ends, and nothing says why.** The
+  client reconnects with `Last-Event-ID` and the edge reauthenticates it (§9);
+  no frame distinguishes closing for time from closing for good, which is why
+  a run with nothing left to send is answered `204` instead -- the one status
+  that stops `EventSource` rather than having it reconnect every few seconds
+  for as long as the tab is open. Two events can still be missed: `open_gate`
+  and `approve_gate` take the run row with `running=False`, so a gate event
+  landing after `RUN_COMPLETED` reaches no live tail, and a `FAILED` run ends
+  a tail with no terminal event because no `RUN_FAILED` kind exists. The
+  reconnect is what recovers the first; nothing writes `FAILED` yet.
+  *Upgrade:* a `retry:` field if the browser's default proves wrong, and the
+  slice that gives failure an event.
 - **`case_members` is current membership, with no guard.** A grant, a change
   of standing and a revocation each rewrite the row in place; who made each,
   and when, is the case's audit chain's (`docs/DECISIONS.md` §47), so the
@@ -537,7 +578,8 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   event payloads, an event name triggers a refetch -- and it means the event
   ledger records when a gate moved but not which of the two it was. The
   approval ledger says that for a release; nothing says it for an opening.
-  *Upgrade:* the SSE slice, if the run view cannot answer it from `run_gates`.
+  *Upgrade:* none; `GateView` answers it from `run_gates`, and the tail's
+  frames carry no payload for it to be in.
 - **`emit` assumes it is inside a transaction, and nothing asserts it.** On an
   autocommit connection `lock_run` takes a row lock that is released before the
   insert runs, so the sequence it allocated is not the sequence it keeps --
@@ -946,5 +988,6 @@ exited phases still owe, each with the test it owes (`docs/DECISIONS.md` §38).
   is written; failure is not, and no node-level transition is: `accept` writes
   the artifact and the charge and emits nothing, though `SYSTEM_SPEC.md` §10
   puts every node transition through the one emitter. Phase 4 built the loop
-  without them and this entry once said Phase 4 would bring them. *Upgrade:*
-  the SSE slice, which is the first reader of a stream that would carry them.
+  without them and this entry once said Phase 4 would bring them; the tail is
+  now that reader and carries whatever the table holds, which is still four
+  run-level kinds. *Upgrade:* the slice that makes `accept` emit.

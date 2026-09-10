@@ -290,7 +290,7 @@ def test_only_the_emitter_inserts_a_run_event() -> None:
     Coarse on purpose. Matching the whole statement would miss it split across
     two string literals, so what fails a module is naming the table at all while
     carrying an insert of anything. A module that only reads the stream -- which
-    is what the SSE tail will be -- still passes.
+    is what the SSE tail is -- still passes.
     """
     writing = sorted(
         str(path.relative_to(REPO))

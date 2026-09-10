@@ -1815,3 +1815,83 @@ against and is applied; its speed pass -- a four-way join at three statements
 -- was declined, because it read the pin's existence in the statement that
 answers §8's question and bought one round trip with a query nobody will read
 twice.
+
+## 2026-09-10 §51 — The run's event tail polls, and a frame carries a name and nothing to read
+
+**Decided.** `GET /api/runs/{run_id}/events` serves `text/event-stream`.
+A frame is `id: <seq>`, `event: <kind>`, `data: {}` and nothing else:
+`SYSTEM_SPEC.md` §9 says the client never reads a payload, so the name is the
+whole message and `{}` is there only because a frame whose data buffer is
+empty is not dispatched at all. `Last-Event-ID` resumes; a value that is not a
+seq resumes from the start, which sends a client events it may already hold
+and cannot misread. Three things end a tail: a terminal run whose events are
+all delivered, a member whose standing has gone, and `TAIL_SECONDS` -- five
+minutes, §9's, after which the client reconnects and the edge reauthenticates
+it. Ending means the generator returns, so the body completes rather than
+leaving a connection to time out. One poll is one statement in its own
+transaction: the run, the member's standing on its case and the events after a
+seq, answered together, so no row means only what §8 allows it to mean. `kind`
+is decoded to `EventKind`, because `run_events.kind` carries no CHECK and the
+value is framed into the response, where a newline would forge an event.
+
+**Reason: polling, not `LISTEN`/`NOTIFY`.** One synchronous connection serves
+every request (§50), and a notification is delivered to whatever transaction
+that connection is in the middle of -- so the tail would be reading another
+request's transaction, or holding one of its own open across the wait, which
+is the thing this design most needs not to do. psycopg's notification support
+wants a connection of its own, and a connection per open stream is the pool
+this host has not built. The cost is one statement per second per open tail,
+and the ledger says so.
+
+**Reason: no transaction across an `await`.** The tail is the first code here
+that yields control while holding the store. A poll that left the connection
+in a transaction would make the next request's `store.transaction()` a
+savepoint inside this reader's -- for up to five minutes, on every request
+that arrived meanwhile. `test_the_tail_never_holds_a_transaction_across_an_await`
+reads `transaction_status` at every yield point, and
+`test_a_poll_leaves_the_connection_as_it_found_it` proves the other half: a
+caller who already had a transaction open still owns it.
+
+**Reason: the first poll is the endpoint's.** A stranger asking for a stream
+gets the private 404, not a 200 that closes immediately -- which would tell
+them the run exists by the shape of the answer. So the endpoint polls once,
+synchronously, and hands the result to the tail rather than making it poll
+again.
+
+**A tail is counted, because a request that lasts minutes is not one request.**
+`MAX_TAILS` is 100 and `MAX_TAILS_PER_MEMBER` is 4, reserved by the endpoint
+after standing is checked and released by the tail however it ends. §11 wants
+the instance ceiling enforced rather than assumed, and this is the first route
+whose purpose is to hold a request open: a thousand tails from one `READER`
+put a thousand statements a second on the connection every other request
+shares and took an unrelated read from 4 ms to 1570 ms -- measured against the
+real server, and the reason this is a ceiling in code rather than a line in
+the ledger. Every answer this app gives is one member's, so a middleware puts
+`Cache-Control: no-store` and `Vary` on all of them: §11 puts a reverse proxy
+in front, and a shared cache keys on method and URI alone.
+
+**Measured.** The suite is 537 passed, 1 skipped; the tail is 16 tests, and
+ is at 96 % coverage.
+
+**Reviewed adversarially, nine fixed and five ledgered.** Fixed: a
+`Last-Event-ID` of 4301 ASCII digits was an unauthenticated traceback, because
+`int()` refuses a string that long and the header was parsed before the only
+authorisation on the route -- so the parse is bounded to ten digits, a seq's
+worth, and nobody at all is now refused before a header of theirs is read; a
+`str.isdigit` superscript was the same crash in one latin-1 byte; a finished
+run answered a clean end of body, which `EventSource` treats as a dropped
+connection and reconnects to every few seconds forever, so it answers `204`
+instead; a quiet run sent no byte for five minutes, which a buffering proxy
+kills first, so an empty poll sends a comment; the stream carried no
+`x-accel-buffering`, which nginx needs to stop buffering it; a store failure
+mid-stream truncated the body and did it again on every reconnect, so any
+failure now ends the tail; `Poll` was named by no test, which `make lint`
+refuses once the file is tracked and not before; the exit test proved the
+generator stopped rather than the response closing, and now drives the route;
+and the transaction-across-an-await test never reached an await, so it samples
+inside the sleep. Ledgered: the ceiling bounds tails and not polls, so one
+member can still make four hundred statements a second; a caller that already
+holds a transaction hands it to a tail for five minutes; the poll has no
+`LIMIT`; a gate event emitted after `RUN_COMPLETED` reaches no live tail; and
+a client applying backpressure mid-batch parks the generator past its
+deadline.
